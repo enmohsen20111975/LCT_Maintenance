@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STS Data Analysis Dashboard</title>
+    <!-- External CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <!-- External JS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* Custom styles */
+        .sidebar {
+            transition: all 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 70px;
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed .sidebar-text {
+            display: none;
+        }
+
+        .sidebar.collapsed .sidebar-icon {
+            margin-right: 0;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            height: 100%;
+        }
+
+        .kpi-card {
+            transition: all 0.2s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark .chart-container,
+        .dark .kpi-card,
+        .dark .card {
+            background-color: #374151;
+            color: #f3f4f6;
+        }
+
+        .dark .table {
+            color: #f3f4f6;
+        }
+
+        .dark .table-striped tbody tr:nth-of-type(odd) {
+            background-color: #4b5563;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 0.5rem;
+            max-height: 90vh;
+            overflow-y: auto;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .dark .modal-content {
+            background-color: #374151;
+        }
+
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-800">
+    <!-- Sidebar -->
+    <div id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white dark:bg-gray-700 shadow-lg transform transition-transform duration-300 z-20 overflow-y-auto">
+        <!-- Sidebar Header with Toggle -->
+        <div class="p-4 border-b border-gray-200 dark:border-gray-600 flex items-center justify-between">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200">Dashboard Menu</h2>
+            <button id="sidebarCloseBtn" class="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Sidebar Sections -->
+        <div class="divide-y divide-gray-200 dark:divide-gray-600">
+            <!-- General Section -->
+            <div class="sidebar-section">
+                <button class="w-full p-4 flex items-center justify-between text-left text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
+                    <span class="font-medium">General</span>
+                    <i class="fas fa-chevron-down transform transition-transform duration-200"></i>
+                </button>
+                <div class="sidebar-section-content p-4 hidden">
+                    <div class="space-y-4">
+                        <button id="generalAnalysisBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-chart-bar mr-2"></i>
+                            Show All Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Corrective Section -->
+            <div class="sidebar-section">
+                <button class="w-full p-4 flex items-center justify-between text-left text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
+                    <span class="font-medium">Corrective</span>
+                    <i class="fas fa-chevron-down transform transition-transform duration-200"></i>
+                </button>
+                <div class="sidebar-section-content p-4 hidden">
+                    <div class="space-y-4">
+                        <button id="correctiveAnalysisBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-chart-line mr-2"></i>
+                            Run Corrective Analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Breakdown Section -->
+            <div class="sidebar-section">
+                <button class="w-full p-4 flex items-center justify-between text-left text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
+                    <span class="font-medium">Breakdown</span>
+                    <i class="fas fa-chevron-down transform transition-transform duration-200"></i>
+                </button>
+                <div class="sidebar-section-content p-4 hidden">
+                    <div class="space-y-4">
+                        <button id="breakdownAnalysisBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-tools mr-2"></i>
+                            Run Breakdown Analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters Section -->
+            <div class="sidebar-section">
+                <button class="w-full p-4 flex items-center justify-between text-left text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
+                    <span class="font-medium">Filters</span>
+                    <i class="fas fa-chevron-down transform transition-transform duration-200"></i>
+                </button>
+                <div class="sidebar-section-content p-4 hidden">
+                    <form id="filtersForm" class="space-y-4">
+                        <!-- Date Range Filters -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Order Date Range</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-xs text-gray-500">Week Start</label>
+                                    <input type="week" id="orderStartDate" class="w-full border rounded-lg px-3 py-2 dark:bg-gray-600 dark:border-gray-500">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500">Week End</label>
+                                    <input type="week" id="orderEndDate" class="w-full border rounded-lg px-3 py-2 dark:bg-gray-600 dark:border-gray-500">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Execution Date Range</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-xs text-gray-500">Week Start</label>
+                                    <input type="week" id="execStartDate" class="w-full border rounded-lg px-3 py-2 dark:bg-gray-600 dark:border-gray-500">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500">Week End</label>
+                                    <input type="week" id="execEndDate" class="w-full border rounded-lg px-3 py-2 dark:bg-gray-600 dark:border-gray-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Equipment Type Filter -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Equipment Type</label>
+                            <div class="flex space-x-2 mb-1">
+                                <button type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 px-2 py-1 rounded select-all-btn" data-target="eqTypeSelect">Select All</button>
+                                <button type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 px-2 py-1 rounded clear-all-btn" data-target="eqTypeSelect">Clear All</button>
+                            </div>
+                            <select id="eqTypeSelect" class="w-full border rounded-lg px-3 py-2 dark:bg-gray-600 dark:border-gray-500" multiple size="5"></select>
+                        </div>
+
+                        <!-- Fault Location Filter -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fault Location</label>
+                            <div class="flex space-x-2 mb-1">
+                                <button type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 px-2 py-1 rounded select-all-btn" data-target="faultLocationSelect">Select All</button>
+                                <button type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 px-2 py-1 rounded clear-all-btn" data-target="faultLocationSelect">Clear All</button>
+                            </div>
+                            <select id="faultLocationSelect" class="w-full border rounded-lg px-3 py-2 dark:bg-gray-600 dark:border-gray-500" multiple size="5"></select>
+                        </div>
+
+                        <!-- Job Type Filter -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Job Type</label>
+                            <div class="flex space-x-2 mb-1">
+                                <button type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 px-2 py-1 rounded select-all-btn" data-target="jobTypeSelect">Select All</button>
+                                <button type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 px-2 py-1 rounded clear-all-btn" data-target="jobTypeSelect">Clear All</button>
+                            </div>
+                            <select id="jobTypeSelect" class="w-full border rounded-lg px-3 py-2 dark:bg-gray-600 dark:border-gray-500" multiple size="5"></select>
+                        </div>
+
+                        <!-- Cost Purpose Filter -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cost Purpose</label>
+                            <div class="flex space-x-2 mb-1">
+                                <button type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 px-2 py-1 rounded select-all-btn" data-target="costPurposeSelect">Select All</button>
+                                <button type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 px-2 py-1 rounded clear-all-btn" data-target="costPurposeSelect">Clear All</button>
+                            </div>
+                            <select id="costPurposeSelect" class="w-full border rounded-lg px-3 py-2 dark:bg-gray-600 dark:border-gray-500" multiple size="5"></select>
+                        </div>
+
+                        <!-- Failure Filter -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Failure</label>
+                            <div class="flex space-x-2 mb-1">
+                                <button type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 px-2 py-1 rounded select-all-btn" data-target="failureSelect">Select All</button>
+                                <button type="button" class="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 px-2 py-1 rounded clear-all-btn" data-target="failureSelect">Clear All</button>
+                            </div>
+                            <select id="failureSelect" class="w-full border rounded-lg px-3 py-2 dark:bg-gray-600 dark:border-gray-500" multiple size="5"></select>
+                        </div>
+
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg">
+                            Apply Filters
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white dark:bg-gray-700 shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div class="flex justify-between items-center">
+                    <!-- Sidebar Toggle -->
+                    <button id="sidebarToggle" class="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+
+                    <div class="flex items-center space-x-4">
+                        <!-- Theme Selector -->
+                        <select id="themeSelector" class="text-sm rounded-lg bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="default">Default Theme</option>
+                            <option value="ocean">Ocean Blue</option>
+                            <option value="forest">Forest Green</option>
+                            <option value="sunset">Sunset Orange</option>
+                            <option value="royal">Royal Purple</option>
+                            <option value="ruby">Ruby Red</option>
+                            <option value="midnight">Midnight Blue</option>
+                            <option value="emerald">Emerald</option>
+                            <option value="golden">Golden</option>
+                            <option value="cherry">Cherry Blossom</option>
+                            <option value="cosmic">Cosmic</option>
+                        </select>
+
+                        <!-- Theme Toggle -->
+                        <button id="themeToggle" class="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
+                            <i class="fas fa-moon text-xl"></i>
+                        </button>
+
+                        <!-- Upload Button -->
+                        <button id="openUpload" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg flex items-center">
+                            <i class="fas fa-upload mr-2"></i>
+                            Upload Excel
+                        </button>
+
+                        <!-- ODC Button -->
+                        <button id="openODC" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg flex items-center">
+                            <i class="fas fa-database mr-2"></i>
+                            ODC
+                        </button>
+
+                        <!-- Export Button -->
+                        <button id="exportBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg flex items-center">
+                            <i class="fas fa-download mr-2"></i>
+                            Export
+                        </button>
+
+                        <!-- Refresh Button -->
+                        <button id="refreshBtn" class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg flex items-center">
+                            <i class="fas fa-sync-alt mr-2"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Rest of your content -->
+        <main class="p-6">
+            <div id="loadingSpinner" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+                <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-xl text-center">
+                    <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+                    <div id="statusMessage" class="mt-4 text-gray-700 dark:text-gray-300 font-medium">Processing data...</div>
+                </div>
+            </div>
+
+            <!-- Dashboard Content (hidden initially) -->
+            <div id="dashboard" class="hidden">
+                <!-- Dashboard Header -->
+                <div class="flex flex-wrap items-center justify-between mb-6 gap-4">
+                    <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Dashboard Overview</h2>
+                </div>
+
+                <!-- Equipment Selection Dropdown -->
+                <div class="mb-4 flex justify-between items-center">
+                    <div class="flex items-center space-x-4">
+                        <select id="equipmentSelect" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm">
+                            <option value="all">All Equipment</option>
+                            <option value="STS">STS Cranes</option>
+                            <option value="SPR">Spreaders</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- KPI Section -->
+                <div id="kpiSection" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <!-- KPI cards will be populated here -->
+                </div>
+
+                <!-- Chart Section -->
+                <div id="chartSection" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Charts will be populated here -->
+                </div>
+
+                <!-- Table Section -->
+                <div class="bg-white dark:bg-gray-700 rounded-lg shadow-sm overflow-hidden mb-6">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-600 flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Top 10 Faults</h3>
+                        <div class="flex items-center space-x-2">
+                            <button class="text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white">
+                                <i class="fas fa-download"></i>
+                            </button>
+                            <button class="text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                            <thead class="bg-gray-50 dark:bg-gray-600">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Fault Description</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Count</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Percentage</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody id="faultsTableBody" class="bg-white divide-y divide-gray-200 dark:bg-gray-700 dark:divide-gray-600">
+                                <!-- Table rows will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Upload Modal -->
+    <div id="uploadModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-600 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Upload Work Order Data</h3>
+                <button id="closeUpload" class="text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="uploadForm" class="space-y-4">
+                    <div>
+                        <label for="excelFile" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Excel File</label>
+                        <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-500 border-dashed rounded-lg">
+                            <div class="space-y-1 text-center">
+                                <div class="flex text-sm text-gray-600 dark:text-gray-300">
+                                    <label for="excelFile" class="relative cursor-pointer bg-white dark:bg-gray-700 rounded-md font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 focus-within:outline-none">
+                                        <span>Upload a file</span>
+                                        <input id="excelFile" name="excelFile" type="file" class="sr-only" accept=".xlsx,.xls">
+                                    </label>
+                                    <p class="pl-1">or drag and drop</p>
+                                </div>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">
+                                    XLSX or XLS files up to 10MB
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pt-2">
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg">
+                            Process Data
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ODC Connection Modal -->
+    <div id="odcModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-600 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Connect to ODC Data Source</h3>
+                <button id="closeODC" class="text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="odcForm" class="space-y-4">
+                    <div>
+                        <label for="odcHost" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Host</label>
+                        <input type="text" id="odcHost" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-600 dark:border-gray-500" value="10.32.50.172">
+                    </div>
+                    <div>
+                        <label for="odcPort" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Port</label>
+                        <input type="text" id="odcPort" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-600 dark:border-gray-500" value="2551">
+                    </div>
+                    <div>
+                        <label for="odcDb" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Database</label>
+                        <input type="text" id="odcDb" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-600 dark:border-gray-500" value="api3">
+                    </div>
+                    <div>
+                        <label for="odcUser" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
+                        <input type="text" id="odcUser" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-600 dark:border-gray-500" value="REPORTS">
+                    </div>
+                    <div>
+                        <label for="odcPass" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+                        <input type="password" id="odcPass" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-600 dark:border-gray-500" value="REPORTS" autocomplete="current-password">
+                    </div>
+                    <div class="pt-2">
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg">
+                            Connect
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"> </script>
+</body>
+</html>
