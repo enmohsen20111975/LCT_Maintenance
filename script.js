@@ -1,389 +1,164 @@
-// Add date handling functions at the top of the file
-function parseFrenchDate(dateStr) {
-    if (!dateStr) return null;
-    try {
-        // Handle Excel numeric dates
-        if (typeof dateStr === 'number') {
-            const excelEpoch = new Date(1899, 11, 30); // Excel's epoch is December 30, 1899
-            const msPerDay = 24 * 60 * 60 * 1000;
-            return new Date(excelEpoch.getTime() + (dateStr * msPerDay));
-        }
-
-        // Handle French format DD/MM/YYYY or DD-MM-YYYY
-        const parts = String(dateStr).split(/[\/\-\s]/);
-        if (parts.length >= 3) {
-            const day = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10) - 1;
-            const year = parseInt(parts[2], 10);
-            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                const date = new Date(year, month, day);
-                if (date && !isNaN(date.getTime())) {
-                    return date;
-                }
-            }
-        }
-
-        // Try standard date parsing as fallback
-        const date = new Date(dateStr);
-        return isNaN(date.getTime()) ? null : date;
-    } catch (e) {
-        console.warn('Error parsing date:', e);
-        return null;
-    }
-}
-
-function formatToFrenchDate(date) {
-    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-        return '';
-    }
-    try {
-        return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-    } catch (e) {
-        console.warn('Error formatting date:', e);
-        return '';
-    }
-}
-
-function formatDateForChart(dateStr) {
-    const date = parseFrenchDate(dateStr);
-    if (!date) return '';
-    
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const weekNumber = getWeekNumber(date);
-    return `${year}-${String(month).padStart(2, '0')}-W${String(weekNumber).padStart(2, '0')}`;
-}
-
-function getWeekNumber(date) {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-}
-
 // Declare currentData at the top level
 let currentData = null;
-
-function renderKPIs(kpis) {
-    const kpiSection = document.getElementById('kpiSection');
-    if (!kpiSection || !kpis) return;
-    
-    kpiSection.innerHTML = `
-        <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Work Orders</p>
-                    <p class="text-2xl font-semibold text-blue-600 dark:text-blue-400">${kpis.total_wo}</p>
-                </div>
-                <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400">
-                    <i class="fas fa-clipboard-list"></i>
-                </div>
-            </div>
-            <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>${kpis.waiting_count} waiting</span>
-                <span class="text-green-500 dark:text-green-400">${kpis.closed_count} closed</span>
-            </div>
-        </div>
-
-        <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Average Processing Days</p>
-                    <p class="text-2xl font-semibold text-green-600 dark:text-green-400">${kpis.avg_processing_time.toFixed(1)}</p>
-                </div>
-                <div class="p-3 rounded-full bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400">
-                    <i class="fas fa-clock"></i>
-                </div>
-            </div>
-            <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>Target: 5 days</span>
-            </div>
-        </div>
-
-        <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Top Job Type</p>
-                    <p class="text-2xl font-semibold text-purple-600 dark:text-purple-400">${kpis.top_job_type.obs}</p>
-                </div>
-                <div class="p-3 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400">
-                    <i class="fas fa-tasks"></i>
-                </div>
-            </div>
-            <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>${kpis.top_job_type.description}</span>
-                <span>${kpis.top_job_type.count} WOs</span>
-            </div>
-        </div>
-
-        <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Top Status</p>
-                    <p class="text-2xl font-semibold text-orange-600 dark:text-orange-400">${kpis.top_status.obs}</p>
-                </div>
-                <div class="p-3 rounded-full bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400">
-                    <i class="fas fa-chart-pie"></i>
-                </div>
-            </div>
-            <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>${kpis.top_status.description}</span>
-                <span>${kpis.top_status.count} WOs</span>
-            </div>
-        </div>
-    `;
-}
-
-function renderCorrectiveKPIs(data) {
-    const kpiSection = document.getElementById('kpiSection');
-    if (!kpiSection || !data) return;
-
-    // Filter corrective maintenance work orders
-    const correctiveWOs = data.filter(item => 
-        item.Job_type === 'C' || item.Job_type === 'CM' || 
-        item.Cost_purpose_key === 'Corrective'
-    );
-
-    // Calculate KPIs for corrective maintenance
-    const total = correctiveWOs.length;
-    const closed = correctiveWOs.filter(wo => wo.Jobexec_dt).length;
-    const waiting = total - closed;
-    
-    // Calculate average processing time for closed corrective WOs
-    let avgProcessingTime = 0;
-    const closedWOs = correctiveWOs.filter(wo => wo.Jobexec_dt);
-    if (closedWOs.length > 0) {
-        const processingTimes = closedWOs.map(wo => {
-            const startDate = parseFrenchDate(wo.Order_date);
-            const endDate = parseFrenchDate(wo.Jobexec_dt);
-            return startDate && endDate ? (endDate - startDate) / (1000 * 60 * 60 * 24) : 0;
-        }).filter(time => time > 0);
-        
-        if (processingTimes.length > 0) {
-            avgProcessingTime = processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length;
-        }
-    }
-
-    // Get most common fault location
-    const locationCounts = {};
-    correctiveWOs.forEach(wo => {
-        if (wo.faultlocation) {
-            locationCounts[wo.faultlocation] = (locationCounts[wo.faultlocation] || 0) + 1;
-        }
-    });
-    const topLocation = Object.entries(locationCounts)
-        .sort((a, b) => b[1] - a[1])[0] || ['Unknown', 0];
-
-    kpiSection.innerHTML = `
-        <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Corrective Work Orders</p>
-                    <p class="text-2xl font-semibold text-blue-600 dark:text-blue-400">${total}</p>
-                </div>
-                <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400">
-                    <i class="fas fa-wrench"></i>
-                </div>
-            </div>
-            <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>${waiting} waiting</span>
-                <span class="text-green-500 dark:text-green-400">${closed} closed</span>
-            </div>
-        </div>
-
-        <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Average Repair Time</p>
-                    <p class="text-2xl font-semibold text-green-600 dark:text-green-400">${avgProcessingTime.toFixed(1)} days</p>
-                </div>
-                <div class="p-3 rounded-full bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400">
-                    <i class="fas fa-clock"></i>
-                </div>
-            </div>
-            <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>Target: 3 days</span>
-            </div>
-        </div>
-
-        <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Most Common Location</p>
-                    <p class="text-2xl font-semibold text-purple-600 dark:text-purple-400">${topLocation[0]}</p>
-                </div>
-                <div class="p-3 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400">
-                    <i class="fas fa-map-marker-alt"></i>
-                </div>
-            </div>
-            <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>${topLocation[1]} occurrences</span>
-            </div>
-        </div>
-    `;
-}
-
-function renderBreakdownKPIs(data) {
-    const kpiSection = document.getElementById('kpiSection');
-    if (!kpiSection || !data) return;
-
-    // Filter breakdown work orders
-    const breakdownWOs = data.filter(item => 
-        item.Job_type === 'BDN' || 
-        (item.Description && item.Description.toUpperCase().includes('BREAKDOWN'))
-    );
-
-    // Calculate KPIs for breakdowns
-    const total = breakdownWOs.length;
-    const closed = breakdownWOs.filter(wo => wo.Jobexec_dt).length;
-    const waiting = total - closed;
-    
-    // Calculate average downtime for closed breakdown WOs
-    let avgDowntime = 0;
-    const closedBreakdowns = breakdownWOs.filter(wo => wo.Jobexec_dt);
-    if (closedBreakdowns.length > 0) {
-        const downtimes = closedBreakdowns.map(wo => {
-            const startDate = parseFrenchDate(wo.Order_date);
-            const endDate = parseFrenchDate(wo.Jobexec_dt);
-            return startDate && endDate ? (endDate - startDate) / (1000 * 60 * 60) : 0; // Convert to hours
-        }).filter(time => time > 0);
-        
-        if (downtimes.length > 0) {
-            avgDowntime = downtimes.reduce((a, b) => a + b, 0) / downtimes.length;
-        }
-    }
-
-    // Get most critical equipment
-    const equipmentCounts = {};
-    breakdownWOs.forEach(wo => {
-        if (wo.EQ_type) {
-            equipmentCounts[wo.EQ_type] = (equipmentCounts[wo.EQ_type] || 0) + 1;
-        }
-    });
-    const criticalEquipment = Object.entries(equipmentCounts)
-        .sort((a, b) => b[1] - a[1])[0] || ['Unknown', 0];
-
-    kpiSection.innerHTML = `
-        <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Breakdowns</p>
-                    <p class="text-2xl font-semibold text-red-600 dark:text-red-400">${total}</p>
-                </div>
-                <div class="p-3 rounded-full bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400">
-                    <i class="fas fa-exclamation-triangle"></i>
-                </div>
-            </div>
-            <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>${waiting} active</span>
-                <span class="text-green-500 dark:text-green-400">${closed} resolved</span>
-            </div>
-        </div>
-
-        <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Average Downtime</p>
-                    <p class="text-2xl font-semibold text-orange-600 dark:text-orange-400">${avgDowntime.toFixed(1)} hrs</p>
-                </div>
-                <div class="p-3 rounded-full bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400">
-                    <i class="fas fa-hourglass-half"></i>
-                </div>
-            </div>
-            <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>Target: < 4 hours</span>
-            </div>
-        </div>
-
-        <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Most Critical Equipment</p>
-                    <p class="text-2xl font-semibold text-purple-600 dark:text-purple-400">${criticalEquipment[0]}</p>
-                </div>
-                <div class="p-3 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400">
-                    <i class="fas fa-tools"></i>
-                </div>
-            </div>
-            <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>${criticalEquipment[1]} breakdowns</span>
-            </div>
-        </div>
-    `;
-}
-
-// Add generateSampleData function near the top with other utility functions
-function generateSampleData() {
-    const data = [];
-    const statuses = ['IPG', 'FIN', 'WSP', 'RDY', 'INI'];
-    const jobTypes = ['CM', 'PM', 'BDN', 'INSP'];
-    const locations = ['HOIST', 'TROLLEY', 'GANTRY', 'SPREADER', 'BOOM'];
-    const equipment = ['STS', 'SPR'];
-
-    // Generate 50 sample records
-    for (let i = 0; i < 50; i++) {
-        const orderDate = new Date(2025, 0, 1);
-        orderDate.setDate(orderDate.getDate() + Math.floor(Math.random() * 365));
-        
-        const isClosed = Math.random() > 0.3;
-        const execDate = isClosed ? new Date(orderDate.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null;
-
-        data.push({
-            WO_key: `WO${280000 + i}`,
-            Description: `Sample work order ${i + 1}`,
-            MO_key: `${equipment[Math.floor(Math.random() * equipment.length)]}${1000 + i}`,
-            Order_date: formatToFrenchDate(orderDate),
-            Jobexec_dt: execDate ? formatToFrenchDate(execDate) : null,
-            JobstatusObs: statuses[Math.floor(Math.random() * statuses.length)],
-            Job_type: jobTypes[Math.floor(Math.random() * jobTypes.length)],
-            faultlocation: locations[Math.floor(Math.random() * locations.length)],
-            Cost_purpose_key: 'Corrective'
-        });
-    }
-
-    return {
-        data: data,
-        kpis: processData(data).kpis,
-        charts: processData(data).charts
-    };
-}
-
-function createChartContainer() {
-    const container = document.createElement('div');
-    container.className = 'chart-container';
-    container.style.minHeight = '400px';
-    container.style.width = '100%';
-    document.getElementById('chartSection').appendChild(container);
-    return container;
-}
 
 document.addEventListener('DOMContentLoaded', function() {
     // Theme handling
     const themeSelector = document.getElementById('themeSelector');
     const themeToggle = document.getElementById('themeToggle');
     
+    // Add helper functions first
+    function parseFrenchDate(dateStr) {
+        if (!dateStr) return null;
+        try {
+            // Handle Excel numeric dates
+            if (typeof dateStr === 'number') {
+                const excelEpoch = new Date(1899, 11, 30); // Excel's epoch is December 30, 1899
+                const msPerDay = 24 * 60 * 60 * 1000;
+                const date = new Date(excelEpoch.getTime() + (dateStr * msPerDay));
+                return date;
+            }
+
+            // Handle ISO format YYYY-MM-DD
+            if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                    return date;
+                }
+            }
+
+            // Handle French format DD/MM/YYYY or DD-MM-YYYY
+            const parts = String(dateStr).split(/[\/\-\s]/);
+            if (parts.length >= 3) {
+                const day = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const year = parseInt(parts[2], 10);
+                if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                    const date = new Date(year, month, day);
+                    if (date && !isNaN(date.getTime())) {
+                        return date;
+                    }
+                }
+            }
+
+            // Try standard date parsing as fallback
+            const date = new Date(dateStr);
+            return isNaN(date.getTime()) ? null : date;
+        } catch (e) {
+            console.warn('Error parsing date:', e, 'for input:', dateStr);
+            return null;
+        }
+    }
+
+    function formatToFrenchDate(date) {
+        if (!date || !(date instanceof Date) || isNaN(date)) return null;
+        return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+    }
+
+    function getWeekNumber(date) {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+    }
+
+    function formatDateForChart(dateStr) {
+        const date = parseFrenchDate(dateStr);
+        if (!date) return 'Unknown';
+        const year = date.getFullYear();
+        const week = getWeekNumber(date);
+        return `${year}-W${week.toString().padStart(2, '0')}`;
+    }
+
+    function getJobTypeFullName(acronym) {
+        const jobTypeMap = {
+            'C': 'Corrective',
+            'P': 'Planning',
+            'CM': 'Corrective Maintenance',
+            'PM': 'Preventive Maintenance',
+            'OPS': 'Operation',
+            'INSP': 'Inspection',
+            'BDN': 'Breakdown',
+            'SOP': 'Standard Operating Procedure',
+            'KPI': 'Key Performance Indicator',
+            'Eng': 'Engineer',
+            'Sup': 'Supervisor',
+            'Tech': 'Technician',
+            'S': 'Safety'
+        };
+        return jobTypeMap[acronym] || acronym;
+    }
+
+    function formatTimeDuration(days) {
+        if (days < 1) {
+            const hours = Math.floor(days * 24);
+            const minutes = Math.floor((days * 24 * 60) % 60);
+            return {
+                display: `${hours}h ${minutes}m`,
+                unit: ''
+            };
+        } else {
+            return {
+                display: days.toFixed(1),
+                unit: ' days'
+            };
+        }
+    }
+
     // Theme management functions
     function setTheme(themeName) {
         // Remove all existing theme classes
-        document.body.classList.forEach(className => {
+        document.documentElement.classList.forEach(className => {
             if (className.startsWith('theme-')) {
-                document.body.classList.remove(className);
+                document.documentElement.classList.remove(className);
             }
         });
         
         // Add new theme class if not default
         if (themeName !== 'default') {
-            document.body.classList.add(`theme-${themeName}`);
+            document.documentElement.classList.add(`theme-${themeName}`);
+            // Add dark variant if dark mode is enabled
+            if (document.body.classList.contains('dark')) {
+                document.documentElement.classList.add(`theme-${themeName}-dark`);
+            }
         }
         
         // Save theme preference
         localStorage.setItem('theme', themeName);
 
+        // Update UI elements
+        updateUIForTheme(themeName);
+
         // Update charts if they exist
         if (currentData) {
             updateCharts(currentData.data);
         }
+    }
+
+    function updateUIForTheme(themeName) {
+        // Get theme colors
+        const style = getComputedStyle(document.documentElement);
+        const primaryColor = style.getPropertyValue('--primary-color').trim();
+        const secondaryColor = style.getPropertyValue('--secondary-color').trim();
+        const accentColor = style.getPropertyValue('--accent-color').trim();
+        
+        // Update buttons
+        document.querySelectorAll('.btn-primary').forEach(btn => {
+            btn.style.backgroundColor = primaryColor;
+        });
+        
+        document.querySelectorAll('.btn-secondary').forEach(btn => {
+            btn.style.backgroundColor = secondaryColor;
+        });
+        
+        // Update KPI cards
+        document.querySelectorAll('.kpi-card').forEach(card => {
+            card.style.borderLeft = `4px solid ${primaryColor}`;
+        });
+        
+        // Update icons
+        document.querySelectorAll('.fas').forEach(icon => {
+            icon.style.color = accentColor;
+        });
     }
 
     function initializeTheme() {
@@ -939,12 +714,14 @@ document.addEventListener('DOMContentLoaded', function() {
             Array.from(select.options).forEach(option => {
                 option.selected = true;
             });
+            applyFilters(); // Trigger immediate update
         } else if (e.target.classList.contains('clear-all-btn')) {
             const targetId = e.target.getAttribute('data-target');
             const select = document.getElementById(targetId);
             Array.from(select.options).forEach(option => {
                 option.selected = false;
             });
+            applyFilters(); // Trigger immediate update
         }
     });
 
@@ -990,7 +767,10 @@ document.addEventListener('DOMContentLoaded', function() {
             'Eng': 'Engineer',
             'Sup': 'Supervisor',
             'Tech': 'Technician',
-            'S': 'Safety'
+            'S': 'Safety',
+            'I': 'Inspection',
+            'O': 'Accedint',
+            'U':'Unplanned'
         };
         return jobTypeMap[acronym] || acronym;
     }
@@ -1046,7 +826,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (selectedEquipment === 'STS') {
                         return item.MO_key && item.MO_key.toUpperCase().includes('STS');
                     } else if (selectedEquipment === 'SPR') {
-                        return item.MO_key && item.MO_key.toUpperCase().includes('SPR');
+                        const moKey = item.MO_key && item.MO_key.toUpperCase();
+                        return moKey && moKey.includes('SPR') && isValidSpreaderNumber(moKey);
                     }
                     return true;
                 });
@@ -1205,6 +986,16 @@ document.addEventListener('DOMContentLoaded', function() {
         return "";
     }
 
+    function isValidSpreaderNumber(spreaderName) {
+        // Extract the number part from spreader name (e.g., "SPR102" -> 102)
+        const match = spreaderName.match(/SPR(\d+)/i);
+        if (!match) return false;
+        
+        const number = parseInt(match[1], 10);
+        // Include spreaders with numbers < 100 or > 200
+        return number < 100 || number > 200;
+    }
+
     // Process Excel workbook and extract data
     function processExcelWorkbook(workbook) {
         if (!workbook || !workbook.Sheets) {
@@ -1315,12 +1106,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Extract equipment name based on MO_key
                 let EQ_name = '';
                 if (row.MO_key) {
-                    if (row.MO_key.toUpperCase().includes('STS')) {
-                        EQ_name = row.MO_key.slice(-5); // Last 5 characters for STS
-                    } else if (row.MO_key.toUpperCase().includes('SPR')) {
-                        EQ_name = row.MO_key.slice(-6); // Last 6 characters for Spreader
+                    const moKey = row.MO_key.toUpperCase();
+                    if (moKey.includes('STS')) {
+                        EQ_name = moKey.slice(0, 5); // First 5 characters for STS
+                    } else if (moKey.includes('SPR') || moKey.includes('SPS')) {
+                        // Only include spreaders with valid numbers (< 100 or > 200)
+                        if (isValidSpreaderNumber(moKey)) {
+                            EQ_name = moKey.slice(0, 6); // First 6 characters for Spreader
+                        }
                     }
                 }
+
+                if (!EQ_name) return null; // Skip invalid equipment
 
                 // Determine equipment type and fault location
                 const equipmentType = getEquipmentType(row.MO_key);
@@ -1341,7 +1138,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     Order_date: orderDate ? formatToFrenchDate(orderDate) : null,
                     Jobexec_dt: execDate ? formatToFrenchDate(execDate) : null
                 };
-            }).filter(Boolean);
+            }).filter(Boolean); // Remove null entries (invalid spreaders)
 
             if (processedData.length === 0) {
                 throw new Error('No valid data rows found after processing');
@@ -1350,6 +1147,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // Process the data and return the result
             const resultData = processData(processedData);
             
+            // Update time period information
+            if (resultData.data) {
+                updateTimePeriodInfo(resultData.data);
+            }
+
             // Return the complete result
             return resultData;
 
@@ -1458,23 +1260,43 @@ document.addEventListener('DOMContentLoaded', function() {
             // Map numeric status codes to their descriptions with error handling
             data = data.map(item => {
                 try {
+                    // Process job status
                     if (item.Jobstatus) {
                         const status = getJobStatusFullName(item.Jobstatus);
-                        return {
+                        item = {
                             ...item,
                             JobstatusCode: item.Jobstatus,
                             JobstatusObs: status.obs || 'Unknown',
                             JobstatusDescription: status.description || 'Unknown'
                         };
                     }
+
+                    // Extract equipment name based on MO_key
+                    let EQ_name = 'Unknown';
+                    if (item.MO_key) {
+                        const moKey = item.MO_key.toUpperCase();
+                        if (moKey.includes('STS')) {
+                            EQ_name = moKey.substring(0, 5);  // Get first 5 characters for STS
+                        } else if (moKey.includes('SPR')) {
+                            EQ_name = moKey.substring(0, 6);  // Get first 6 characters for Spreader
+                        }
+                    }
+                    item.EQ_name = EQ_name;
+                    
+                    // Extract failure from WO_name and Description
+                    const combinedText = `${item.WO_name || ''} ${item.Description || ''}`;
+                    item.failure = determineFailure(combinedText) || 'Unknown';
+                    
                     return item;
                 } catch (e) {
-                    console.warn('Error processing job status:', e);
+                    console.warn('Error processing item:', e);
                     return {
                         ...item,
                         JobstatusCode: item.Jobstatus,
                         JobstatusObs: 'Unknown',
-                        JobstatusDescription: 'Unknown'
+                        JobstatusDescription: 'Unknown',
+                        failure: 'Unknown',
+                        EQ_name: 'Unknown'
                     };
                 }
             });
@@ -1684,10 +1506,9 @@ document.addEventListener('DOMContentLoaded', function() {
             loadingSpinner.classList.remove('hidden');
             statusMessage.textContent = 'Running Corrective Analysis...';
 
-            // Filter for corrective maintenance data
+            // Filter for corrective maintenance data - Updated filter logic
             const correctiveData = currentData.data.filter(item => 
-                item.Job_type === 'C' || item.Job_type === 'CM' || 
-                item.Cost_purpose_key === 'Corrective'
+                item.Job_type === 'C' || item.Job_type === 'CM' || item.Job_type === 'INSP'
             );
 
             currentView = 'corrective';
@@ -1710,10 +1531,9 @@ document.addEventListener('DOMContentLoaded', function() {
             loadingSpinner.classList.remove('hidden');
             statusMessage.textContent = 'Running Breakdown Analysis...';
 
-            // Filter for breakdown data
+            // Filter for breakdown data - Updated filter logic to include "U" for unplanned
             const breakdownData = currentData.data.filter(item => 
-                item.Job_type === 'BDN' || 
-                item.Description?.toLowerCase().includes('breakdown')
+                item.Job_type === 'BDN' || item.Job_type === 'U'
             );
 
             currentView = 'breakdown';
@@ -1727,8 +1547,41 @@ document.addEventListener('DOMContentLoaded', function() {
         const chartSection = document.getElementById('chartSection');
         chartSection.innerHTML = '';
 
+        // Calculate time-based metrics
+        const timeMetrics = data.reduce((acc, wo) => {
+            if (wo.Order_date && wo.Jobexec_dt) {
+                const startDate = parseFrenchDate(wo.Order_date);
+                const endDate = parseFrenchDate(wo.Jobexec_dt);
+                if (startDate && endDate) {
+                    const timeDiff = (endDate - startDate) / (1000 * 60 * 60); // Convert to hours
+                    acc.durations.push(timeDiff);
+                }
+            }
+            return acc;
+        }, { durations: [] });
+
+        // Format the average time
+        let avgTimeDisplay = 'N/A';
+        let timeUnit = '';
+        if (timeMetrics.durations.length > 0) {
+            const avgHours = timeMetrics.durations.reduce((a, b) => a + b, 0) / timeMetrics.durations.length;
+            if (avgHours < 24) {
+                const hours = Math.floor(avgHours);
+                const minutes = Math.floor((avgHours % 1) * 60);
+                avgTimeDisplay = `${hours}h ${minutes}m`;
+            } else {
+                const days = (avgHours / 24).toFixed(1);
+                avgTimeDisplay = days;
+                timeUnit = ' days';
+            }
+        }
+
         // Common data preparation
         const chartData = prepareChartData(data);
+
+        // Add average time to chart data
+        chartData.avgTimeDisplay = avgTimeDisplay;
+        chartData.timeUnit = timeUnit;
 
         // Render different charts based on view type
         switch (viewType) {
@@ -1998,5 +1851,872 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         darkModeObserver.observe(document.body, { attributes: true });
+    }
+
+    // Add filter event handler
+    const filtersForm = document.getElementById('filtersForm');
+    if (filtersForm) {
+        // Setup date range pickers with dynamic min/max dates
+        function setupDateRanges(data) {
+            // Get all dates from the data
+            const dates = data
+                .map(item => item.Order_date)
+                .filter(Boolean)
+                .map(dateStr => parseFrenchDate(dateStr))
+                .filter(date => date && !isNaN(date.getTime()));
+
+            if (dates.length > 0) {
+                const minDate = new Date(Math.min(...dates));
+                const maxDate = new Date(Math.max(...dates));
+
+                // Set min/max for order date inputs
+                const orderStartDate = document.getElementById('orderStartDate');
+                const orderEndDate = document.getElementById('orderEndDate');
+                if (orderStartDate && orderEndDate) {
+                    const minWeek = getWeekNumber(minDate);
+                    const maxWeek = getWeekNumber(maxDate);
+                    orderStartDate.min = `${minDate.getFullYear()}-W${String(minWeek).padStart(2, '0')}`;
+                    orderEndDate.max = `${maxDate.getFullYear()}-W${String(maxWeek).padStart(2, '0')}`;
+                    
+                    // Set default values
+                    orderStartDate.value = orderStartDate.min;
+                    orderEndDate.value = orderEndDate.max;
+                }
+
+                // Set min/max for execution date inputs
+                const execStartDate = document.getElementById('execStartDate');
+                const execEndDate = document.getElementById('execEndDate');
+                if (execStartDate && execEndDate) {
+                    const minWeek = getWeekNumber(minDate);
+                    const maxWeek = getWeekNumber(maxDate);
+                    execStartDate.min = `${minDate.getFullYear()}-W${String(minWeek).padStart(2, '0')}`;
+                    execEndDate.max = `${maxDate.getFullYear()}-W${String(maxWeek).padStart(2, '0')}`;
+                    
+                    // Set default values
+                    execStartDate.value = execStartDate.min;
+                    execEndDate.value = execEndDate.max;
+                }
+            }
+        }
+
+        filtersForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!currentData) {
+                alert('Please load data first before applying filters.');
+                return;
+            }
+
+            // Get filter values with defensive checks
+            const orderStartDate = document.getElementById('orderStartDate')?.value || '';
+            const orderEndDate = document.getElementById('orderEndDate')?.value || '';
+            const execStartDate = document.getElementById('execStartDate')?.value || '';
+            const execEndDate = document.getElementById('execEndDate')?.value || '';
+            
+            // Get selected options with defensive checks
+            const jobTypeSelect = document.getElementById('jobTypeSelect');
+            const jobStatusSelect = document.getElementById('jobStatusSelect');
+            const faultLocationSelect = document.getElementById('faultLocationSelect');
+            const eqTypeSelect = document.getElementById('eqTypeSelect');
+            const costPurposeSelect = document.getElementById('costPurposeSelect');
+            const failureSelect = document.getElementById('failureSelect');
+
+            const selectedJobTypes = jobTypeSelect ? Array.from(jobTypeSelect.selectedOptions).map(opt => opt.value) : [];
+            const selectedStatuses = jobStatusSelect ? Array.from(jobStatusSelect.selectedOptions).map(opt => opt.value) : [];
+            const selectedLocations = faultLocationSelect ? Array.from(faultLocationSelect.selectedOptions).map(opt => opt.value) : [];
+            const selectedEquipment = eqTypeSelect ? Array.from(eqTypeSelect.selectedOptions).map(opt => opt.value) : [];
+            const selectedPurposes = costPurposeSelect ? Array.from(costPurposeSelect.selectedOptions).map(opt => opt.value) : [];
+            const selectedFailures = failureSelect ? Array.from(failureSelect.selectedOptions).map(opt => opt.value) : [];
+
+            // Apply filters
+            let filteredData = currentData.data.filter(item => {
+                // Date range filters
+                const itemOrderDate = parseFrenchDate(item.Order_date);
+                const itemExecDate = parseFrenchDate(item.Jobexec_dt);
+                const orderStartDateTime = orderStartDate ? getDateFromISOWeek(orderStartDate) : null;
+                const orderEndDateTime = orderEndDate ? getDateFromISOWeek(orderEndDate) : null;
+                const execStartDateTime = execStartDate ? getDateFromISOWeek(execStartDate) : null;
+                const execEndDateTime = execEndDate ? getDateFromISOWeek(execEndDate) : null;
+
+                // Check order date range
+                if (orderStartDateTime && itemOrderDate && itemOrderDate < orderStartDateTime) return false;
+                if (orderEndDateTime && itemOrderDate && itemOrderDate > orderEndDateTime) return false;
+
+                // Check execution date range
+                if (execStartDateTime && itemExecDate && itemExecDate < execStartDateTime) return false;
+                if (execEndDateTime && itemExecDate && itemExecDate > execEndDateTime) return false;
+
+                // Other filters
+                if (selectedJobTypes.length && !selectedJobTypes.includes(item.Job_type)) return false;
+                if (selectedStatuses.length && !selectedStatuses.includes(item.JobstatusObs)) return false;
+                if (selectedLocations.length && !selectedLocations.includes(item.faultlocation)) return false;
+                if (selectedEquipment.length && !selectedEquipment.includes(item.EQ_type)) return false;
+                if (selectedPurposes.length && !selectedPurposes.includes(item.Cost_purpose_key)) return false;
+                if (selectedFailures.length && !selectedFailures.includes(item.failure)) return false;
+
+                return true;
+            });
+
+            // Update charts with filtered data
+            updateCharts(filteredData);
+        });
+
+        // Helper function to get week number from ISO week string (YYYY-Www)
+        function getWeekFromISOString(isoWeek) {
+            const [year, week] = isoWeek.split('-W');
+            return parseInt(week, 10);
+        }
+    }
+
+    // Call setupDateRanges when data is loaded
+    const originalPopulateDropdowns = populateDropdowns;
+    populateDropdowns = function(data) {
+        originalPopulateDropdowns(data);
+        setupDateRanges(data);
+    };
+
+    // Helper function to convert ISO week to Date
+    function getDateFromISOWeek(isoWeek) {
+        if (!isoWeek) return null;
+        try {
+            const [year, week] = isoWeek.split('-W');
+            const simple = new Date(year, 0, 1 + (week - 1) * 7);
+            const day = simple.getDay();
+            const diff = simple.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+            return new Date(simple.setDate(diff));
+        } catch (e) {
+            console.warn('Error parsing ISO week:', e);
+            return null;
+        }
+    }
+
+    function applyFilters() {
+        if (!currentData) {
+            alert('Please load data first before applying filters.');
+            return;
+        }
+
+        // Get filter values
+        const orderStartDate = document.getElementById('orderStartDate')?.value;
+        const orderEndDate = document.getElementById('orderEndDate')?.value;
+        const execStartDate = document.getElementById('execStartDate')?.value;
+        const execEndDate = document.getElementById('execEndDate')?.value;
+        
+        // Convert ISO week values to dates
+        const orderStartDateTime = orderStartDate ? getDateFromISOWeek(orderStartDate) : null;
+        const orderEndDateTime = orderEndDate ? getDateFromISOWeek(orderEndDate) : null;
+        const execStartDateTime = execStartDate ? getDateFromISOWeek(execStartDate) : null;
+        const execEndDateTime = execEndDate ? getDateFromISOWeek(execEndDate) : null;
+
+        // Get selected options
+        const jobTypeSelect = document.getElementById('jobTypeSelect');
+        const jobStatusSelect = document.getElementById('jobStatusSelect');
+        const faultLocationSelect = document.getElementById('faultLocationSelect');
+        const eqTypeSelect = document.getElementById('eqTypeSelect');
+        const costPurposeSelect = document.getElementById('costPurposeSelect');
+        const failureSelect = document.getElementById('failureSelect');
+
+        const selectedJobTypes = jobTypeSelect ? Array.from(jobTypeSelect.selectedOptions).map(opt => opt.value) : [];
+        const selectedStatuses = jobStatusSelect ? Array.from(jobStatusSelect.selectedOptions).map(opt => opt.value) : [];
+        const selectedLocations = faultLocationSelect ? Array.from(faultLocationSelect.selectedOptions).map(opt => opt.value) : [];
+        const selectedEquipment = eqTypeSelect ? Array.from(eqTypeSelect.selectedOptions).map(opt => opt.value) : [];
+        const selectedPurposes = costPurposeSelect ? Array.from(costPurposeSelect.selectedOptions).map(opt => opt.value) : [];
+        const selectedFailures = failureSelect ? Array.from(failureSelect.selectedOptions).map(opt => opt.value) : [];
+
+        // Apply filters
+        let filteredData = currentData.data.filter(item => {
+            // Date range filters
+            const itemOrderDate = parseFrenchDate(item.Order_date);
+            const itemExecDate = parseFrenchDate(item.Jobexec_dt);
+
+            // Check order date range
+            if (orderStartDateTime && itemOrderDate && itemOrderDate < orderStartDateTime) return false;
+            if (orderEndDateTime && itemOrderDate && itemOrderDate > orderEndDateTime) return false;
+
+            // Check execution date range
+            if (execStartDateTime && itemExecDate && itemExecDate < execStartDateTime) return false;
+            if (execEndDateTime && itemExecDate && itemExecDate > execEndDateTime) return false;
+
+            // Multi-select filters - if nothing is selected, don't filter
+            if (selectedJobTypes.length > 0 && !selectedJobTypes.includes(item.Job_type)) return false;
+            if (selectedStatuses.length > 0 && !selectedStatuses.includes(item.JobstatusObs)) return false;
+            if (selectedLocations.length > 0 && !selectedLocations.includes(item.faultlocation)) return false;
+            if (selectedEquipment.length > 0 && !selectedEquipment.includes(item.EQ_type)) return false;
+            if (selectedPurposes.length > 0 && !selectedPurposes.includes(item.Cost_purpose_key)) return false;
+            if (selectedFailures.length > 0 && !selectedFailures.includes(item.failure)) return false;
+
+            return true;
+        });
+
+        // Update charts and KPIs with filtered data
+        updateCharts(filteredData);
+        if (currentView === 'general') {
+            renderGeneralKPIs(filteredData);
+        } else if (currentView === 'corrective') {
+            renderCorrectiveKPIs(filteredData);
+        } else if (currentView === 'breakdown') {
+            renderBreakdownKPIs(filteredData);
+        }
+    }
+
+    function renderGeneralKPIs(data) {
+        const kpiSection = document.getElementById('kpiSection');
+        if (!kpiSection || !data) return;
+
+        // Calculate overall statistics
+        const total = data.length;
+        const closed = data.filter(wo => wo.Jobexec_dt).length;
+        const waiting = total - closed;
+        
+        // Calculate average processing time for all WOs
+        let avgProcessingTime = 0;
+        let timeUnit = 'days';
+        let processingTimeDisplay = '';
+        const closedWOs = data.filter(wo => wo.Jobexec_dt);
+        if (closedWOs.length > 0) {
+            const processingTimes = closedWOs.map(wo => {
+                const startDate = parseFrenchDate(wo.Order_date);
+                const endDate = parseFrenchDate(wo.Jobexec_dt);
+                return startDate && endDate ? (endDate - startDate) / (1000 * 60 * 60 * 24) : 0;
+            }).filter(time => time > 0);
+            
+            if (processingTimes.length > 0) {
+                avgProcessingTime = processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length;
+                
+                const formattedTime = formatTimeDuration(avgProcessingTime);
+                processingTimeDisplay = formattedTime.display;
+                timeUnit = formattedTime.unit;
+            }
+        }
+
+        // Get most common job type and status
+        const jobTypeCounts = {};
+        const statusCounts = {};
+        data.forEach(wo => {
+            if (wo.Job_type) {
+                jobTypeCounts[wo.Job_type] = (jobTypeCounts[wo.Job_type] || 0) + 1;
+            }
+            if (wo.JobstatusObs) {
+                statusCounts[wo.JobstatusObs] = (statusCounts[wo.JobstatusObs] || 0) + 1;
+            }
+        });
+
+        const topJobType = Object.entries(jobTypeCounts)
+            .sort((a, b) => b[1] - a[1])[0] || ['Unknown', 0];
+        const topStatus = Object.entries(statusCounts)
+            .sort((a, b) => b[1] - a[1])[0] || ['Unknown', 0];
+
+        kpiSection.innerHTML = `
+            <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Work Orders</p>
+                        <p class="text-2xl font-semibold text-blue-600 dark:text-blue-400">${total}</p>
+                    </div>
+                    <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>${waiting} waiting</span>
+                    <span class="text-green-500 dark:text-green-400">${closed} closed</span>
+                </div>
+            </div>
+
+            <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Average Processing Time</p>
+                        <p class="text-2xl font-semibold text-green-600 dark:text-green-400">${processingTimeDisplay}${timeUnit}</p>
+                    </div>
+                    <div class="p-3 rounded-full bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>Target: 5 days</span>
+                </div>
+            </div>
+
+            <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Top Job Type</p>
+                        <p class="text-2xl font-semibold text-purple-600 dark:text-purple-400">${topJobType[0]}</p>
+                    </div>
+                    <div class="p-3 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>${getJobTypeFullName(topJobType[0])}</span>
+                    <span>${topJobType[1]} WOs</span>
+                </div>
+            </div>
+
+            <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Top Status</p>
+                        <p class="text-2xl font-semibold text-orange-600 dark:text-orange-400">${topStatus[0]}</p>
+                    </div>
+                    <div class="p-3 rounded-full bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>${getJobStatusFullName(topStatus[0]).description}</span>
+                    <span>${topStatus[1]} WOs</span>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderCorrectiveKPIs(data) {
+        const kpiSection = document.getElementById('kpiSection');
+        if (!kpiSection || !data) return;
+
+        // Calculate corrective maintenance statistics
+        const total = data.length;
+        const closed = data.filter(wo => wo.Jobexec_dt).length;
+        const waiting = total - closed;
+
+        // Calculate MTTR (Mean Time To Repair)
+        let mttr = 0;
+        let mttrDisplay = '';
+        let timeUnit = '';
+        const closedWOs = data.filter(wo => wo.Jobexec_dt);
+        if (closedWOs.length > 0) {
+            const repairTimes = closedWOs.map(wo => {
+                const startDate = parseFrenchDate(wo.Order_date);
+                const endDate = parseFrenchDate(wo.Jobexec_dt);
+                return startDate && endDate ? (endDate - startDate) / (1000 * 60 * 60 * 24) : 0;
+            }).filter(time => time > 0);
+            
+            if (repairTimes.length > 0) {
+                mttr = repairTimes.reduce((a, b) => a + b, 0) / repairTimes.length;
+                
+                const formattedTime = formatTimeDuration(mttr);
+                mttrDisplay = formattedTime.display;
+                timeUnit = formattedTime.unit;
+            }
+        }
+
+        // Get most common failure type and location
+        const failureCounts = {};
+        const locationCounts = {};
+        data.forEach(wo => {
+            if (wo.failure) {
+                failureCounts[wo.failure] = (failureCounts[wo.failure] || 0) + 1;
+            }
+            if (wo.faultlocation) {
+                locationCounts[wo.faultlocation] = (locationCounts[wo.faultlocation] || 0) + 1;
+            }
+        });
+
+        const topFailure = Object.entries(failureCounts)
+            .sort((a, b) => b[1] - a[1])[0] || ['Unknown', 0];
+        const topLocation = Object.entries(locationCounts)
+            .sort((a, b) => b[1] - a[1])[0] || ['Unknown', 0];
+
+        kpiSection.innerHTML = `
+            <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Corrective WOs</p>
+                        <p class="text-2xl font-semibold text-blue-600 dark:text-blue-400">${total}</p>
+                    </div>
+                    <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400">
+                        <i class="fas fa-wrench"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>${waiting} pending</span>
+                    <span class="text-green-500 dark:text-green-400">${closed} completed</span>
+                </div>
+            </div>
+
+            <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Mean Time To Repair</p>
+                        <p class="text-2xl font-semibold text-green-600 dark:text-green-400">${mttrDisplay}${timeUnit}</p>
+                    </div>
+                    <div class="p-3 rounded-full bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>Target: 3 days</span>
+                </div>
+            </div>
+
+            <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Top Failure Type</p>
+                        <p class="text-2xl font-semibold text-purple-600 dark:text-purple-400">${topFailure[0]}</p>
+                    </div>
+                    <div class="p-3 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>${topFailure[1]} occurrences</span>
+                </div>
+            </div>
+
+            <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Most Affected Location</p>
+                        <p class="text-2xl font-semibold text-orange-600 dark:text-orange-400">${topLocation[0]}</p>
+                    </div>
+                    <div class="p-3 rounded-full bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>${topLocation[1]} issues</span>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderBreakdownKPIs(data) {
+        const kpiSection = document.getElementById('kpiSection');
+        if (!kpiSection || !data) return;
+
+        // Calculate breakdown statistics based on execution date only
+        const total = data.length;
+        const resolved = data.filter(wo => wo.Jobexec_dt).length;
+        const pending = total - resolved;
+
+        // Calculate MTTR using more precise calculation
+        let mttr = 0;
+        let mttrDisplay = '';
+        let timeUnit = '';
+        const resolvedWOs = data.filter(wo => wo.Jobexec_dt);
+        if (resolvedWOs.length > 0) {
+            const repairTimes = resolvedWOs.map(wo => {
+                const startDate = parseFrenchDate(wo.Order_date);
+                const endDate = parseFrenchDate(wo.Jobexec_dt);
+                return startDate && endDate ? (endDate - startDate) / (1000 * 60 * 60 * 24) : 0;
+            }).filter(time => time > 0);
+
+            if (repairTimes.length > 0) {
+                mttr = repairTimes.reduce((a, b) => a + b, 0) / repairTimes.length;
+                
+                const formattedTime = formatTimeDuration(mttr);
+                mttrDisplay = formattedTime.display;
+                timeUnit = formattedTime.unit;
+            }
+        }
+
+        // Get most affected equipment and critical failures
+        const equipmentCounts = {};
+        const criticalFailures = {};
+        data.forEach(wo => {
+            if (wo.EQ_type) {
+                equipmentCounts[wo.EQ_type] = (equipmentCounts[wo.EQ_type] || 0) + 1;
+            }
+            if (wo.failure) {
+                criticalFailures[wo.failure] = (criticalFailures[wo.failure] || 0) + 1;
+            }
+        });
+
+        const mostAffectedEq = Object.entries(equipmentCounts)
+            .sort((a, b) => b[1] - a[1])[0] || ['Unknown', 0];
+        const topCriticalFailure = Object.entries(criticalFailures)
+            .sort((a, b) => b[1] - a[1])[0] || ['Unknown', 0];
+
+        kpiSection.innerHTML = `
+            <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Breakdowns</p>
+                        <p class="text-2xl font-semibold text-red-600 dark:text-red-400">${total}</p>
+                    </div>
+                    <div class="p-3 rounded-full bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>${pending} active</span>
+                    <span class="text-green-500 dark:text-green-400">${resolved} resolved</span>
+                </div>
+            </div>
+
+            <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Average Resolution Time</p>
+                        <p class="text-2xl font-semibold text-orange-600 dark:text-orange-400">${mttrDisplay}${timeUnit}</p>
+                    </div>
+                    <div class="p-3 rounded-full bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400">
+                        <i class="fas fa-stopwatch"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>Target: 1 day</span>
+                </div>
+            </div>
+
+            <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Most Affected Equipment</p>
+                        <p class="text-2xl font-semibold text-purple-600 dark:text-purple-400">${mostAffectedEq[0]}</p>
+                    </div>
+                    <div class="p-3 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400">
+                        <i class="fas fa-tools"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>${mostAffectedEq[1]} breakdowns</span>
+                </div>
+            </div>
+
+            <div class="kpi-card bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Top Critical Failure</p>
+                        <p class="text-2xl font-semibold text-yellow-600 dark:text-yellow-400">${topCriticalFailure[0]}</p>
+                    </div>
+                    <div class="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-400">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>${topCriticalFailure[1]} occurrences</span>
+                </div>
+            </div>
+        `;
+    }
+
+    function setupFilterListeners() {
+        const filterInputs = [
+            'orderStartDate', 'orderEndDate', 'execStartDate', 'execEndDate',
+            'jobTypeSelect', 'jobStatusSelect', 'faultLocationSelect',
+            'eqTypeSelect', 'costPurposeSelect', 'failureSelect'
+        ];
+
+        filterInputs.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('change', applyFilters);
+            }
+        });
+
+        // Prevent form submission since we're handling changes immediately
+        const filtersForm = document.getElementById('filtersForm');
+        if (filtersForm) {
+            filtersForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                applyFilters();
+            });
+        }
+    }
+
+    function updateCharts(filteredData) {
+        // Update time period information
+        updateTimePeriodInfo(filteredData);
+
+        // Clear existing chart section before redrawing
+        const chartSection = document.getElementById('chartSection');
+        if (chartSection) {
+            chartSection.innerHTML = '';
+        }
+
+        // Add equipment analysis with refreshed data
+        renderEquipmentAnalysis(filteredData);
+
+        // Process the filtered data for charts
+        const chartData = prepareChartData(filteredData);
+
+        // Update charts based on current view
+        switch (currentView) {
+            case 'general':
+                renderGeneralKPIs(filteredData);
+                renderGeneralCharts(chartData);
+                break;
+            case 'corrective':
+                renderCorrectiveKPIs(filteredData);
+                renderCorrectiveCharts(chartData);
+                break;
+            case 'breakdown':
+                renderBreakdownKPIs(filteredData);
+                renderBreakdownCharts(chartData);
+                break;
+            default:
+                // Default to general view
+                renderGeneralKPIs(filteredData);
+                renderGeneralCharts(chartData);
+        }
+
+        // Update top faults table with fresh data
+        if (filteredData.length > 0) {
+            const faultCounts = {};
+            filteredData.forEach(item => {
+                if (item.failure) {
+                    faultCounts[item.failure] = (faultCounts[item.failure] || 0) + 1;
+                }
+            });
+            
+            // Sort and get top 10 faults
+            const topFaults = Object.entries(faultCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10)
+                .reduce((obj, [key, val]) => ({...obj, [key]: val}), {});
+                
+            renderTopFaults(topFaults);
+        }
+
+        // Update date-based dropdowns and filters
+        updateDateFilters(filteredData);
+    }
+
+    function updateTimePeriodInfo(data) {
+        const orderDates = data
+            .map(item => parseFrenchDate(item.Order_date))
+            .filter(date => date && !isNaN(date.getTime()));
+        
+        const execDates = data
+            .map(item => parseFrenchDate(item.Jobexec_dt))
+            .filter(date => date && !isNaN(date.getTime()));
+
+        if (orderDates.length > 0) {
+            const minOrderDate = new Date(Math.min(...orderDates));
+            const maxOrderDate = new Date(Math.max(...orderDates));
+            document.getElementById('orderPeriod').textContent = 
+                `${formatToFrenchDate(minOrderDate)} - ${formatToFrenchDate(maxOrderDate)}`;
+        } else {
+            document.getElementById('orderPeriod').textContent = 'No data';
+        }
+
+        if (execDates.length > 0) {
+            const minExecDate = new Date(Math.min(...execDates));
+            const maxExecDate = new Date(Math.max(...execDates));
+            document.getElementById('execPeriod').textContent = 
+                `${formatToFrenchDate(minExecDate)} - ${formatToFrenchDate(maxExecDate)}`;
+        } else {
+            document.getElementById('execPeriod').textContent = 'No data';
+        }
+    }
+
+    function getEquipmentDetails(data) {
+        // Group work orders by equipment name
+        const equipmentStats = {};
+        
+        data.forEach(wo => {
+            if (wo.EQ_name) {
+                if (!equipmentStats[wo.EQ_name]) {
+                    equipmentStats[wo.EQ_name] = {
+                        totalWOs: 0,
+                        completedWOs: 0,
+                        avgRepairTime: 0,
+                        failures: {},
+                        type: wo.EQ_type || 'Unknown'
+                    };
+                }
+                
+                equipmentStats[wo.EQ_name].totalWOs++;
+                
+                if (wo.Jobexec_dt) {
+                    equipmentStats[wo.EQ_name].completedWOs++;
+                    const startDate = parseFrenchDate(wo.Order_date);
+                    const endDate = parseFrenchDate(wo.Jobexec_dt);
+                    if (startDate && endDate) {
+                        const repairTime = (endDate - startDate) / (1000 * 60 * 60 * 24); // Convert to days
+                        if (repairTime > 0) {
+                            const currentTotal = equipmentStats[wo.EQ_name].avgRepairTime * (equipmentStats[wo.EQ_name].completedWOs - 1);
+                            equipmentStats[wo.EQ_name].avgRepairTime = (currentTotal + repairTime) / equipmentStats[wo.EQ_name].completedWOs;
+                        }
+                    }
+                }
+                
+                if (wo.failure) {
+                    equipmentStats[wo.EQ_name].failures[wo.failure] = (equipmentStats[wo.EQ_name].failures[wo.failure] || 0) + 1;
+                }
+            }
+        });
+
+        return equipmentStats;
+    }
+
+    window.toggleEquipmentSection = function(index) {
+        const content = document.getElementById('equipment-content-' + index);
+        const chevron = document.getElementById('chevron-' + index);
+        if (content && chevron) {
+            content.classList.toggle('hidden');
+            chevron.style.transform = content.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+        }
+    };
+
+    function renderEquipmentAnalysis(data) {
+        const equipmentStats = getEquipmentDetails(data);
+        
+        // Group equipment by type
+        const equipmentByType = {};
+        Object.entries(equipmentStats).forEach(([eqName, stats]) => {
+            if (!equipmentByType[stats.type]) {
+                equipmentByType[stats.type] = {};
+            }
+            equipmentByType[stats.type][eqName] = stats;
+        });
+
+        // Create equipment analysis section if it doesn't exist
+        let equipmentSection = document.getElementById('equipmentAnalysis');
+        if (!equipmentSection) {
+            equipmentSection = document.createElement('div');
+            equipmentSection.id = 'equipmentAnalysis';
+            equipmentSection.className = 'mb-6 space-y-4';
+            document.getElementById('dashboard').insertBefore(
+                equipmentSection,
+                document.getElementById('chartSection')
+            );
+        }
+
+        // Render equipment analysis with collapsible sections by type
+        const equipmentHTML = [`
+            <div class="bg-white dark:bg-gray-700 rounded-lg shadow-sm p-4">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Equipment Performance Analysis</h3>
+                <div class="space-y-4">
+        `];
+
+        // Sort equipment types to ensure consistent order
+        const sortedTypes = Object.keys(equipmentByType).sort();
+
+        sortedTypes.forEach((type, typeIndex) => {
+            const equipmentOfType = equipmentByType[type];
+            const equipmentNames = Object.keys(equipmentOfType).sort();
+            
+            equipmentHTML.push(`
+                <div class="equipment-type-section border dark:border-gray-600 rounded-lg">
+                    <button class="w-full px-4 py-3 flex items-center justify-between text-left text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg focus:outline-none" 
+                            onclick="toggleEquipmentSection(${typeIndex})">
+                        <span class="font-medium">${type}</span>
+                        <i class="fas fa-chevron-down transform transition-transform duration-200" id="chevron-${typeIndex}"></i>
+                    </button>
+                    <div class="equipment-content hidden overflow-x-auto" id="equipment-content-${typeIndex}">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                            <thead class="bg-gray-50 dark:bg-gray-800">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Equipment</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total WOs</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Completed</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Completion Rate</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Avg Repair Time</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Top Issue</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600">
+            `);
+
+            equipmentNames.forEach(eqName => {
+                const stats = equipmentOfType[eqName];
+                const completionRate = ((stats.completedWOs / stats.totalWOs) * 100).toFixed(1);
+                
+                // Format repair time using the formatTimeDuration helper
+                const formattedTime = formatTimeDuration(stats.avgRepairTime);
+                const repairTimeDisplay = formattedTime.display;
+                const timeUnit = formattedTime.unit;
+
+                const topFailure = Object.entries(stats.failures)
+                    .sort((a, b) => b[1] - a[1])[0] || ['None', 0];
+
+                equipmentHTML.push(`
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-gray-200">${eqName}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${stats.totalWOs}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${stats.completedWOs}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${completionRate}%</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${repairTimeDisplay}${timeUnit}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${topFailure[0]} (${topFailure[1]})</td>
+                    </tr>
+                `);
+            });
+
+            equipmentHTML.push(`
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `);
+        });
+
+        equipmentHTML.push(`
+                </div>
+            </div>
+        `);
+
+        equipmentSection.innerHTML = equipmentHTML.join('');
+
+        // Show first equipment type section by default
+        if (sortedTypes.length > 0) {
+            setTimeout(() => toggleEquipmentSection(0), 100);
+        }
+    }
+
+    function updateDateFilters(data) {
+        // Get all dates from the data
+        const orderDates = data
+            .map(item => parseFrenchDate(item.Order_date))
+            .filter(date => date && !isNaN(date.getTime()));
+            
+        const execDates = data
+            .map(item => parseFrenchDate(item.Jobexec_dt))
+            .filter(date => date && !isNaN(date.getTime()));
+
+        if (orderDates.length > 0) {
+            const minOrderDate = new Date(Math.min(...orderDates));
+            const maxOrderDate = new Date(Math.max(...orderDates));
+
+            // Get week numbers for order dates
+            const minOrderWeek = getWeekNumber(minOrderDate);
+            const maxOrderWeek = getWeekNumber(maxOrderDate);
+
+            // Update order date inputs
+            const orderStartDate = document.getElementById('orderStartDate');
+            const orderEndDate = document.getElementById('orderEndDate');
+            
+            if (orderStartDate && orderEndDate) {
+                orderStartDate.min = `${minOrderDate.getFullYear()}-W${String(minOrderWeek).padStart(2, '0')}`;
+                orderEndDate.max = `${maxOrderDate.getFullYear()}-W${String(maxOrderWeek).padStart(2, '0')}`;
+                
+                // Set default values if not already set
+                if (!orderStartDate.value) {
+                    orderStartDate.value = orderStartDate.min;
+                }
+                if (!orderEndDate.value) {
+                    orderEndDate.value = orderEndDate.max;
+                }
+            }
+        }
+
+        if (execDates.length > 0) {
+            const minExecDate = new Date(Math.min(...execDates));
+            const maxExecDate = new Date(Math.max(...execDates));
+
+            // Get week numbers for execution dates
+            const minExecWeek = getWeekNumber(minExecDate);
+            const maxExecWeek = getWeekNumber(maxExecDate);
+
+            // Update execution date inputs
+            const execStartDate = document.getElementById('execStartDate');
+            const execEndDate = document.getElementById('execEndDate');
+            
+            if (execStartDate && execEndDate) {
+                execStartDate.min = `${minExecDate.getFullYear()}-W${String(minExecWeek).padStart(2, '0')}`;
+                execEndDate.max = `${maxExecDate.getFullYear()}-W${String(maxExecWeek).padStart(2, '0')}`;
+                
+                // Set default values if not already set
+                if (!execStartDate.value) {
+                    execStartDate.value = execStartDate.min;
+                }
+                if (!execEndDate.value) {
+                    execEndDate.value = execEndDate.max;
+                }
+            }
+        }
     }
 });
