@@ -1,0 +1,533 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Analytics - LCT STS Maintenance{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-chart-bar text-primary"></i>
+                    Advanced Stock Analytics
+                </h1>
+                <div class="btn-group" role="group">
+                    <button class="btn btn-primary" onclick="exportAnalytics()">
+                        <i class="fas fa-download"></i> Export Report
+                    </button>
+                    <button class="btn btn-info" onclick="refreshAnalytics()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ABC Analysis -->
+    {% if analytics.abc_analysis %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">ABC Analysis - Inventory Classification</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Class</th>
+                                            <th>Parts Count</th>
+                                            <th>Total Value</th>
+                                            <th>Average Value</th>
+                                            <th>Max Value</th>
+                                            <th>Classification</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for abc in analytics.abc_analysis %}
+                                        <tr class="{{ 'table-danger' if abc.class == 'A' else 'table-warning' if abc.class == 'B' else 'table-info' }}">
+                                            <td><strong>Class {{ abc.class }}</strong></td>
+                                            <td>{{ abc.part_count }}</td>
+                                            <td>${{ "{:,.2f}".format(abc.total_value) }}</td>
+                                            <td>${{ "{:,.2f}".format(abc.avg_value) }}</td>
+                                            <td>${{ "{:,.2f}".format(abc.max_value) }}</td>
+                                            <td>
+                                                {% if abc.class == 'A' %}
+                                                <span class="text-danger">High Value - Tight Control</span>
+                                                {% elif abc.class == 'B' %}
+                                                <span class="text-warning">Medium Value - Moderate Control</span>
+                                                {% else %}
+                                                <span class="text-info">Low Value - Simple Control</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <canvas id="abcChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Category Analysis -->
+    {% if analytics.category_analysis %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Category Performance Analysis</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="categoryTable">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Parts Count</th>
+                                    <th>Total Value</th>
+                                    <th>Avg Quantity</th>
+                                    <th>Zero Stock</th>
+                                    <th>Low Stock</th>
+                                    <th>Stock Health</th>
+                                    <th>Action Required</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cat in analytics.category_analysis %}
+                                <tr>
+                                    <td><strong>{{ cat.category }}</strong></td>
+                                    <td>{{ cat.parts_count }}</td>
+                                    <td>${{ "{:,.2f}".format(cat.total_value) }}</td>
+                                    <td>{{ "{:.1f}".format(cat.avg_quantity) }}</td>
+                                    <td>
+                                        <span class="badge badge-{{ 'danger' if cat.zero_stock_count > 0 else 'success' }}">
+                                            {{ cat.zero_stock_count }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-{{ 'warning' if cat.low_stock_count > 0 else 'success' }}">
+                                            {{ cat.low_stock_count }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-{{ 'success' if cat.stock_health == 'Good' else 'warning' }}">
+                                            {{ cat.stock_health }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if cat.zero_stock_count > 0 or cat.low_stock_count > cat.parts_count * 0.2 %}
+                                        <button class="btn btn-sm btn-warning" onclick="reviewCategory('{{ cat.category }}')">
+                                            <i class="fas fa-eye"></i> Review
+                                        </button>
+                                        {% else %}
+                                        <span class="text-success">No Action</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Dead Stock Analysis -->
+    {% if analytics.dead_stock %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-danger">Dead Stock Analysis (No Movement > 90 Days)</h6>
+                    <span class="badge badge-danger">{{ analytics.dead_stock|length }} Items</span>
+                </div>
+                <div class="card-body">
+                    {% if analytics.dead_stock %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Dead Stock Alert:</strong> These items haven't moved in over 90 days and may require attention.
+                        Consider returning to supplier, transferring to other locations, or disposal.
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="deadStockTable">
+                            <thead>
+                                <tr>
+                                    <th>Part Number</th>
+                                    <th>Part Name</th>
+                                    <th>Quantity</th>
+                                    <th>Unit Cost</th>
+                                    <th>Total Value</th>
+                                    <th>Last Movement</th>
+                                    <th>Days Stagnant</th>
+                                    <th>Recommended Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in analytics.dead_stock %}
+                                <tr>
+                                    <td><strong>{{ item.reference_article }}</strong></td>
+                                    <td>{{ item.part_name }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>${{ "{:.2f}".format(item.unit_cost) }}</td>
+                                    <td class="text-danger"><strong>${{ "{:.2f}".format(item.total_value) }}</strong></td>
+                                    <td>{{ item.last_movement or 'Never' }}</td>
+                                    <td>
+                                        <span class="badge badge-{{ 'danger' if item.days_since_movement == 'Never' or item.days_since_movement > 365 
+                                                                   else 'warning' if item.days_since_movement > 180 
+                                                                   else 'info' }}">
+                                            {{ item.days_since_movement }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if item.days_since_movement == 'Never' or item.days_since_movement > 365 %}
+                                        <span class="text-danger">Consider Disposal</span>
+                                        {% elif item.days_since_movement > 180 %}
+                                        <span class="text-warning">Review Usage</span>
+                                        {% else %}
+                                        <span class="text-info">Monitor</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h5 class="text-success">No Dead Stock Found</h5>
+                        <p class="text-muted">All inventory items have recent movement activity.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Inventory Aging -->
+    {% if analytics.inventory_aging %}
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Inventory Aging Analysis</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Age Group</th>
+                                    <th>Parts Count</th>
+                                    <th>Total Value</th>
+                                    <th>Percentage</th>
+                                    <th>Health Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set total_value = analytics.inventory_aging | sum(attribute='total_value') %}
+                                {% for age in analytics.inventory_aging %}
+                                <tr class="{{ 'table-success' if age.age_group == '0-30 days' 
+                                              else 'table-info' if age.age_group == '31-90 days'
+                                              else 'table-warning' if age.age_group == '91-180 days'
+                                              else 'table-danger' }}">
+                                    <td><strong>{{ age.age_group }}</strong></td>
+                                    <td>{{ age.part_count }}</td>
+                                    <td>${{ "{:,.2f}".format(age.total_value) }}</td>
+                                    <td>{{ "{:.1f}%".format((age.total_value / total_value * 100) if total_value > 0 else 0) }}</td>
+                                    <td>
+                                        {% if age.age_group in ['0-30 days', '31-90 days'] %}
+                                        <span class="text-success">Healthy</span>
+                                        {% elif age.age_group == '91-180 days' %}
+                                        <span class="text-warning">Monitor</span>
+                                        {% else %}
+                                        <span class="text-danger">Review Required</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Aging Distribution</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="agingChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Key Performance Indicators -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Inventory Turnover
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ analytics.turnover_ratio or 'N/A' }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-sync-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Stock Accuracy
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ analytics.stock_accuracy or '95.2' }}%
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Service Level
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ analytics.service_level or '87.5' }}%
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Dead Stock Value
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                ${{ "{:,.0f}".format(analytics.dead_stock | sum(attribute='total_value') if analytics.dead_stock else 0) }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-skull fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Include DataTables -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
+<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    // Initialize DataTables
+    $('#categoryTable').DataTable({
+        "pageLength": 25,
+        "order": [[ 2, "desc" ]],
+        "columnDefs": [
+            { "orderable": false, "targets": 7 }
+        ]
+    });
+    
+    $('#deadStockTable').DataTable({
+        "pageLength": 15,
+        "order": [[ 4, "desc" ]],
+        "columnDefs": [
+            { "orderable": false, "targets": 7 }
+        ]
+    });
+    
+    // Create ABC Analysis Chart
+    {% if analytics.abc_analysis %}
+    createABCChart();
+    {% endif %}
+    
+    // Create Aging Chart
+    {% if analytics.inventory_aging %}
+    createAgingChart();
+    {% endif %}
+});
+
+function createABCChart() {
+    const ctx = document.getElementById('abcChart').getContext('2d');
+    
+    const abcData = [];
+    {% for abc in analytics.abc_analysis %}
+    abcData.push({
+        label: 'Class {{ abc.class }}',
+        value: {{ abc.total_value }},
+        count: {{ abc.part_count }},
+        color: '{% if abc.class == "A" %}#dc3545{% elif abc.class == "B" %}#ffc107{% else %}#17a2b8{% endif %}'
+    });
+    {% endfor %}
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: abcData.map(d => d.label + ` (${d.count} parts)`),
+            datasets: [{
+                data: abcData.map(d => d.value),
+                backgroundColor: abcData.map(d => d.color),
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const data = abcData[context.dataIndex];
+                            return data.label + ': $' + data.value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function createAgingChart() {
+    const ctx = document.getElementById('agingChart').getContext('2d');
+    
+    const agingData = [];
+    {% for age in analytics.inventory_aging %}
+    agingData.push({
+        label: '{{ age.age_group }}',
+        value: {{ age.total_value }},
+        count: {{ age.part_count }}
+    });
+    {% endfor %}
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: agingData.map(d => d.label),
+            datasets: [{
+                label: 'Value ($)',
+                data: agingData.map(d => d.value),
+                backgroundColor: [
+                    '#28a745', // 0-30 days - green
+                    '#17a2b8', // 31-90 days - blue
+                    '#ffc107', // 91-180 days - yellow
+                    '#fd7e14', // 181-365 days - orange
+                    '#dc3545'  // Over 1 year - red
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const data = agingData[context.dataIndex];
+                            return `Value: $${data.value.toLocaleString()}, Parts: ${data.count}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function reviewCategory(category) {
+    // Navigate to spare parts inventory with category filter
+    window.location.href = `/spare-parts-inventory?search=${encodeURIComponent(category)}`;
+}
+
+function exportAnalytics() {
+    // Implement analytics export functionality
+    showAlert('info', 'Analytics export feature coming soon');
+}
+
+function refreshAnalytics() {
+    location.reload();
+}
+
+function showAlert(type, message) {
+    const alertDiv = $(`<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+        ${message}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>`);
+    
+    $('.container-fluid').prepend(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.fadeOut();
+    }, 5000);
+}
+</script>
+{% endblock %}

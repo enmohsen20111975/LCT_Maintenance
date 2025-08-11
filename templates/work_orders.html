@@ -1,0 +1,2618 @@
+{% extends "base.html" %}
+
+{% block title %}Work Orders Analytics & Management - LCT STS Maintenance{% endblock %}
+
+{% block head %}
+<!-- Error Display Section -->
+{% if error %}
+<div class="container-fluid mt-3">
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <span><strong>Error:</strong> {{ error }}</span>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+</div>
+{% endif %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+
+<style>
+    /* Enhanced styling for professional look */
+    .filter-panel {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 2px solid #dee2e6;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .filter-section {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .filter-title {
+        color: #495057;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .filter-dropdown {
+        position: relative;
+        display: inline-block;
+        margin: 0.25rem;
+    }
+    
+    .filter-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 25px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        min-width: 140px;
+        justify-content: space-between;
+    }
+    
+    .filter-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        color: white;
+    }
+    
+    .filter-btn.active {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+    
+    .filter-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        max-height: 250px;
+        overflow-y: auto;
+        margin-top: 0.5rem;
+    }
+    
+    .filter-dropdown-menu.show {
+        display: block;
+    }
+    
+    .filter-option {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        border-bottom: 1px solid #f8f9fa;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .filter-option:hover {
+        background: #f8f9fa;
+        color: #667eea;
+    }
+    
+    .filter-option.selected {
+        background: #e3f2fd;
+        color: #1976d2;
+        font-weight: 500;
+    }
+    
+    .kpi-card {
+        background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+        border: 1px solid #e9ecef;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+    
+    .kpi-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .kpi-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin: 0.5rem 0;
+    }
+    
+    .kpi-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .kpi-change {
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        margin-bottom: 2rem;
+    }
+    
+    .chart-title {
+        color: #495057;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-export {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        border: none;
+        color: white;
+        padding: 0.5rem 1.2rem;
+        border-radius: 20px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-export:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+        color: white;
+    }
+    
+    .search-container {
+        background: white;
+        border-radius: 25px;
+        padding: 0.5rem 1.5rem;
+        border: 2px solid #e9ecef;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .search-container:focus-within {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .search-input {
+        border: none;
+        outline: none;
+        flex: 1;
+        background: transparent;
+        padding: 0.5rem 0;
+    }
+    
+    .table-container {
+        background: white;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e9ecef;
+    }
+    
+    .table-header {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .enhanced-table {
+        margin: 0;
+    }
+    
+    .enhanced-table th {
+        background: #f8f9fa;
+        border: none;
+        padding: 1rem 0.75rem;
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .enhanced-table td {
+        padding: 0.75rem;
+        border-top: 1px solid #e9ecef;
+        vertical-align: middle;
+    }
+    
+    .enhanced-table tbody tr:hover {
+        background: rgba(102, 126, 234, 0.05);
+    }
+    
+    .status-badge {
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-active { background: #e3f2fd; color: #1976d2; }
+    .status-completed { background: #e8f5e8; color: #2e7d2e; }
+    .status-pending { background: #fff3e0; color: #f57c00; }
+    .status-overdue { background: #ffebee; color: #d32f2f; }
+    
+    .priority-immediate { background: #ffebee; color: #d32f2f; }
+    .priority-high { background: #fff3e0; color: #f57c00; }
+    .priority-medium { background: #e3f2fd; color: #1976d2; }
+    .priority-low { background: #e8f5e8; color: #2e7d2e; }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+    
+    .loading-spinner {
+        text-align: center;
+        color: #667eea;
+    }
+    
+    .date-range-container {
+        background: white;
+        border-radius: 10px;
+        padding: 1rem;
+        border: 1px solid #e9ecef;
+    }
+    
+    @media (max-width: 768px) {
+        .filter-btn {
+            min-width: 120px;
+            padding: 0.6rem 1.2rem;
+        }
+        
+        .filter-dropdown {
+            margin: 0.2rem;
+        }
+        
+        .kpi-value {
+            font-size: 2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Show server-side error if present -->
+{% if error %}
+<div class="container-fluid px-4 py-3">
+    <div class="alert alert-danger">
+        <h4><i class="fas fa-exclamation-triangle"></i> Error Loading Work Orders</h4>
+        <p>{{ error }}</p>
+        <p>Please contact the administrator if this problem persists.</p>
+        <a href="{{ url_for('index') }}" class="btn btn-primary">Return to Home</a>
+    </div>
+</div>
+{% else %}
+<!-- Normal content when no server error -->
+<div class="container-fluid px-4 py-3">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <div class="spinner-border" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h5 class="mt-3">Loading Work Orders...</h5>
+            <p class="text-muted">Processing your request...</p>
+        </div>
+    </div>
+
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="page-title">
+                    <i class="fas fa-chart-line text-primary"></i>
+                    Work Orders Management System
+                </h1>
+                <p class="page-subtitle">
+                    Analysis, Search, and Statistics with advanced filtering and time intervals
+                    <br><small class="text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        If this page loads slowly, try the 
+                        <a href="{{ url_for('work_orders_list', simple='true') }}" class="text-primary">Simple View</a>
+                    </small>
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="header-actions">
+                    <a href="{{ url_for('work_orders_list', simple='true') }}" class="btn btn-outline-success me-2">
+                        <i class="fas fa-table"></i> Simple View
+                    </a>
+                    <button class="btn btn-outline-primary me-2" onclick="refreshAllData()">
+                        <i class="fas fa-sync-alt"></i> Refresh Data
+                    </button>
+                    <button class="btn btn-primary" onclick="exportAllData()">
+                        <i class="fas fa-download"></i> Export All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fallback Basic View -->
+    {% if work_orders %}
+    <div id="basicView" style="display: none;">
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Total Work Orders</h5>
+                        <h2 class="text-primary">{{ work_orders|length }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Database Source</h5>
+                        <h3 class="text-info">{{ database_source|default('All Data') }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Quick Stats</h5>
+                        <p><strong>Active:</strong> {{ stats.total_active|default(0) }}</p>
+                        <p><strong>History:</strong> {{ stats.total_history|default(0) }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5>Work Orders List</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>WO Number</th>
+                                <th>Description</th>
+                                <th>Equipment</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Order Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for wo in work_orders[:50] %}
+                            <tr>
+                                <td>{{ wo.wo_name|default('N/A') }}</td>
+                                <td>{{ wo.description[:100]|default('N/A') }}{% if wo.description|length > 100 %}...{% endif %}</td>
+                                <td>{{ wo.equipement|default('N/A') }}</td>
+                                <td>
+                                    <span class="badge bg-{% if wo.etatjob in ['TER', 'Completed'] %}success{% elif wo.etatjob in ['EXE', 'INI'] %}primary{% else %}secondary{% endif %}">
+                                        {{ wo.etatjob|default('Unknown') }}
+                                    </span>
+                                </td>
+                                <td>{{ wo.priority_key|default('N/A') }}</td>
+                                <td>{{ wo.order_date|default('N/A') }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% if work_orders|length > 50 %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">
+                                    ... and {{ work_orders|length - 50 }} more records
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Main Navigation Tabs -->
+    <div class="main-navigation mb-4">
+        <ul class="nav nav-pills nav-fill" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="analysis-tab" data-bs-toggle="pill" data-bs-target="#analysis" type="button" role="tab">
+                    <i class="fas fa-chart-bar"></i> Analysis
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="search-tab" data-bs-toggle="pill" data-bs-target="#search" type="button" role="tab">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="statistics-tab" data-bs-toggle="pill" data-bs-target="#statistics" type="button" role="tab">
+                    <i class="fas fa-chart-pie"></i> Statistics
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="mainTabContent">
+        <!-- Analysis Tab -->
+        <div class="tab-pane fade show active" id="analysis" role="tabpanel">
+            <!-- Analysis Filters -->
+            <div class="filter-panel mb-4">
+                <div class="filter-header">
+                    <h5 class="filter-title">
+                        <i class="fas fa-filter"></i> Analysis Filters & Time Intervals
+                    </h5>
+                    <div class="filter-actions">
+                        <button class="btn btn-outline-primary btn-sm" onclick="resetAnalysisFilters()">
+                            <i class="fas fa-times"></i> Reset
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="applyAnalysisFilters()">
+                            <i class="fas fa-chart-line"></i> Apply Analysis
+                        </button>
+                    </div>
+                </div>
+                <div class="filter-content">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label class="form-label">Time Interval</label>
+                            <div class="filter-dropdown">
+                                <button class="filter-btn" onclick="toggleDropdown('timeIntervalDropdown')" id="timeIntervalBtn">
+                                    <span>Last 30 Days</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="filter-dropdown-menu" id="timeIntervalDropdown">
+                                    <div class="filter-option" onclick="selectTimeInterval('today', 'Today')">
+                                        <i class="fas fa-calendar-day"></i> Today
+                                    </div>
+                                    <div class="filter-option" onclick="selectTimeInterval('yesterday', 'Yesterday')">
+                                        <i class="fas fa-calendar-minus"></i> Yesterday
+                                    </div>
+                                    <div class="filter-option" onclick="selectTimeInterval('last7days', 'Last 7 Days')">
+                                        <i class="fas fa-calendar-week"></i> Last 7 Days
+                                    </div>
+                                    <div class="filter-option" onclick="selectTimeInterval('last30days', 'Last 30 Days')">
+                                        <i class="fas fa-calendar-alt"></i> Last 30 Days
+                                    </div>
+                                    <div class="filter-option" onclick="selectTimeInterval('thismonth', 'This Month')">
+                                        <i class="fas fa-calendar"></i> This Month
+                                    </div>
+                                    <div class="filter-option" onclick="selectTimeInterval('thisyear', 'This Year')">
+                                        <i class="fas fa-calendar"></i> This Year
+                                    </div>
+                                    <div class="filter-option" onclick="selectTimeInterval('custom', 'Custom Range')">
+                                        <i class="fas fa-calendar-alt"></i> Custom Range
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3" id="customDateRange" style="display: none;">
+                            <label class="form-label">Custom Date Range</label>
+                            <input type="text" class="form-control" id="analysisDateRange" placeholder="Select date range">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Status</label>
+                            <div class="filter-dropdown">
+                                <button class="filter-btn" onclick="toggleDropdown('analysisStatusDropdown')" id="analysisStatusBtn">
+                                    <span>All Status</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="filter-dropdown-menu" id="analysisStatusDropdown">
+                                    <div class="filter-option" onclick="selectAnalysisFilter('status', '', 'All Status')">
+                                        <i class="fas fa-list"></i> All Status
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Priority</label>
+                            <div class="filter-dropdown">
+                                <button class="filter-btn" onclick="toggleDropdown('analysisPriorityDropdown')" id="analysisPriorityBtn">
+                                    <span>All Priority</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="filter-dropdown-menu" id="analysisPriorityDropdown">
+                                    <div class="filter-option" onclick="selectAnalysisFilter('priority', '', 'All Priority')">
+                                        <i class="fas fa-list"></i> All Priority
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Equipment</label>
+                            <div class="filter-dropdown">
+                                <button class="filter-btn" onclick="toggleDropdown('analysisEquipmentDropdown')" id="analysisEquipmentBtn">
+                                    <span>All Equipment</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="filter-dropdown-menu" id="analysisEquipmentDropdown">
+                                    <div class="filter-option" onclick="selectAnalysisFilter('equipment', '', 'All Equipment')">
+                                        <i class="fas fa-list"></i> All Equipment
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis Content -->
+            <div class="analysis-content">
+                <!-- KPI Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="kpi-card">
+                            <div class="kpi-icon bg-primary">
+                                <i class="fas fa-clipboard-list"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value" id="analysisTotal">--</div>
+                                <div class="kpi-label">Total Work Orders</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="kpi-card">
+                            <div class="kpi-icon bg-success">
+                                <i class="fas fa-play-circle"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value" id="analysisActive">--</div>
+                                <div class="kpi-label">Active Orders</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="kpi-card">
+                            <div class="kpi-icon bg-warning">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value" id="analysisCompleted">--</div>
+                                <div class="kpi-label">Completed</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="kpi-card">
+                            <div class="kpi-icon bg-info">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value" id="analysisAvgTime">--</div>
+                                <div class="kpi-label">Avg. Completion Time</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h6 class="chart-title">Status Distribution</h6>
+                            <canvas id="analysisStatusChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h6 class="chart-title">Timeline Trends</h6>
+                            <canvas id="analysisTimelineChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Tab -->
+        <div class="tab-pane fade" id="search" role="tabpanel">
+            <!-- Search Filters -->
+            <div class="filter-panel mb-4">
+                <div class="filter-header">
+                    <h5 class="filter-title">
+                        <i class="fas fa-search"></i> Search Filters & Criteria
+                    </h5>
+                    <div class="filter-actions">
+                        <button class="btn btn-outline-primary btn-sm" onclick="resetSearchFilters()">
+                            <i class="fas fa-times"></i> Clear Search
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="performSearch()">
+                            <i class="fas fa-search"></i> Search Now
+                        </button>
+                    </div>
+                </div>
+                <div class="filter-content">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Search Keywords</label>
+                            <input type="text" class="form-control" id="searchKeywords" placeholder="Search in work orders, descriptions, equipment...">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Time Range</label>
+                            <div class="filter-dropdown">
+                                <button class="filter-btn" onclick="toggleDropdown('searchTimeDropdown')" id="searchTimeBtn">
+                                    <span>All Time</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="filter-dropdown-menu" id="searchTimeDropdown">
+                                    <div class="filter-option" onclick="selectSearchFilter('timeRange', '', 'All Time')">
+                                        <i class="fas fa-infinity"></i> All Time
+                                    </div>
+                                    <div class="filter-option" onclick="selectSearchFilter('timeRange', 'last7days', 'Last 7 Days')">
+                                        <i class="fas fa-calendar-week"></i> Last 7 Days
+                                    </div>
+                                    <div class="filter-option" onclick="selectSearchFilter('timeRange', 'last30days', 'Last 30 Days')">
+                                        <i class="fas fa-calendar-alt"></i> Last 30 Days
+                                    </div>
+                                    <div class="filter-option" onclick="selectSearchFilter('timeRange', 'thisyear', 'This Year')">
+                                        <i class="fas fa-calendar"></i> This Year
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Work Order Type</label>
+                            <div class="filter-dropdown">
+                                <button class="filter-btn" onclick="toggleDropdown('searchTypeDropdown')" id="searchTypeBtn">
+                                    <span>All Types</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="filter-dropdown-menu" id="searchTypeDropdown">
+                                    <div class="filter-option" onclick="selectSearchFilter('type', '', 'All Types')">
+                                        <i class="fas fa-list"></i> All Types
+                                    </div>
+                                    <div class="filter-option" onclick="selectSearchFilter('type', 'active', 'Active Only')">
+                                        <i class="fas fa-play-circle"></i> Active Only
+                                    </div>
+                                    <div class="filter-option" onclick="selectSearchFilter('type', 'history', 'History Only')">
+                                        <i class="fas fa-history"></i> History Only
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Priority</label>
+                            <div class="filter-dropdown">
+                                <button class="filter-btn" onclick="toggleDropdown('searchPriorityDropdown')" id="searchPriorityBtn">
+                                    <span>All Priority</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="filter-dropdown-menu" id="searchPriorityDropdown">
+                                    <div class="filter-option" onclick="selectSearchFilter('priority', '', 'All Priority')">
+                                        <i class="fas fa-list"></i> All Priority
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Status</label>
+                            <div class="filter-dropdown">
+                                <button class="filter-btn" onclick="toggleDropdown('searchStatusDropdown')" id="searchStatusBtn">
+                                    <span>All Status</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="filter-dropdown-menu" id="searchStatusDropdown">
+                                    <div class="filter-option" onclick="selectSearchFilter('status', '', 'All Status')">
+                                        <i class="fas fa-list"></i> All Status
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Results -->
+            <div class="search-results">
+                <div class="search-info mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="search-count" id="searchResultCount">0 results found</span>
+                        </div>
+                        <div class="search-actions">
+                            <button class="btn btn-outline-primary btn-sm" onclick="exportSearchResults()">
+                                <i class="fas fa-download"></i> Export Results
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover" id="searchResultsTable">
+                        <thead class="table-dark">
+                            <tr>
+                                <th onclick="sortSearchResults('work_order_id')">Work Order ID <i class="fas fa-sort"></i></th>
+                                <th onclick="sortSearchResults('description')">Description <i class="fas fa-sort"></i></th>
+                                <th onclick="sortSearchResults('equipment')">Equipment <i class="fas fa-sort"></i></th>
+                                <th onclick="sortSearchResults('status')">Status <i class="fas fa-sort"></i></th>
+                                <th onclick="sortSearchResults('priority')">Priority <i class="fas fa-sort"></i></th>
+                                <th onclick="sortSearchResults('order_date')">Order Date <i class="fas fa-sort"></i></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="searchResultsBody">
+                            <!-- Search results will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Tab -->
+        <div class="tab-pane fade" id="statistics" role="tabpanel">
+            <!-- Statistics Filters -->
+            <div class="filter-panel mb-4">
+                <div class="filter-header">
+                    <h5 class="filter-title">
+                        <i class="fas fa-chart-pie"></i> Statistics Filters & Time Period
+                    </h5>
+                    <div class="filter-actions">
+                        <button class="btn btn-outline-primary btn-sm" onclick="resetStatisticsFilters()">
+                            <i class="fas fa-times"></i> Reset
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="generateStatistics()">
+                            <i class="fas fa-chart-bar"></i> Generate Statistics
+                        </button>
+                    </div>
+                </div>
+                <div class="filter-content">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label class="form-label">Statistics Period</label>
+                            <div class="filter-dropdown">
+                                <button class="filter-btn" onclick="toggleDropdown('statsPeriodDropdown')" id="statsPeriodBtn">
+                                    <span>Last 30 Days</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="filter-dropdown-menu" id="statsPeriodDropdown">
+                                    <div class="filter-option" onclick="selectStatsFilter('period', 'last7days', 'Last 7 Days')">
+                                        <i class="fas fa-calendar-week"></i> Last 7 Days
+                                    </div>
+                                    <div class="filter-option" onclick="selectStatsFilter('period', 'last30days', 'Last 30 Days')">
+                                        <i class="fas fa-calendar-alt"></i> Last 30 Days
+                                    </div>
+                                    <div class="filter-option" onclick="selectStatsFilter('period', 'last90days', 'Last 90 Days')">
+                                        <i class="fas fa-calendar"></i> Last 90 Days
+                                    </div>
+                                    <div class="filter-option" onclick="selectStatsFilter('period', 'thisyear', 'This Year')">
+                                        <i class="fas fa-calendar"></i> This Year
+                                    </div>
+                                    <div class="filter-option" onclick="selectStatsFilter('period', 'lastyear', 'Last Year')">
+                                        <i class="fas fa-calendar"></i> Last Year
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Group By</label>
+                            <div class="filter-dropdown">
+                                <button class="filter-btn" onclick="toggleDropdown('statsGroupDropdown')" id="statsGroupBtn">
+                                    <span>Status</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="filter-dropdown-menu" id="statsGroupDropdown">
+                                    <div class="filter-option" onclick="selectStatsFilter('groupBy', 'status', 'Status')">
+                                        <i class="fas fa-flag"></i> Status
+                                    </div>
+                                    <div class="filter-option" onclick="selectStatsFilter('groupBy', 'priority', 'Priority')">
+                                        <i class="fas fa-exclamation-triangle"></i> Priority
+                                    </div>
+                                    <div class="filter-option" onclick="selectStatsFilter('groupBy', 'equipment', 'Equipment')">
+                                        <i class="fas fa-cogs"></i> Equipment
+                                    </div>
+                                    <div class="filter-option" onclick="selectStatsFilter('groupBy', 'date', 'Date')">
+                                        <i class="fas fa-calendar"></i> Date
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Chart Type</label>
+                            <div class="filter-dropdown">
+                                <button class="filter-btn" onclick="toggleDropdown('statsChartDropdown')" id="statsChartBtn">
+                                    <span>Bar Chart</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="filter-dropdown-menu" id="statsChartDropdown">
+                                    <div class="filter-option" onclick="selectStatsFilter('chartType', 'bar', 'Bar Chart')">
+                                        <i class="fas fa-chart-bar"></i> Bar Chart
+                                    </div>
+                                    <div class="filter-option" onclick="selectStatsFilter('chartType', 'pie', 'Pie Chart')">
+                                        <i class="fas fa-chart-pie"></i> Pie Chart
+                                    </div>
+                                    <div class="filter-option" onclick="selectStatsFilter('chartType', 'line', 'Line Chart')">
+                                        <i class="fas fa-chart-line"></i> Line Chart
+                                    </div>
+                                    <div class="filter-option" onclick="selectStatsFilter('chartType', 'doughnut', 'Doughnut Chart')">
+                                        <i class="fas fa-chart-pie"></i> Doughnut Chart
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Data Source</label>
+                            <div class="filter-dropdown">
+                                <button class="filter-btn" onclick="toggleDropdown('statsSourceDropdown')" id="statsSourceBtn">
+                                    <span>All Data</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="filter-dropdown-menu" id="statsSourceDropdown">
+                                    <div class="filter-option" onclick="selectStatsFilter('source', 'all', 'All Data')">
+                                        <i class="fas fa-database"></i> All Data
+                                    </div>
+                                    <div class="filter-option" onclick="selectStatsFilter('source', 'active', 'Active Only')">
+                                        <i class="fas fa-play-circle"></i> Active Only
+                                    </div>
+                                    <div class="filter-option" onclick="selectStatsFilter('source', 'completed', 'Completed Only')">
+                                        <i class="fas fa-check-circle"></i> Completed Only
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics Content -->
+            <div class="statistics-content">
+                <!-- Summary Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <div class="stats-icon bg-primary">
+                                <i class="fas fa-chart-bar"></i>
+                            </div>
+                            <div class="stats-content">
+                                <div class="stats-value" id="statsTotal">--</div>
+                                <div class="stats-label">Total Records</div>
+                                <div class="stats-change" id="statsTotalChange">--</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <div class="stats-icon bg-success">
+                                <i class="fas fa-percentage"></i>
+                            </div>
+                            <div class="stats-content">
+                                <div class="stats-value" id="statsCompletionRate">--</div>
+                                <div class="stats-label">Completion Rate</div>
+                                <div class="stats-change" id="statsCompletionChange">--</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <div class="stats-icon bg-warning">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="stats-content">
+                                <div class="stats-value" id="statsAvgDuration">--</div>
+                                <div class="stats-label">Avg. Duration</div>
+                                <div class="stats-change" id="statsDurationChange">--</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <div class="stats-icon bg-info">
+                                <i class="fas fa-cogs"></i>
+                            </div>
+                            <div class="stats-content">
+                                <div class="stats-value" id="statsEquipmentCount">--</div>
+                                <div class="stats-label">Equipment Types</div>
+                                <div class="stats-change" id="statsEquipmentChange">--</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="chart-container">
+                            <h6 class="chart-title">Statistics Chart</h6>
+                            <canvas id="statisticsMainChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="chart-container">
+                            <h6 class="chart-title">Distribution</h6>
+                            <canvas id="statisticsDistributionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Advanced Filter Component -->
+    {% include 'components/advanced_work_order_filters.html' %}
+
+    <!-- Custom JavaScript for work_orders.html integration -->
+        
+        <!-- Date Range Section -->
+        <div class="filter-section">
+            <h6 class="filter-title">
+                <i class="fas fa-calendar-alt"></i>
+                Date Range & Period
+            </h6>
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Date Type</label>
+                    <select class="form-select" id="dateType">
+                        <option value="order_date">Order Date</option>
+                        <option value="start_date">Start Date</option>
+                        <option value="completion_date">Completion Date</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Date Range</label>
+                    <div class="date-range-container">
+                        <input type="text" class="form-control" id="dateRange" placeholder="Select date range">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Quick Select</label>
+                    <select class="form-select" id="quickDateRange">
+                        <option value="">Custom Range</option>
+                        <option value="today">Today</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="last7days">Last 7 Days</option>
+                        <option value="last30days">Last 30 Days</option>
+                        <option value="thismonth">This Month</option>
+                        <option value="lastmonth">Last Month</option>
+                        <option value="thisyear">This Year</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Primary Filters Section -->
+        <div class="filter-section">
+            <h6 class="filter-title">
+                <i class="fas fa-tags"></i>
+                Primary Filters
+            </h6>
+            <div class="row">
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <label class="form-label">Work Order Type</label>
+                    <div class="filter-dropdown">
+                        <button class="filter-btn" onclick="toggleDropdown('workOrderTypeDropdown')" id="workOrderTypeBtn">
+                            <span>All Types</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="filter-dropdown-menu" id="workOrderTypeDropdown">
+                            <div class="filter-option" onclick="selectFilter('workOrderType', '', 'All Types')">
+                                <i class="fas fa-list"></i> All Types
+                            </div>
+                            <div class="filter-option" onclick="selectFilter('workOrderType', 'active', 'Active Only')">
+                                <i class="fas fa-play-circle"></i> Active Only
+                            </div>
+                            <div class="filter-option" onclick="selectFilter('workOrderType', 'history', 'History Only')">
+                                <i class="fas fa-history"></i> History Only
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <label class="form-label">Status</label>
+                    <div class="filter-dropdown">
+                        <button class="filter-btn" onclick="toggleDropdown('statusDropdown')" id="statusBtn">
+                            <span>All Statuses</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="filter-dropdown-menu" id="statusDropdown">
+                            <div class="filter-option" onclick="selectFilter('status', '', 'All Statuses')">
+                                <i class="fas fa-list"></i> All Statuses
+                            </div>
+                            <!-- Dynamic status options will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <label class="form-label">Priority</label>
+                    <div class="filter-dropdown">
+                        <button class="filter-btn" onclick="toggleDropdown('priorityDropdown')" id="priorityBtn">
+                            <span>All Priorities</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="filter-dropdown-menu" id="priorityDropdown">
+                            <div class="filter-option" onclick="selectFilter('priority', '', 'All Priorities')">
+                                <i class="fas fa-list"></i> All Priorities
+                            </div>
+                            <!-- Dynamic priority options will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <label class="form-label">Job Type</label>
+                    <div class="filter-dropdown">
+                        <button class="filter-btn" onclick="toggleDropdown('jobTypeDropdown')" id="jobTypeBtn">
+                            <span>All Job Types</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="filter-dropdown-menu" id="jobTypeDropdown">
+                            <div class="filter-option" onclick="selectFilter('jobType', '', 'All Job Types')">
+                                <i class="fas fa-list"></i> All Job Types
+                            </div>
+                            <!-- Dynamic job type options will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Filters Section -->
+        <div class="filter-section">
+            <h6 class="filter-title">
+                <i class="fas fa-cogs"></i>
+                Advanced Filters
+            </h6>
+            <div class="row">
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <label class="form-label">Equipment</label>
+                    <div class="filter-dropdown">
+                        <button class="filter-btn" onclick="toggleDropdown('equipmentDropdown')" id="equipmentBtn">
+                            <span>All Equipment</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="filter-dropdown-menu" id="equipmentDropdown">
+                            <div class="filter-option" onclick="selectFilter('equipment', '', 'All Equipment')">
+                                <i class="fas fa-list"></i> All Equipment
+                            </div>
+                            <!-- Dynamic equipment options will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <label class="form-label">Category</label>
+                    <div class="filter-dropdown">
+                        <button class="filter-btn" onclick="toggleDropdown('categoryDropdown')" id="categoryBtn">
+                            <span>All Categories</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="filter-dropdown-menu" id="categoryDropdown">
+                            <div class="filter-option" onclick="selectFilter('category', '', 'All Categories')">
+                                <i class="fas fa-list"></i> All Categories
+                            </div>
+                            <!-- Dynamic category options will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <label class="form-label">Search</label>
+                    <div class="search-container">
+                        <i class="fas fa-search text-muted"></i>
+                        <input type="text" class="search-input" id="searchTerm" placeholder="Search work orders...">
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <label class="form-label">Actions</label>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" onclick="applyFilters()">
+                            <i class="fas fa-search"></i> Apply
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="clearAllFilters()">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Dashboard -->
+    <div class="row mb-4" id="kpiDashboard">
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="kpi-card">
+                <div class="kpi-label">Total Work Orders</div>
+                <div class="kpi-value" id="totalWorkOrders">-</div>
+                <div class="kpi-change text-info">
+                    <i class="fas fa-info-circle"></i> All records
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="kpi-card">
+                <div class="kpi-label">Active WOs</div>
+                <div class="kpi-value text-primary" id="activeWorkOrders">-</div>
+                <div class="kpi-change text-primary">
+                    <i class="fas fa-play-circle"></i> In progress
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="kpi-card">
+                <div class="kpi-label">Completed</div>
+                <div class="kpi-value text-success" id="completedWorkOrders">-</div>
+                <div class="kpi-change text-success">
+                    <i class="fas fa-check-circle"></i> This month
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="kpi-card">
+                <div class="kpi-label">High Priority</div>
+                <div class="kpi-value text-danger" id="highPriorityWorkOrders">-</div>
+                <div class="kpi-change text-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Urgent
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="kpi-card">
+                <div class="kpi-label">Avg Resolution</div>
+                <div class="kpi-value text-info" id="avgResolutionTime">-</div>
+                <div class="kpi-change text-info">
+                    <i class="fas fa-clock"></i> Hours
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+            <div class="kpi-card">
+                <div class="kpi-label">Efficiency</div>
+                <div class="kpi-value text-warning" id="efficiency">-</div>
+                <div class="kpi-change text-warning">
+                    <i class="fas fa-percentage"></i> Rate
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-4">
+            <div class="chart-container">
+                <h6 class="chart-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Status Distribution
+                </h6>
+                <div style="height: 300px;">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="chart-container">
+                <h6 class="chart-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Priority Analysis
+                </h6>
+                <div style="height: 300px;">
+                    <canvas id="priorityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-8 mb-4">
+            <div class="chart-container">
+                <h6 class="chart-title">
+                    <i class="fas fa-chart-line"></i>
+                    Work Orders Timeline
+                </h6>
+                <div style="height: 300px;">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 mb-4">
+            <div class="chart-container">
+                <h6 class="chart-title">
+                    <i class="fas fa-cogs"></i>
+                    Top Equipment
+                </h6>
+                <div style="height: 300px;">
+                    <canvas id="equipmentChart"></canvas>
+                </div>
+            </div>
+        </div>
+    <!-- Data Table -->
+    <div class="table-container">
+        <div class="table-header">
+            <h5 class="mb-0">
+                <i class="fas fa-table"></i>
+                Work Orders Data (<span id="recordCount">0</span> records)
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary btn-sm" onclick="toggleTableView()">
+                    <i class="fas fa-th-list"></i> Toggle View
+                </button>
+                <button class="btn btn-outline-success btn-sm" onclick="exportTableData()">
+                    <i class="fas fa-file-excel"></i> Export
+                </button>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table enhanced-table" id="workOrdersTable">
+                <thead>
+                    <tr id="tableHeaders">
+                        <th onclick="sortTable('wo_number')">
+                            <i class="fas fa-sort"></i> WO Number
+                        </th>
+                        <th onclick="sortTable('description')">
+                            <i class="fas fa-sort"></i> Description
+                        </th>
+                        <th onclick="sortTable('equipment')">
+                            <i class="fas fa-sort"></i> Equipment
+                        </th>
+                        <th onclick="sortTable('status')">
+                            <i class="fas fa-sort"></i> Status
+                        </th>
+                        <th onclick="sortTable('priority')">
+                            <i class="fas fa-sort"></i> Priority
+                        </th>
+                        <th onclick="sortTable('job_type')">
+                            <i class="fas fa-sort"></i> Job Type
+                        </th>
+                        <th onclick="sortTable('created_date')">
+                            <i class="fas fa-sort"></i> Created Date
+                        </th>
+                        <th onclick="sortTable('start_date')">
+                            <i class="fas fa-sort"></i> Start Date
+                        </th>
+                        <th onclick="sortTable('duration')">
+                            <i class="fas fa-sort"></i> Duration
+                        </th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="workOrdersTableBody">
+                    <!-- Data will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        <div class="d-flex justify-content-between align-items-center p-3 border-top">
+            <div class="text-muted">
+                Showing <span id="showingFrom">1</span> to <span id="showingTo">50</span> of <span id="totalRecords">0</span> entries
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary btn-sm" onclick="previousPage()" id="prevBtn">
+                    <i class="fas fa-chevron-left"></i> Previous
+                </button>
+                <button class="btn btn-outline-primary btn-sm" onclick="nextPage()" id="nextBtn">
+                    Next <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables for simplified 3-section interface
+let currentAnalysisFilters = {};
+let currentSearchFilters = {};
+let currentStatsFilters = {};
+let workOrdersData = [];
+let chartInstances = {};
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initializing Work Orders Management System...');
+    
+    // Set a timeout to show basic view if advanced features fail to load
+    const fallbackTimeout = setTimeout(() => {
+        console.log('Advanced features taking too long to load, redirecting to simple view...');
+        const basicView = document.getElementById('basicView');
+        if (basicView && basicView.style.display === 'none') {
+            // Redirect to simple view instead of showing basic view
+            window.location.href = "{{ url_for('work_orders_list', simple='true') }}";
+        }
+    }, 8000); // 8 seconds timeout
+    
+    try {
+        initializeDateRangePicker();
+        loadWorkOrdersData();
+        setupTabSwitching();
+        setupDropdownHandlers();
+        
+        // Clear the timeout if everything loads successfully
+        clearTimeout(fallbackTimeout);
+    } catch (error) {
+        clearTimeout(fallbackTimeout);
+        console.error('Error during initialization:', error);
+        // Show user-friendly error message
+        const container = document.querySelector('.container-fluid');
+        if (container) {
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    <h4><i class="fas fa-exclamation-triangle"></i> Failed to Initialize Work Orders Page</h4>
+                    <p>An unexpected error occurred while loading the page. Please refresh to try again.</p>
+                    <details>
+                        <summary>Technical Details</summary>
+                        <pre>${error.message}</pre>
+                    </details>
+                    <button onclick="window.location.reload()" class="btn btn-primary">Refresh Page</button>
+                </div>
+            `;
+        }
+    }
+});
+
+function initializeDateRangePicker() {
+    // Initialize date range picker for analysis section
+    if (document.getElementById('analysisDateRange')) {
+        $('#analysisDateRange').daterangepicker({
+            opens: 'left',
+            locale: {
+                format: 'YYYY-MM-DD'
+            }
+        });
+    }
+}
+
+function setupTabSwitching() {
+    // Handle tab switching and load appropriate data
+    const tabButtons = document.querySelectorAll('#mainTabs button');
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const targetTab = this.getAttribute('data-bs-target').replace('#', '');
+            console.log('Switching to tab:', targetTab);
+            
+            // Load data based on active tab
+            setTimeout(() => {
+                switch(targetTab) {
+                    case 'analysis':
+                        loadAnalysisData();
+                        break;
+                    case 'search':
+                        setupSearchInterface();
+                        break;
+                    case 'statistics':
+                        loadStatisticsData();
+                        break;
+                }
+            }, 100);
+        });
+    });
+}
+
+function setupDropdownHandlers() {
+    // Global click handler for all dropdowns
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.filter-dropdown')) {
+            closeAllDropdowns();
+        }
+    });
+    
+    // Search input handler
+    const searchInput = document.getElementById('searchKeywords');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+    }
+}
+
+// Dropdown Management Functions
+function toggleDropdown(dropdownId) {
+    console.log('Toggling dropdown:', dropdownId);
+    
+    // Close all other dropdowns
+    document.querySelectorAll('.filter-dropdown-menu').forEach(menu => {
+        if (menu.id !== dropdownId) {
+            menu.classList.remove('show');
+        }
+    });
+    
+    // Toggle the requested dropdown
+    const dropdown = document.getElementById(dropdownId);
+    if (dropdown) {
+        dropdown.classList.toggle('show');
+    }
+}
+
+function closeAllDropdowns() {
+    document.querySelectorAll('.filter-dropdown-menu').forEach(menu => {
+        menu.classList.remove('show');
+    });
+}
+
+// Analysis Section Functions
+function selectTimeInterval(interval, displayText) {
+    console.log('Selecting time interval:', interval, displayText);
+    
+    const btn = document.getElementById('timeIntervalBtn');
+    if (btn) {
+        btn.querySelector('span').textContent = displayText;
+    }
+    
+    currentAnalysisFilters.timeInterval = interval;
+    
+    // Show/hide custom date range
+    const customDateRange = document.getElementById('customDateRange');
+    if (customDateRange) {
+        customDateRange.style.display = interval === 'custom' ? 'block' : 'none';
+    }
+    
+    closeAllDropdowns();
+    
+    // Auto-apply if not custom range
+    if (interval !== 'custom') {
+        applyAnalysisFilters();
+    }
+}
+
+function selectAnalysisFilter(filterType, value, displayText) {
+    console.log('Selecting analysis filter:', filterType, value, displayText);
+    
+    const btnId = 'analysis' + filterType.charAt(0).toUpperCase() + filterType.slice(1) + 'Btn';
+    const btn = document.getElementById(btnId);
+    if (btn) {
+        btn.querySelector('span').textContent = displayText;
+    }
+    
+    currentAnalysisFilters[filterType] = value;
+    closeAllDropdowns();
+}
+
+function resetAnalysisFilters() {
+    console.log('Resetting analysis filters');
+    
+    currentAnalysisFilters = {};
+    
+    // Reset all dropdown buttons
+    const buttons = ['timeIntervalBtn', 'analysisStatusBtn', 'analysisPriorityBtn', 'analysisEquipmentBtn'];
+    buttons.forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+            const spans = btn.querySelectorAll('span');
+            if (spans.length > 0) {
+                // Reset to default text based on button
+                if (btnId.includes('timeInterval')) spans[0].textContent = 'Last 30 Days';
+                else if (btnId.includes('Status')) spans[0].textContent = 'All Status';
+                else if (btnId.includes('Priority')) spans[0].textContent = 'All Priority';
+                else if (btnId.includes('Equipment')) spans[0].textContent = 'All Equipment';
+            }
+        }
+    });
+    
+    // Hide custom date range
+    const customDateRange = document.getElementById('customDateRange');
+    if (customDateRange) {
+        customDateRange.style.display = 'none';
+    }
+    
+    applyAnalysisFilters();
+}
+
+function applyAnalysisFilters() {
+    console.log('Applying analysis filters:', currentAnalysisFilters);
+    
+    showLoading(true);
+    
+    // Build filter parameters
+    const params = new URLSearchParams();
+    
+    // Add time interval
+    if (currentAnalysisFilters.timeInterval) {
+        params.append('timeInterval', currentAnalysisFilters.timeInterval);
+    }
+    
+    // Add custom date range if selected
+    if (currentAnalysisFilters.timeInterval === 'custom') {
+        const dateRange = $('#analysisDateRange').data('daterangepicker');
+        if (dateRange) {
+            params.append('startDate', dateRange.startDate.format('YYYY-MM-DD'));
+            params.append('endDate', dateRange.endDate.format('YYYY-MM-DD'));
+        }
+    }
+    
+    // Add other filters
+    Object.keys(currentAnalysisFilters).forEach(key => {
+        if (key !== 'timeInterval' && currentAnalysisFilters[key]) {
+            params.append(key, currentAnalysisFilters[key]);
+        }
+    });
+    
+    // Make API call to PowerBI analysis endpoint
+    fetch('/api/work-orders/powerbi-analysis?' + params.toString())
+        .then(response => response.json())
+        .then(data => {
+            console.log('Analysis data received:', data);
+            if (data.success) {
+                updateAnalysisDisplay(data);
+            } else {
+                console.error('Analysis error:', data.error);
+                showError(data.error || 'Failed to load analysis data');
+            }
+        })
+        .catch(error => {
+            console.error('Network error:', error);
+            showError('Network error occurred. Please check your connection and try again.');
+        })
+        .finally(() => {
+            showLoading(false);
+        });
+}
+
+function updateAnalysisDisplay(data) {
+    console.log('Updating analysis display');
+    
+    // Update KPI cards
+    if (data.kpis) {
+        updateElement('analysisTotal', data.kpis.total_work_orders || '--');
+        updateElement('analysisActive', data.kpis.active_work_orders || '--');
+        updateElement('analysisCompleted', data.kpis.completed_work_orders || '--');
+        updateElement('analysisAvgTime', data.kpis.avg_completion_time ? data.kpis.avg_completion_time + ' days' : '--');
+    }
+    
+    // Update charts
+    if (data.charts) {
+        updateAnalysisCharts(data.charts);
+    }
+}
+
+function updateAnalysisCharts(chartData) {
+    // Update status chart
+    if (chartData.status_distribution) {
+        updateChart('analysisStatusChart', 'pie', chartData.status_distribution);
+    }
+    
+    // Update timeline chart
+    if (chartData.timeline_trend) {
+        updateChart('analysisTimelineChart', 'line', chartData.timeline_trend);
+    }
+}
+
+// Search Section Functions
+function selectSearchFilter(filterType, value, displayText) {
+    console.log('Selecting search filter:', filterType, value, displayText);
+    
+    const btnId = 'search' + filterType.charAt(0).toUpperCase() + filterType.slice(1) + 'Btn';
+    const btn = document.getElementById(btnId);
+    if (btn) {
+        btn.querySelector('span').textContent = displayText;
+    }
+    
+    currentSearchFilters[filterType] = value;
+    closeAllDropdowns();
+}
+
+function resetSearchFilters() {
+    console.log('Resetting search filters');
+    
+    currentSearchFilters = {};
+    
+    // Clear search input
+    const searchInput = document.getElementById('searchKeywords');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    // Reset dropdown buttons
+    const buttons = ['searchTimeBtn', 'searchTypeBtn', 'searchPriorityBtn', 'searchStatusBtn'];
+    buttons.forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+            const spans = btn.querySelectorAll('span');
+            if (spans.length > 0) {
+                if (btnId.includes('Time')) spans[0].textContent = 'All Time';
+                else if (btnId.includes('Type')) spans[0].textContent = 'All Types';
+                else if (btnId.includes('Priority')) spans[0].textContent = 'All Priority';
+                else if (btnId.includes('Status')) spans[0].textContent = 'All Status';
+            }
+        }
+    });
+    
+    // Clear search results
+    updateElement('searchResultCount', '0 results found');
+    const resultsBody = document.getElementById('searchResultsBody');
+    if (resultsBody) {
+        resultsBody.innerHTML = '';
+    }
+}
+
+function performSearch() {
+    console.log('Performing search:', currentSearchFilters);
+    
+    showLoading(true);
+    
+    const searchKeywords = document.getElementById('searchKeywords').value;
+    
+    // Build search parameters
+    const params = new URLSearchParams();
+    params.append('search', searchKeywords);
+    
+    Object.keys(currentSearchFilters).forEach(key => {
+        if (currentSearchFilters[key]) {
+            params.append(key, currentSearchFilters[key]);
+        }
+    });
+    
+    // Make API call
+    fetch('/api/work-orders/search?' + params.toString())
+        .then(response => response.json())
+        .then(data => {
+            console.log('Search results received:', data);
+            if (data.success) {
+                updateSearchResults(data.work_orders || []);
+            } else {
+                console.error('Search error:', data.error);
+                showError(data.error || 'Failed to perform search');
+            }
+        })
+        .catch(error => {
+            console.error('Search network error:', error);
+            showError('Network error occurred. Please check your connection and try again.');
+        })
+        .finally(() => {
+            showLoading(false);
+        });
+}
+
+function updateSearchResults(results) {
+    console.log('Updating search results:', results.length, 'items');
+    
+    updateElement('searchResultCount', `${results.length} results found`);
+    
+    const resultsBody = document.getElementById('searchResultsBody');
+    if (resultsBody) {
+        resultsBody.innerHTML = '';
+        
+        if (results.length === 0) {
+            resultsBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No results found</td></tr>';
+            return;
+        }
+        
+        results.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item.work_order_id || ''}</td>
+                <td>${item.description || ''}</td>
+                <td>${item.equipment || ''}</td>
+                <td><span class="badge bg-${getStatusColor(item.status)}">${item.status || ''}</span></td>
+                <td><span class="badge bg-${getPriorityColor(item.priority)}">${item.priority || ''}</span></td>
+                <td>${formatDate(item.order_date)}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewWorkOrder('${item.id}')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </td>
+            `;
+            resultsBody.appendChild(row);
+        });
+    }
+}
+
+// Statistics Section Functions
+function selectStatsFilter(filterType, value, displayText) {
+    console.log('Selecting stats filter:', filterType, value, displayText);
+    
+    const btnId = 'stats' + filterType.charAt(0).toUpperCase() + filterType.slice(1) + 'Btn';
+    const btn = document.getElementById(btnId);
+    if (btn) {
+        btn.querySelector('span').textContent = displayText;
+    }
+    
+    currentStatsFilters[filterType] = value;
+    closeAllDropdowns();
+}
+
+function resetStatisticsFilters() {
+    console.log('Resetting statistics filters');
+    
+    currentStatsFilters = {};
+    
+    // Reset dropdown buttons
+    const buttons = ['statsPeriodBtn', 'statsGroupBtn', 'statsChartBtn', 'statsSourceBtn'];
+    buttons.forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+            const spans = btn.querySelectorAll('span');
+            if (spans.length > 0) {
+                if (btnId.includes('Period')) spans[0].textContent = 'Last 30 Days';
+                else if (btnId.includes('Group')) spans[0].textContent = 'Status';
+                else if (btnId.includes('Chart')) spans[0].textContent = 'Bar Chart';
+                else if (btnId.includes('Source')) spans[0].textContent = 'All Data';
+            }
+        }
+    });
+    
+    generateStatistics();
+}
+
+function generateStatistics() {
+    console.log('Generating statistics:', currentStatsFilters);
+    
+    showLoading(true);
+    
+    // Build parameters
+    const params = new URLSearchParams();
+    Object.keys(currentStatsFilters).forEach(key => {
+        if (currentStatsFilters[key]) {
+            params.append(key, currentStatsFilters[key]);
+        }
+    });
+    
+    // Make API call
+    fetch('/api/work-orders/statistics?' + params.toString())
+        .then(response => response.json())
+        .then(data => {
+            console.log('Statistics data received:', data);
+            if (data.success) {
+                updateStatisticsDisplay(data);
+            } else {
+                console.error('Statistics error:', data.error);
+                showError(data.error || 'Failed to generate statistics');
+            }
+        })
+        .catch(error => {
+            console.error('Statistics network error:', error);
+            showError('Network error occurred. Please check your connection and try again.');
+        })
+        .finally(() => {
+            showLoading(false);
+        });
+}
+
+function updateStatisticsDisplay(data) {
+    console.log('Updating statistics display');
+    
+    // Update summary cards
+    if (data.summary) {
+        updateElement('statsTotal', data.summary.total_records || '--');
+        updateElement('statsCompletionRate', data.summary.completion_rate ? data.summary.completion_rate + '%' : '--');
+        updateElement('statsAvgDuration', data.summary.avg_duration ? data.summary.avg_duration + ' days' : '--');
+        updateElement('statsEquipmentCount', data.summary.equipment_count || '--');
+        
+        // Update change indicators
+        updateElement('statsTotalChange', data.summary.total_change || '--');
+        updateElement('statsCompletionChange', data.summary.completion_change || '--');
+        updateElement('statsDurationChange', data.summary.duration_change || '--');
+        updateElement('statsEquipmentChange', data.summary.equipment_change || '--');
+    }
+    
+    // Update charts
+    if (data.charts) {
+        updateStatisticsCharts(data.charts);
+    }
+}
+
+function updateStatisticsCharts(chartData) {
+    // Update main chart based on selected type
+    const chartType = currentStatsFilters.chartType || 'bar';
+    if (chartData.main_chart) {
+        updateChart('statisticsMainChart', chartType, chartData.main_chart);
+    }
+    
+    // Update distribution chart
+    if (chartData.distribution) {
+        updateChart('statisticsDistributionChart', 'doughnut', chartData.distribution);
+    }
+}
+
+// Utility Functions
+function updateElement(elementId, value) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = value;
+    }
+}
+
+function updateChart(canvasId, type, data) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    
+    // Destroy existing chart if it exists
+    if (chartInstances[canvasId]) {
+        chartInstances[canvasId].destroy();
+    }
+    
+    // Create new chart
+    const ctx = canvas.getContext('2d');
+    chartInstances[canvasId] = new Chart(ctx, {
+        type: type,
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+function showLoading(show) {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.style.display = show ? 'flex' : 'none';
+    }
+}
+
+function showError(message) {
+    console.error('Error:', message);
+    alert('Error: ' + message);
+}
+
+function formatDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+}
+
+function getStatusColor(status) {
+    const statusColors = {
+        'active': 'success',
+        'completed': 'primary',
+        'pending': 'warning',
+        'cancelled': 'danger'
+    };
+    return statusColors[status?.toLowerCase()] || 'secondary';
+}
+
+function getPriorityColor(priority) {
+    const priorityColors = {
+        'high': 'danger',
+        'medium': 'warning',
+        'low': 'success'
+    };
+    return priorityColors[priority?.toLowerCase()] || 'secondary';
+}
+
+// Data Loading Functions
+function loadWorkOrdersData() {
+    console.log('Loading initial work orders data...');
+    
+    showLoading(true);
+    
+    fetch('/api/work-orders/powerbi-analysis?quick=true&limit=100')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Initial data loaded:', data);
+            if (data.success) {
+                workOrdersData = data;
+                // Initialize Analysis tab data
+                loadAnalysisData();
+            } else {
+                throw new Error(data.error || 'API returned unsuccessful response');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading initial data:', error);
+            // Show user-friendly error in the UI instead of alert
+            const container = document.querySelector('.main-content .container-fluid');
+            if (container) {
+                container.innerHTML = `
+                    <div class="alert alert-warning">
+                        <h4><i class="fas fa-exclamation-triangle"></i> Work Orders Data Unavailable</h4>
+                        <p>Unable to load work orders data. This might be a temporary issue.</p>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <div class="mt-3">
+                            <button onclick="window.location.reload()" class="btn btn-primary me-2">
+                                <i class="fas fa-sync-alt"></i> Retry
+                            </button>
+                            <a href="{{ url_for('work_orders_list', simple='true') }}" class="btn btn-success me-2">
+                                <i class="fas fa-table"></i> Simple View
+                            </a>
+                            <a href="{{ url_for('index') }}" class="btn btn-secondary me-2">
+                                <i class="fas fa-home"></i> Return to Home
+                            </a>
+                            <button onclick="showBasicView()" class="btn btn-outline-primary">
+                                <i class="fas fa-table"></i> Show Basic View
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        })
+        .finally(() => {
+            showLoading(false);
+        });
+}
+
+function loadAnalysisData() {
+    console.log('Loading analysis data...');
+    // Set default time interval
+    if (!currentAnalysisFilters.timeInterval) {
+        currentAnalysisFilters.timeInterval = 'last30days';
+    }
+    applyAnalysisFilters();
+}
+
+function setupSearchInterface() {
+    console.log('Setting up search interface...');
+    // Load filter options for search dropdowns
+    loadSearchFilterOptions();
+}
+
+function loadSearchFilterOptions() {
+    // This would typically load dynamic filter options
+    // For now, we'll use the existing data
+    console.log('Loading search filter options...');
+}
+
+function loadStatisticsData() {
+    console.log('Loading statistics data...');
+    // Set default stats filters
+    if (!currentStatsFilters.period) {
+        currentStatsFilters.period = 'last30days';
+        currentStatsFilters.groupBy = 'status';
+        currentStatsFilters.chartType = 'bar';
+        currentStatsFilters.source = 'all';
+    }
+    generateStatistics();
+}
+
+// Export Functions
+function refreshAllData() {
+    console.log('Refreshing all data...');
+    loadWorkOrdersData();
+}
+
+function exportAllData() {
+    console.log('Exporting all data...');
+    window.open('/api/work-orders/export', '_blank');
+}
+
+function exportSearchResults() {
+    console.log('Exporting search results...');
+    const params = new URLSearchParams();
+    const searchKeywords = document.getElementById('searchKeywords').value;
+    params.append('search', searchKeywords);
+    
+    Object.keys(currentSearchFilters).forEach(key => {
+        if (currentSearchFilters[key]) {
+            params.append(key, currentSearchFilters[key]);
+        }
+    });
+    
+    window.open('/api/work-orders/export?' + params.toString(), '_blank');
+}
+
+function viewWorkOrder(id) {
+    console.log('Viewing work order:', id);
+    window.open(`/work-orders/view/${id}`, '_blank');
+}
+
+function sortSearchResults(field) {
+    console.log('Sorting search results by:', field);
+    // Implement sorting logic here
+}
+</script>
+}
+
+function setQuickDateRange(range) {
+    const today = moment();
+    let startDate, endDate;
+    
+    switch(range) {
+        case 'today':
+            startDate = endDate = today.format('YYYY-MM-DD');
+            break;
+        case 'yesterday':
+            startDate = endDate = today.subtract(1, 'day').format('YYYY-MM-DD');
+            break;
+        case 'last7days':
+            startDate = today.subtract(7, 'days').format('YYYY-MM-DD');
+            endDate = moment().format('YYYY-MM-DD');
+            break;
+        case 'last30days':
+            startDate = today.subtract(30, 'days').format('YYYY-MM-DD');
+            endDate = moment().format('YYYY-MM-DD');
+            break;
+        case 'thismonth':
+            startDate = moment().startOf('month').format('YYYY-MM-DD');
+            endDate = moment().endOf('month').format('YYYY-MM-DD');
+            break;
+        case 'lastmonth':
+            startDate = moment().subtract(1, 'month').startOf('month').format('YYYY-MM-DD');
+            endDate = moment().subtract(1, 'month').endOf('month').format('YYYY-MM-DD');
+            break;
+        case 'thisyear':
+            startDate = moment().startOf('year').format('YYYY-MM-DD');
+            endDate = moment().endOf('year').format('YYYY-MM-DD');
+            break;
+    }
+    
+    if (startDate && endDate) {
+        $('#dateRange').data('daterangepicker').setStartDate(startDate);
+        $('#dateRange').data('daterangepicker').setEndDate(endDate);
+        applyFilters();
+    }
+}
+
+async function loadInitialData() {
+    showLoading(true);
+    
+    try {
+        // Load PowerBI analysis data for comprehensive view
+        const response = await fetch('/api/work-orders/powerbi-analysis?quick=true&limit=2000');
+        const data = await response.json();
+        
+        if (data.success) {
+            allWorkOrders = data.work_orders || [];
+            
+            // Populate filter options
+            populateFilterOptions(data);
+            
+            // Update KPIs
+            updateKPICards(data.kpis);
+            
+            // Create charts
+            createCharts(data.charts);
+            
+            // Update data table
+            updateDataTable();
+            
+            console.log('Loaded initial data:', {
+                workOrders: allWorkOrders.length,
+                kpis: data.kpis
+            });
+        } else {
+            showError(data.error || 'Failed to load work orders data');
+        }
+    } catch (error) {
+        console.error('Error loading initial data:', error);
+        showError('Failed to connect to the server');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function populateFilterOptions(data) {
+    const workOrders = data.work_orders || [];
+    
+    // Populate status options
+    const statuses = [...new Set(workOrders.map(wo => wo.status).filter(Boolean))];
+    populateDropdownOptions('statusDropdown', statuses, 'fas fa-circle');
+    
+    // Populate priority options
+    const priorities = [...new Set(workOrders.map(wo => wo.priority).filter(Boolean))];
+    populateDropdownOptions('priorityDropdown', priorities, 'fas fa-exclamation-triangle');
+    
+    // Populate job type options
+    const jobTypes = [...new Set(workOrders.map(wo => wo.job_type).filter(Boolean))];
+    populateDropdownOptions('jobTypeDropdown', jobTypes, 'fas fa-wrench');
+    
+    // Populate equipment options (limit to top 50)
+    const equipment = [...new Set(workOrders.map(wo => wo.equipment).filter(Boolean))].slice(0, 50);
+    populateDropdownOptions('equipmentDropdown', equipment, 'fas fa-cogs');
+    
+    // Populate category options
+    const categories = [...new Set(workOrders.map(wo => wo.category).filter(Boolean))];
+    populateDropdownOptions('categoryDropdown', categories, 'fas fa-tag');
+}
+
+function populateDropdownOptions(dropdownId, options, iconClass) {
+    const dropdown = document.getElementById(dropdownId);
+    if (!dropdown) return;
+    
+    // Clear existing options (except the first "All" option)
+    const existingOptions = dropdown.querySelectorAll('.filter-option:not(:first-child)');
+    existingOptions.forEach(option => option.remove());
+    
+    // Add new options
+    options.forEach(option => {
+        const optionElement = document.createElement('div');
+        optionElement.className = 'filter-option';
+        optionElement.innerHTML = `<i class="${iconClass}"></i> ${option}`;
+        optionElement.onclick = function() {
+            const filterKey = dropdownId.replace('Dropdown', '');
+            const btnId = dropdownId.replace('Dropdown', 'Btn');
+            selectFilter(filterKey, option, option);
+        };
+        dropdown.appendChild(optionElement);
+    });
+}
+
+function toggleDropdown(dropdownId) {
+    closeAllDropdowns();
+    const dropdown = document.getElementById(dropdownId);
+    if (dropdown) {
+        dropdown.classList.toggle('show');
+    }
+}
+
+function closeAllDropdowns() {
+    const dropdowns = document.querySelectorAll('.filter-dropdown-menu');
+    dropdowns.forEach(dropdown => {
+        dropdown.classList.remove('show');
+    });
+}
+
+function selectFilter(filterKey, value, displayText) {
+    currentFilters[filterKey] = value;
+    
+    // Update button text
+    const btn = document.getElementById(filterKey + 'Btn');
+    if (btn) {
+        const span = btn.querySelector('span');
+        if (span) {
+            span.textContent = displayText;
+        }
+        
+        // Add active class if filter is selected
+        if (value) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    }
+    
+    // Close dropdown
+    const dropdown = document.getElementById(filterKey + 'Dropdown');
+    if (dropdown) {
+        dropdown.classList.remove('show');
+        
+        // Update selected state in dropdown
+        const options = dropdown.querySelectorAll('.filter-option');
+        options.forEach(option => {
+            option.classList.remove('selected');
+            if (option.textContent.trim().endsWith(displayText)) {
+                option.classList.add('selected');
+            }
+        });
+    }
+    
+    // Auto-apply filters
+    applyFilters();
+}
+
+function updateKPICards(kpis) {
+    document.getElementById('totalWorkOrders').textContent = kpis.total_count || 0;
+    document.getElementById('activeWorkOrders').textContent = kpis.active_count || 0;
+    document.getElementById('completedWorkOrders').textContent = kpis.completed_this_month || 0;
+    document.getElementById('highPriorityWorkOrders').textContent = kpis.high_priority_count || 0;
+    document.getElementById('avgResolutionTime').textContent = (kpis.avg_resolution_time || 0) + 'h';
+    document.getElementById('efficiency').textContent = (kpis.equipment_efficiency || 0) + '%';
+}
+
+function createCharts(chartData) {
+    // Destroy existing charts
+    Object.values(chartInstances).forEach(chart => chart.destroy());
+    chartInstances = {};
+    
+    // Status Chart
+    const statusCtx = document.getElementById('statusChart');
+    if (statusCtx && chartData.status_distribution) {
+        chartInstances.statusChart = new Chart(statusCtx, {
+            type: 'doughnut',
+            data: chartData.status_distribution,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+    
+    // Priority Chart
+    const priorityCtx = document.getElementById('priorityChart');
+    if (priorityCtx && chartData.priority_distribution) {
+        chartInstances.priorityChart = new Chart(priorityCtx, {
+            type: 'bar',
+            data: chartData.priority_distribution,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+    
+    // Timeline Chart
+    const timelineCtx = document.getElementById('timelineChart');
+    if (timelineCtx && chartData.timeline_data) {
+        chartInstances.timelineChart = new Chart(timelineCtx, {
+            type: 'line',
+            data: chartData.timeline_data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+    
+    // Equipment Chart
+    const equipmentCtx = document.getElementById('equipmentChart');
+    if (equipmentCtx && chartData.equipment_distribution) {
+        chartInstances.equipmentChart = new Chart(equipmentCtx, {
+            type: 'horizontalBar',
+            data: chartData.equipment_distribution,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+}
+
+async function applyFilters() {
+    showLoading(true);
+    
+    try {
+        // Collect all filter values
+        const filters = { ...currentFilters };
+        
+        // Add date range if selected
+        const dateRange = $('#dateRange').data('daterangepicker');
+        if (dateRange) {
+            filters.startDate = dateRange.startDate.format('YYYY-MM-DD');
+            filters.endDate = dateRange.endDate.format('YYYY-MM-DD');
+        }
+        
+        // Add date type
+        filters.dateType = document.getElementById('dateType').value;
+        
+        // Add search term
+        const searchTerm = document.getElementById('searchTerm').value.trim();
+        if (searchTerm) {
+            filters.searchTerm = searchTerm;
+        }
+        
+        // Fetch filtered data
+        const response = await fetch('/api/work-orders/powerbi-analysis?' + new URLSearchParams(filters));
+        const data = await response.json();
+        
+        if (data.success) {
+            allWorkOrders = data.work_orders || [];
+            updateKPICards(data.kpis);
+            createCharts(data.charts);
+            updateDataTable();
+        } else {
+            showError(data.error || 'Failed to apply filters');
+        }
+    } catch (error) {
+        console.error('Error applying filters:', error);
+        showError('Failed to apply filters');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function updateDataTable() {
+    const tbody = document.getElementById('workOrdersTableBody');
+    tbody.innerHTML = '';
+    
+    if (!allWorkOrders || allWorkOrders.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="10" class="text-center text-muted py-4">
+                    <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                    No work orders found matching your criteria.<br>
+                    <small class="text-muted">Try adjusting your filters or <a href="#" onclick="clearAllFilters()">clear all filters</a></small>
+                </td>
+            </tr>
+        `;
+        document.getElementById('recordCount').textContent = '0';
+        return;
+    }
+    
+    // Apply sorting
+    const sortedData = [...allWorkOrders].sort((a, b) => {
+        let aVal = a[sortField] || '';
+        let bVal = b[sortField] || '';
+        
+        // Handle dates
+        if (sortField.includes('date')) {
+            aVal = new Date(aVal);
+            bVal = new Date(bVal);
+        }
+        
+        if (sortOrder === 'asc') {
+            return aVal > bVal ? 1 : -1;
+        } else {
+            return aVal < bVal ? 1 : -1;
+        }
+    });
+    
+    // Pagination
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, sortedData.length);
+    const pageData = sortedData.slice(startIndex, endIndex);
+    
+    // Render rows
+    pageData.forEach(wo => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><strong>${wo.wo_number || 'N/A'}</strong></td>
+            <td title="${wo.description || 'N/A'}">${truncateText(wo.description || 'N/A', 50)}</td>
+            <td>${wo.equipment || 'N/A'}</td>
+            <td><span class="status-badge ${getStatusClass(wo.status)}">${wo.status || 'N/A'}</span></td>
+            <td><span class="status-badge ${getPriorityClass(wo.priority)}">${wo.priority || 'N/A'}</span></td>
+            <td>${wo.job_type || 'N/A'}</td>
+            <td>${formatDate(wo.created_date)}</td>
+            <td>${formatDate(wo.start_date)}</td>
+            <td>${wo.duration ? wo.duration + 'h' : 'N/A'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewWorkOrder('${wo.id}')" title="View Details">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="editWorkOrder('${wo.id}')" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+    
+    // Update pagination info
+    document.getElementById('recordCount').textContent = sortedData.length.toLocaleString();
+    document.getElementById('showingFrom').textContent = startIndex + 1;
+    document.getElementById('showingTo').textContent = endIndex;
+    document.getElementById('totalRecords').textContent = sortedData.length.toLocaleString();
+    
+    // Update pagination buttons
+    document.getElementById('prevBtn').disabled = currentPage === 1;
+    document.getElementById('nextBtn').disabled = endIndex >= sortedData.length;
+}
+
+function truncateText(text, maxLength) {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+}
+
+function getStatusClass(status) {
+    if (!status) return 'status-pending';
+    const statusLower = status.toLowerCase();
+    if (statusLower.includes('complete') || statusLower.includes('ter') || statusLower.includes('done')) return 'status-completed';
+    if (statusLower.includes('exe') || statusLower.includes('progress')) return 'status-active';
+    if (statusLower.includes('cancel')) return 'status-overdue';
+    return 'status-pending';
+}
+
+function getPriorityClass(priority) {
+    if (!priority) return 'priority-medium';
+    const priorityLower = priority.toLowerCase();
+    if (priorityLower.includes('imm') || priorityLower.includes('urgent') || priorityLower.includes('1-')) return 'priority-immediate';
+    if (priorityLower.includes('high') || priorityLower.includes('2-')) return 'priority-high';
+    if (priorityLower.includes('low') || priorityLower.includes('4-')) return 'priority-low';
+    return 'priority-medium';
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    try {
+        return new Date(dateString).toLocaleDateString();
+    } catch {
+        return 'Invalid Date';
+    }
+}
+
+function sortTable(field) {
+    if (sortField === field) {
+        sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortField = field;
+        sortOrder = 'asc';
+    }
+    updateDataTable();
+}
+
+function previousPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        updateDataTable();
+    }
+}
+
+function nextPage() {
+    const maxPage = Math.ceil(allWorkOrders.length / pageSize);
+    if (currentPage < maxPage) {
+        currentPage++;
+        updateDataTable();
+    }
+}
+
+function clearAllFilters() {
+    // Clear all filter values
+    currentFilters = {};
+    
+    // Reset all filter buttons
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    filterBtns.forEach(btn => {
+        btn.classList.remove('active');
+        const span = btn.querySelector('span');
+        if (span) {
+            const originalText = btn.id.replace('Btn', '');
+            if (originalText === 'workOrderType') span.textContent = 'All Types';
+            else if (originalText === 'status') span.textContent = 'All Statuses';
+            else if (originalText === 'priority') span.textContent = 'All Priorities';
+            else if (originalText === 'jobType') span.textContent = 'All Job Types';
+            else if (originalText === 'equipment') span.textContent = 'All Equipment';
+            else if (originalText === 'category') span.textContent = 'All Categories';
+        }
+    });
+    
+    // Clear search term
+    document.getElementById('searchTerm').value = '';
+    
+    // Clear date range
+    $('#dateRange').val('');
+    document.getElementById('quickDateRange').value = '';
+    
+    // Reset page
+    currentPage = 1;
+    
+    // Reload initial data
+    loadInitialData();
+}
+
+async function exportWorkOrders() {
+    try {
+        const response = await fetch('/api/work-orders/powerbi-export?' + new URLSearchParams(currentFilters));
+        const blob = await response.blob();
+        
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `work_orders_analysis_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    } catch (error) {
+        console.error('Error exporting data:', error);
+        showError('Failed to export data');
+    }
+}
+
+function exportTableData() {
+    exportWorkOrders();
+}
+
+function toggleTableView() {
+    const table = document.getElementById('workOrdersTable');
+    table.classList.toggle('table-sm');
+}
+
+function refreshData() {
+    loadInitialData();
+}
+
+function viewWorkOrder(id) {
+    // Open work order details in a new tab/modal
+    console.log('View work order:', id);
+    // Implementation depends on your requirements
+}
+
+function editWorkOrder(id) {
+    // Open work order for editing
+    console.log('Edit work order:', id);
+    // Implementation depends on your requirements
+}
+
+function showLoading(show) {
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.style.display = show ? 'flex' : 'none';
+}
+
+function showError(message) {
+    alert('Error: ' + message);
+    console.error('Error:', message);
+}
+
+function showBasicView() {
+    // Hide advanced features and show basic view
+    const mainContent = document.getElementById('mainTabContent');
+    const basicView = document.getElementById('basicView');
+    
+    if (mainContent) {
+        mainContent.style.display = 'none';
+    }
+    
+    if (basicView) {
+        basicView.style.display = 'block';
+    }
+}
+</script>
+
+</div>
+{% endif %}
+{% endblock %}

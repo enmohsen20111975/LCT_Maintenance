@@ -1,0 +1,492 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Movements - LCT STS Maintenance{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-exchange-alt text-primary"></i>
+                    Stock Movements & Transactions
+                </h1>
+                <div class="btn-group" role="group">
+                    <button class="btn btn-success" onclick="openMovementModal('receipt')">
+                        <i class="fas fa-plus"></i> Stock Receipt
+                    </button>
+                    <button class="btn btn-warning" onclick="openMovementModal('issue')">
+                        <i class="fas fa-minus"></i> Stock Issue
+                    </button>
+                    <button class="btn btn-info" onclick="openMovementModal('adjustment')">
+                        <i class="fas fa-edit"></i> Adjustment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter and Search Row -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-body">
+                    <form method="GET" class="row align-items-end">
+                        <div class="col-md-3">
+                            <label for="movement_type">Movement Type</label>
+                            <select name="movement_type" id="movement_type" class="form-control">
+                                <option value="">All Types</option>
+                                <option value="receipt">Receipt</option>
+                                <option value="issue">Issue</option>
+                                <option value="transfer">Transfer</option>
+                                <option value="adjustment">Adjustment</option>
+                                <option value="return">Return</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="date_from">Date From</label>
+                            <input type="date" name="date_from" id="date_from" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="date_to">Date To</label>
+                            <input type="date" name="date_to" id="date_to" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary mr-2">
+                                <i class="fas fa-search"></i> Filter
+                            </button>
+                            <a href="{{ url_for('stock_movements') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Movements -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Recent Stock Movements</h6>
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshMovements()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if movements %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="movementsTable" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Part Number</th>
+                                    <th>Part Name</th>
+                                    <th>Movement Type</th>
+                                    <th>Quantity Change</th>
+                                    <th>New Quantity</th>
+                                    <th>Unit Cost</th>
+                                    <th>Total Value</th>
+                                    <th>Reference</th>
+                                    <th>Notes</th>
+                                    <th>User</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for movement in movements %}
+                                <tr>
+                                    <td>{{ movement.transaction_date }}</td>
+                                    <td><strong>{{ movement.reference_article }}</strong></td>
+                                    <td>{{ movement.part_name }}</td>
+                                    <td>
+                                        <span class="badge badge-{{ 'success' if movement.movement_type == 'receipt' 
+                                                                   else 'danger' if movement.movement_type == 'issue'
+                                                                   else 'info' if movement.movement_type == 'transfer'
+                                                                   else 'warning' if movement.movement_type == 'adjustment'
+                                                                   else 'secondary' }}">
+                                            {{ movement.movement_type.title() }}
+                                        </span>
+                                    </td>
+                                    <td class="{{ 'text-success' if movement.quantity_change > 0 else 'text-danger' if movement.quantity_change < 0 else 'text-muted' }}">
+                                        {{ '+' if movement.quantity_change > 0 else '' }}{{ movement.quantity_change }}
+                                    </td>
+                                    <td><strong>{{ movement.new_quantity }}</strong></td>
+                                    <td>${{ "{:.2f}".format(movement.unit_cost or 0) }}</td>
+                                    <td>${{ "{:.2f}".format(movement.total_value or 0) }}</td>
+                                    <td>{{ movement.reference_doc or '-' }}</td>
+                                    <td>
+                                        <span title="{{ movement.notes or '' }}">
+                                            {{ (movement.notes[:30] + '...') if movement.notes and movement.notes|length > 30 else (movement.notes or '-') }}
+                                        </span>
+                                    </td>
+                                    <td>{{ movement.user_id }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-exchange-alt fa-4x text-gray-300 mb-4"></i>
+                        <h4 class="text-gray-500">No Stock Movements Found</h4>
+                        <p class="text-gray-400">Start recording stock movements to track inventory changes.</p>
+                        <button class="btn btn-primary" onclick="openMovementModal('receipt')">
+                            <i class="fas fa-plus"></i> Record First Movement
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stock Movement Modal -->
+<div class="modal fade" id="stockMovementModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="movementModalTitle">Record Stock Movement</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="stockMovementForm">
+                    <input type="hidden" id="movementType" name="movementType">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="partSearch">Search Part *</label>
+                                <input type="text" class="form-control" id="partSearch" 
+                                       placeholder="Enter part number or name..." required>
+                                <input type="hidden" id="selectedPartId" name="partId">
+                                <div id="partSearchResults" class="mt-2"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="currentStock">Current Stock</label>
+                                <input type="number" class="form-control" id="currentStock" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="quantity">Quantity *</label>
+                                <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
+                                <small class="form-text text-muted" id="quantityHelp"></small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="unitCost">Unit Cost</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">$</span>
+                                    </div>
+                                    <input type="number" step="0.01" class="form-control" id="unitCost" name="unitCost">
+                                </div>
+                                <small class="form-text text-muted">Required for receipts to update average cost</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="referenceDoc">Reference Document</label>
+                                <input type="text" class="form-control" id="referenceDoc" name="referenceDoc" 
+                                       placeholder="PO#, WO#, Invoice#, etc.">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="location">Location</label>
+                                <input type="text" class="form-control" id="location" name="location" 
+                                       placeholder="Warehouse, Bin, etc.">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="notes">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                  placeholder="Additional notes about this movement..."></textarea>
+                    </div>
+                    
+                    <div class="alert alert-info" id="movementSummary" style="display: none;">
+                        <strong>Movement Summary:</strong>
+                        <div id="summaryContent"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitMovement()">
+                    <i class="fas fa-save"></i> Record Movement
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include DataTables -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
+<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('#movementsTable').DataTable({
+        "pageLength": 25,
+        "order": [[ 0, "desc" ]],
+        "columnDefs": [
+            { "orderable": false, "targets": [8, 9] }
+        ]
+    });
+    
+    // Part search functionality
+    $('#partSearch').on('input', function() {
+        const searchTerm = $(this).val();
+        if (searchTerm.length >= 2) {
+            searchParts(searchTerm);
+        } else {
+            $('#partSearchResults').empty();
+        }
+    });
+    
+    // Quantity change handler
+    $('#quantity').on('input', function() {
+        updateMovementSummary();
+    });
+    
+    $('#unitCost').on('input', function() {
+        updateMovementSummary();
+    });
+});
+
+function openMovementModal(type) {
+    const titles = {
+        'receipt': 'Record Stock Receipt',
+        'issue': 'Record Stock Issue',
+        'transfer': 'Record Stock Transfer',
+        'adjustment': 'Record Stock Adjustment',
+        'return': 'Record Stock Return'
+    };
+    
+    const helps = {
+        'receipt': 'Enter quantity being received into stock',
+        'issue': 'Enter quantity being issued from stock',
+        'transfer': 'Enter quantity being transferred',
+        'adjustment': 'Enter the new total quantity (system will calculate adjustment)',
+        'return': 'Enter quantity being returned to stock'
+    };
+    
+    document.getElementById('movementModalTitle').textContent = titles[type];
+    document.getElementById('movementType').value = type;
+    document.getElementById('quantityHelp').textContent = helps[type];
+    
+    // Reset form
+    document.getElementById('stockMovementForm').reset();
+    $('#partSearchResults').empty();
+    $('#movementSummary').hide();
+    
+    // Show/hide unit cost based on movement type
+    const costGroup = $('#unitCost').closest('.form-group');
+    if (type === 'receipt') {
+        costGroup.show();
+        $('#unitCost').prop('required', true);
+    } else {
+        costGroup.hide();
+        $('#unitCost').prop('required', false);
+    }
+    
+    $('#stockMovementModal').modal('show');
+}
+
+function searchParts(searchTerm) {
+    fetch(`/api/spare-parts/search?q=${encodeURIComponent(searchTerm)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayPartResults(data.results);
+            } else {
+                console.error('Search error:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Search request failed:', error);
+        });
+}
+
+function displayPartResults(parts) {
+    const resultsDiv = $('#partSearchResults');
+    resultsDiv.empty();
+    
+    if (parts.length === 0) {
+        resultsDiv.html('<div class="alert alert-warning">No parts found</div>');
+        return;
+    }
+    
+    const resultsList = $('<div class="list-group"></div>');
+    
+    parts.slice(0, 5).forEach(part => {
+        const item = $(`
+            <a href="#" class="list-group-item list-group-item-action" onclick="selectPart(${part.id}, '${part.part_number}', '${part.part_name}', ${part.quantity_on_hand})">
+                <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1">${part.part_number} - ${part.part_name}</h6>
+                    <small>Stock: ${part.quantity_on_hand}</small>
+                </div>
+                <p class="mb-1">${part.description || 'No description'}</p>
+                <small>Category: ${part.category || 'N/A'}</small>
+            </a>
+        `);
+        resultsList.append(item);
+    });
+    
+    resultsDiv.append(resultsList);
+}
+
+function selectPart(partId, partNumber, partName, currentStock) {
+    document.getElementById('selectedPartId').value = partId;
+    document.getElementById('partSearch').value = `${partNumber} - ${partName}`;
+    document.getElementById('currentStock').value = currentStock;
+    $('#partSearchResults').empty();
+    
+    updateMovementSummary();
+}
+
+function updateMovementSummary() {
+    const partId = document.getElementById('selectedPartId').value;
+    const movementType = document.getElementById('movementType').value;
+    const quantity = parseInt(document.getElementById('quantity').value) || 0;
+    const currentStock = parseInt(document.getElementById('currentStock').value) || 0;
+    const unitCost = parseFloat(document.getElementById('unitCost').value) || 0;
+    
+    if (!partId || !quantity) {
+        $('#movementSummary').hide();
+        return;
+    }
+    
+    let newStock, quantityChange, totalValue;
+    
+    switch (movementType) {
+        case 'receipt':
+        case 'return':
+            newStock = currentStock + quantity;
+            quantityChange = quantity;
+            break;
+        case 'issue':
+        case 'transfer':
+            newStock = currentStock - quantity;
+            quantityChange = -quantity;
+            if (newStock < 0) {
+                showAlert('warning', 'Warning: This will result in negative stock!');
+            }
+            break;
+        case 'adjustment':
+            newStock = quantity;
+            quantityChange = quantity - currentStock;
+            break;
+    }
+    
+    totalValue = Math.abs(quantityChange) * unitCost;
+    
+    const summaryContent = `
+        <div class="row">
+            <div class="col-md-4">
+                <strong>Current Stock:</strong> ${currentStock}<br>
+                <strong>Change:</strong> <span class="${quantityChange >= 0 ? 'text-success' : 'text-danger'}">${quantityChange >= 0 ? '+' : ''}${quantityChange}</span>
+            </div>
+            <div class="col-md-4">
+                <strong>New Stock:</strong> <span class="${newStock < 0 ? 'text-danger' : 'text-success'}">${newStock}</span><br>
+                ${unitCost > 0 ? `<strong>Total Value:</strong> $${totalValue.toFixed(2)}` : ''}
+            </div>
+            <div class="col-md-4">
+                ${newStock < 0 ? '<span class="text-danger"><i class="fas fa-exclamation-triangle"></i> Negative Stock!</span>' : ''}
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('summaryContent').innerHTML = summaryContent;
+    $('#movementSummary').show();
+}
+
+function submitMovement() {
+    const form = document.getElementById('stockMovementForm');
+    const formData = new FormData(form);
+    
+    const partId = formData.get('partId');
+    const movementType = formData.get('movementType');
+    const quantity = parseInt(formData.get('quantity'));
+    const unitCost = parseFloat(formData.get('unitCost')) || null;
+    const referenceDoc = formData.get('referenceDoc');
+    const notes = formData.get('notes');
+    
+    if (!partId || !quantity) {
+        showAlert('danger', 'Please select a part and enter quantity');
+        return;
+    }
+    
+    const data = {
+        movement_type: movementType,
+        quantity: quantity,
+        reference_doc: referenceDoc,
+        notes: notes
+    };
+    
+    if (unitCost) {
+        data.cost_per_unit = unitCost;
+    }
+    
+    fetch(`/api/spare-parts/${partId}/stock-movement`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            $('#stockMovementModal').modal('hide');
+            showAlert('success', result.message);
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showAlert('danger', result.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error recording stock movement');
+    });
+}
+
+function refreshMovements() {
+    location.reload();
+}
+
+function showAlert(type, message) {
+    const alertDiv = $(`<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+        ${message}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>`);
+    
+    $('.container-fluid').prepend(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.fadeOut();
+    }, 5000);
+}
+</script>
+{% endblock %}

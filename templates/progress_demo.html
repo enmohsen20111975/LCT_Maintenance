@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Progress Bar Demo{% endblock %}
+
+{% block head %}
+<style>
+.demo-container {
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 2rem;
+}
+
+.progress-container {
+    margin-top: 1rem;
+    display: none;
+}
+
+.progress {
+    height: 25px;
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #007bff, #0056b3);
+    transition: width 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 500;
+    position: relative;
+}
+
+.progress-text {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    color: #495057;
+    font-weight: 500;
+    z-index: 1;
+}
+
+.progress-stage {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #6c757d;
+    text-align: center;
+}
+
+.progress-spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 0.5rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="demo-container">
+    <h1>Table Move/Copy Progress Demo</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Test Progress Bar for Table Operations</h5>
+            
+            <p>This demonstrates the progress bar that appears when moving or copying tables between databases.</p>
+            
+            <button type="button" class="btn btn-primary" onclick="simulateProgress()">
+                <span class="progress-spinner" id="demoSpinner" style="display: none;"></span>
+                <span id="demoButtonText">Start Demo Move Operation</span>
+            </button>
+            
+            <!-- Progress Container -->
+            <div class="progress-container" id="demoProgressContainer">
+                <div class="progress">
+                    <div class="progress-text" id="demoProgressText">0%</div>
+                    <div class="progress-bar" id="demoProgressBar" style="width: 0%"></div>
+                </div>
+                <div class="progress-stage" id="demoProgressStage">Preparing...</div>
+            </div>
+            
+            <div class="mt-3">
+                <h6>Progress Stages:</h6>
+                <ul>
+                    <li><strong>Validation (5%):</strong> Checking table and target database</li>
+                    <li><strong>Setup (15%):</strong> Setting up database connections</li>
+                    <li><strong>Schema (25%):</strong> Copying table schema</li>
+                    <li><strong>Data Prep (35%):</strong> Preparing data for transfer</li>
+                    <li><strong>Data Transfer (40-70%):</strong> Converting and preparing rows</li>
+                    <li><strong>Data Insert (70-90%):</strong> Inserting data in batches</li>
+                    <li><strong>Cleanup (90-95%):</strong> Finalizing transfer</li>
+                    <li><strong>Complete (100%):</strong> Operation finished</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-3">
+        <a href="/database-management" class="btn btn-outline-secondary">← Back to Database Management</a>
+    </div>
+</div>
+
+<script>
+const progressStages = [
+    { stage: 'validation', percent: 5, message: 'Validating table and target database...' },
+    { stage: 'setup', percent: 15, message: 'Setting up database connections...' },
+    { stage: 'schema', percent: 25, message: 'Copying table schema...' },
+    { stage: 'data_prep', percent: 35, message: 'Preparing data transfer...' },
+    { stage: 'data_transfer', percent: 40, message: 'Transferring 1000 rows...' },
+    { stage: 'data_transfer', percent: 50, message: 'Converting row 250 of 1000...' },
+    { stage: 'data_transfer', percent: 60, message: 'Converting row 500 of 1000...' },
+    { stage: 'data_transfer', percent: 70, message: 'Converting row 750 of 1000...' },
+    { stage: 'data_insert', percent: 75, message: 'Inserting data into target database...' },
+    { stage: 'data_insert', percent: 80, message: 'Inserted batch 1/2 (500 rows)' },
+    { stage: 'data_insert', percent: 85, message: 'Inserted batch 2/2 (1000 rows)' },
+    { stage: 'cleanup', percent: 90, message: 'Finalizing transfer...' },
+    { stage: 'cleanup', percent: 95, message: 'Removing table from source database...' },
+    { stage: 'complete', percent: 100, message: 'Table move completed successfully!' }
+];
+
+function simulateProgress() {
+    const progressContainer = document.getElementById('demoProgressContainer');
+    const progressBar = document.getElementById('demoProgressBar');
+    const progressText = document.getElementById('demoProgressText');
+    const progressStage = document.getElementById('demoProgressStage');
+    const button = document.querySelector('button[onclick="simulateProgress()"]');
+    const spinner = document.getElementById('demoSpinner');
+    const buttonText = document.getElementById('demoButtonText');
+    
+    // Reset and show progress
+    progressContainer.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressBar.style.background = 'linear-gradient(90deg, #007bff, #0056b3)';
+    progressText.textContent = '0%';
+    progressStage.textContent = 'Preparing...';
+    
+    // Disable button and show spinner
+    button.disabled = true;
+    spinner.style.display = 'inline-block';
+    buttonText.textContent = 'Processing...';
+    
+    let currentStage = 0;
+    
+    const updateProgress = () => {
+        if (currentStage < progressStages.length) {
+            const stage = progressStages[currentStage];
+            
+            progressBar.style.width = `${stage.percent}%`;
+            progressText.textContent = `${stage.percent}%`;
+            progressStage.textContent = stage.message;
+            
+            currentStage++;
+            
+            if (stage.stage === 'complete') {
+                setTimeout(() => {
+                    alert('Demo completed! Table move operation finished successfully.');
+                    resetDemo();
+                }, 1000);
+            } else {
+                setTimeout(updateProgress, 500 + Math.random() * 1000); // Random delay 0.5-1.5s
+            }
+        }
+    };
+    
+    setTimeout(updateProgress, 500);
+}
+
+function resetDemo() {
+    const progressContainer = document.getElementById('demoProgressContainer');
+    const progressBar = document.getElementById('demoProgressBar');
+    const progressText = document.getElementById('demoProgressText');
+    const progressStage = document.getElementById('demoProgressStage');
+    const button = document.querySelector('button[onclick="simulateProgress()"]');
+    const spinner = document.getElementById('demoSpinner');
+    const buttonText = document.getElementById('demoButtonText');
+    
+    progressContainer.style.display = 'none';
+    progressBar.style.width = '0%';
+    progressText.textContent = '0%';
+    progressStage.textContent = 'Preparing...';
+    
+    button.disabled = false;
+    spinner.style.display = 'none';
+    buttonText.textContent = 'Start Demo Move Operation';
+}
+</script>
+{% endblock %}

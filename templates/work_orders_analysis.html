@@ -1,0 +1,824 @@
+{% extends "base.html" %}
+
+{% block title %}Work Orders Analysis - {{ super() }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css" rel="stylesheet">
+<style>
+    .analysis-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        padding: 20px;
+    }
+    
+    .kpi-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    
+    .kpi-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .kpi-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .insight-card {
+        border-left: 4px solid #007bff;
+        background: #f8f9fa;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 0 4px 4px 0;
+    }
+    
+    .insight-warning {
+        border-left-color: #ffc107;
+        background: #fff9e6;
+    }
+    
+    .insight-success {
+        border-left-color: #28a745;
+        background: #e8f5e8;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin: 20px 0;
+    }
+    
+    .chart-small {
+        height: 300px;
+    }
+    
+    .table-responsive {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .percentage-bar {
+        background: #e9ecef;
+        height: 20px;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 5px 0;
+    }
+    
+    .percentage-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #007bff, #0056b3);
+        transition: width 0.3s ease;
+    }
+    
+    .filter-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: bold;
+    }
+    
+    .status-completed { background: #d4edda; color: #155724; }
+    .status-active { background: #d1ecf1; color: #0c5460; }
+    .status-planned { background: #fff3cd; color: #856404; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Advanced Filter Component -->
+    {% include 'components/advanced_work_order_filters.html' %}
+
+    <!-- Template-specific integration script -->
+    <script>
+    // Integration for work_orders_analysis.html
+    function applyMainFilters(filters) {
+        console.log('Applying filters for work orders analysis:', filters);
+        
+        // Set global filters for this template
+        window.currentAnalysisFilters = filters;
+        
+        // Trigger analysis with new filters
+        if (typeof loadAnalysisData === 'function') {
+            return loadAnalysisData(filters);
+        } else if (typeof performAnalysis === 'function') {
+            return performAnalysis();
+        }
+        
+        return Promise.resolve();
+    }
+    </script>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1><i class="fas fa-chart-line"></i> Work Orders Analysis</h1>
+            <p class="text-muted">Comprehensive analysis of maintenance work orders from the Activity database (all_cm table)</p>
+        </div>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="loading" class="text-center my-5">
+        <div class="spinner-border" role="status">
+            <span class="sr-only">Loading analysis...</span>
+        </div>
+        <p class="mt-2">Loading comprehensive work orders analysis...</p>
+    </div>
+
+    <!-- Analysis content (will be populated by JavaScript) -->
+    <div id="analysis-content" style="display: none;">
+        
+        <!-- KPI Summary -->
+        <div class="row mb-4" id="kpi-section">
+            <!-- KPIs will be inserted here -->
+        </div>
+
+        <!-- Key Insights -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="analysis-card">
+                    <h3><i class="fas fa-lightbulb text-warning"></i> Key Insights & Recommendations</h3>
+                    <div id="insights-container">
+                        <!-- Insights will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 1 -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="analysis-card">
+                    <h4><i class="fas fa-tools"></i> Maintenance Type Distribution</h4>
+                    <div class="chart-container chart-small">
+                        <canvas id="jobTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="analysis-card">
+                    <h4><i class="fas fa-exclamation-triangle"></i> Priority Distribution</h4>
+                    <div class="chart-container chart-small">
+                        <canvas id="priorityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 2 -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="analysis-card">
+                    <h4><i class="fas fa-cogs"></i> Equipment Analysis</h4>
+                    <div class="chart-container chart-small">
+                        <canvas id="equipmentChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="analysis-card">
+                    <h4><i class="fas fa-calendar-alt"></i> Monthly Trend</h4>
+                    <div class="chart-container chart-small">
+                        <canvas id="temporalChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Metrics -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="analysis-card">
+                    <h4><i class="fas fa-tachometer-alt"></i> Performance Metrics</h4>
+                    <div id="performance-metrics">
+                        <!-- Performance metrics will be inserted here -->
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="analysis-card">
+                    <h4><i class="fas fa-dollar-sign"></i> Cost Purpose Analysis</h4>
+                    <div class="chart-container chart-small">
+                        <canvas id="costChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Equipment Downtime Table -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="analysis-card">
+                    <h4><i class="fas fa-wrench"></i> Equipment Downtime Analysis</h4>
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="equipment-table">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>Equipment</th>
+                                    <th>Work Orders</th>
+                                    <th>Total Downtime (hrs)</th>
+                                    <th>Avg Downtime (hrs)</th>
+                                    <th>Reliability Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="equipment-tbody">
+                                <!-- Equipment data will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Supplier Analysis -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="analysis-card">
+                    <h4><i class="fas fa-users"></i> Work Supplier Distribution</h4>
+                    <div id="supplier-list">
+                        <!-- Supplier data will be inserted here -->
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="analysis-card">
+                    <h4><i class="fas fa-map-marker-alt"></i> Location Analysis</h4>
+                    <div id="location-analysis">
+                        <!-- Location data will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="analysis-card">
+                    <h4><i class="fas fa-search"></i> Work Orders Search</h4>
+                    <div class="filter-section">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label for="search-input">Search Term:</label>
+                                <input type="text" id="search-input" class="form-control" placeholder="Search work orders...">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="job-type-filter">Job Type:</label>
+                                <select id="job-type-filter" class="form-control">
+                                    <option value="">All Types</option>
+                                    <option value="C">Corrective</option>
+                                    <option value="P">Preventive</option>
+                                    <option value="U">Urgent</option>
+                                    <option value="O">Operational</option>
+                                    <option value="I">Inspection</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="priority-filter">Priority:</label>
+                                <select id="priority-filter" class="form-control">
+                                    <option value="">All Priorities</option>
+                                    <option value="1-IMM">Immediate</option>
+                                    <option value="2-DAY">Within Day</option>
+                                    <option value="3-WEEK">Within Week</option>
+                                    <option value="4-PLAN">Planned</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="equipment-filter">Equipment:</label>
+                                <select id="equipment-filter" class="form-control">
+                                    <option value="">All Equipment</option>
+                                    <!-- Equipment options will be populated dynamically -->
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label>&nbsp;</label>
+                                <button id="search-btn" class="btn btn-primary btn-block">
+                                    <i class="fas fa-search"></i> Search
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Search Results -->
+                    <div id="search-results" style="display: none;">
+                        <h5>Search Results</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>WO Number</th>
+                                        <th>Equipment</th>
+                                        <th>Description</th>
+                                        <th>Type</th>
+                                        <th>Priority</th>
+                                        <th>Status</th>
+                                        <th>Order Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="search-results-tbody">
+                                    <!-- Search results will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+let analysisData = null;
+
+// Initialize the page
+$(document).ready(function() {
+    console.log('Page ready, loading analysis data...');
+    
+    // Test if jQuery is working
+    console.log('jQuery version:', $.fn.jquery);
+    
+    // Add click handler to loading div to test
+    $('#loading').click(function() {
+        console.log('Loading div clicked - testing if page is responsive');
+    });
+    
+    loadAnalysisData();
+    
+    // Set up search functionality
+    $('#search-btn').on('click', function() {
+        console.log('Search button clicked');
+        performSearch();
+    });
+    
+    // Enter key in search input
+    $('#search-input').on('keypress', function(e) {
+        if (e.which === 13) {
+            console.log('Enter key pressed in search input');
+            performSearch();
+        }
+    });
+});
+
+function loadAnalysisData(filters = {}) {
+    console.log('=== loadAnalysisData called ===');
+    console.log('Filters:', filters);
+    
+    // Show a more detailed loading message
+    $('#loading p').text('Loading comprehensive work orders analysis from Activity database...');
+    $('#loading').show();
+    $('#analysis-content').hide();
+    
+    console.log('Making AJAX request to /api/work-orders/analysis');
+    
+    $.ajax({
+        url: '/api/work-orders/analysis',
+        method: 'GET',
+        timeout: 60000, // Increase timeout to 60 seconds
+        beforeSend: function() {
+            console.log('=== AJAX beforeSend ===');
+            console.log('Sending request to /api/work-orders/analysis');
+        },
+        success: function(response) {
+            console.log('=== AJAX success ===');
+            console.log('Response received:', response);
+            if (response && response.success) {
+                analysisData = response.analysis;
+                console.log('Analysis data keys:', Object.keys(analysisData));
+                console.log('Calling renderAnalysis...');
+                renderAnalysis(analysisData);
+                $('#loading').hide();
+                $('#analysis-content').show();
+                console.log('Analysis rendered and content shown');
+            } else {
+                console.error('API returned error:', response ? response.error : 'No response');
+                showError('Failed to load analysis: ' + (response ? response.error : 'No response'));
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('=== AJAX error ===');
+            console.error('Status:', status);
+            console.error('Error:', error);
+            console.error('XHR Status:', xhr.status);
+            console.error('XHR Response:', xhr.responseText);
+            
+            let errorMessage = 'Error loading analysis: ';
+            if (xhr.status === 404) {
+                errorMessage += 'API endpoint not found. Please check if the Flask server is running.';
+            } else if (xhr.status === 500) {
+                errorMessage += 'Server error. Check the Flask console for details.';
+            } else if (status === 'timeout') {
+                errorMessage += 'Request timed out. The analysis might take longer to load due to large dataset.';
+            } else if (xhr.status === 0) {
+                errorMessage += 'Cannot connect to server. Please check if the Flask server is running on port 5000.';
+            } else {
+                errorMessage += error || 'Unknown error occurred';
+                if (xhr.responseText) {
+                    errorMessage += ' - ' + xhr.responseText.substring(0, 200);
+                }
+            }
+            showError(errorMessage);
+        },
+        complete: function() {
+            console.log('=== AJAX complete ===');
+        }
+    });
+}
+
+function renderAnalysis(data) {
+    try {
+        console.log('Starting to render analysis with data:', data);
+        
+        if (!data) {
+            throw new Error('No data provided to renderAnalysis');
+        }
+        
+        renderKPIs(data);
+        console.log('KPIs rendered');
+        
+        renderInsights(data.insights || []);
+        console.log('Insights rendered');
+        
+        renderCharts(data);
+        console.log('Charts rendered');
+        
+        renderPerformanceMetrics(data.performance || {});
+        console.log('Performance metrics rendered');
+        
+        renderEquipmentTable(data.equipment || []);
+        console.log('Equipment table rendered');
+        
+        renderSupplierList(data.suppliers || []);
+        console.log('Supplier list rendered');
+        
+        renderLocationAnalysis(data.locations || {});
+        console.log('Location analysis rendered');
+        
+        populateFilterOptions(data);
+        console.log('Filter options populated');
+        
+        console.log('Analysis rendering completed successfully');
+    } catch (error) {
+        console.error('Error rendering analysis:', error);
+        showError('Error rendering analysis: ' + error.message);
+    }
+}
+
+function renderKPIs(data) {
+    try {
+        console.log('Rendering KPIs with data:', data);
+        
+        const basicStats = data.basic_stats || {};
+        const performance = data.performance || {};
+        
+        const kpiHtml = `
+            <div class="col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-value">${(basicStats.total_records || 0).toLocaleString()}</div>
+                    <div class="kpi-label">Total Work Orders</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-value">${basicStats.completed_percentage || 0}%</div>
+                    <div class="kpi-label">Completion Rate</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-value">${performance.corrective_preventive_ratio || 0}</div>
+                    <div class="kpi-label">C:P Ratio</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-value">${performance.urgent_percentage || 0}%</div>
+                    <div class="kpi-label">Urgent Work Orders</div>
+                </div>
+            </div>
+        `;
+        $('#kpi-section').html(kpiHtml);
+        console.log('KPIs rendered successfully');
+    } catch (error) {
+        console.error('Error rendering KPIs:', error);
+        throw error;
+    }
+}
+
+function renderInsights(insights) {
+    let insightsHtml = '';
+    insights.forEach(insight => {
+        const cardClass = insight.type === 'warning' ? 'insight-warning' : 
+                         insight.type === 'success' ? 'insight-success' : '';
+        insightsHtml += `
+            <div class="insight-card ${cardClass}">
+                <h5><i class="fas fa-${insight.type === 'warning' ? 'exclamation-triangle' : 
+                                       insight.type === 'success' ? 'check-circle' : 'info-circle'}"></i> 
+                    ${insight.title}</h5>
+                <p>${insight.message}</p>
+                <small><strong>Recommendation:</strong> ${insight.recommendation}</small>
+            </div>
+        `;
+    });
+    $('#insights-container').html(insightsHtml);
+}
+
+function renderCharts(data) {
+    // Job Type Chart
+    if (data.job_types && data.job_types.length > 0) {
+        const jobTypeCtx = document.getElementById('jobTypeChart').getContext('2d');
+        new Chart(jobTypeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: data.job_types.map(jt => jt.name),
+                datasets: [{
+                    data: data.job_types.map(jt => jt.count),
+                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#FF6384']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    // Priority Chart
+    if (data.priorities && data.priorities.length > 0) {
+        const priorityCtx = document.getElementById('priorityChart').getContext('2d');
+        new Chart(priorityCtx, {
+            type: 'bar',
+            data: {
+                labels: data.priorities.map(p => p.name),
+                datasets: [{
+                    data: data.priorities.map(p => p.count),
+                    backgroundColor: '#36A2EB'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    // Equipment Chart (Top 10)
+    if (data.equipment && data.equipment.length > 0) {
+        const equipmentCtx = document.getElementById('equipmentChart').getContext('2d');
+        const topEquipment = data.equipment.slice(0, 10);
+        new Chart(equipmentCtx, {
+            type: 'bar',
+            data: {
+                labels: topEquipment.map(e => e.equipment),
+                datasets: [{
+                    data: topEquipment.map(e => e.work_orders),
+                    backgroundColor: '#4BC0C0'
+                }]
+            },
+            options: {
+                indexAxis: 'y', // This makes it horizontal
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    // Temporal Chart
+    if (data.temporal && data.temporal.yearly && data.temporal.yearly.length > 0) {
+        const temporalCtx = document.getElementById('temporalChart').getContext('2d');
+        new Chart(temporalCtx, {
+            type: 'line',
+            data: {
+                labels: data.temporal.yearly.map(y => y.year.toString()),
+                datasets: [{
+                    label: 'Work Orders',
+                    data: data.temporal.yearly.map(y => y.count),
+                    borderColor: '#FF6384',
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    // Cost Purpose Chart
+    if (data.cost_analysis && data.cost_analysis.length > 0) {
+        const costCtx = document.getElementById('costChart').getContext('2d');
+        new Chart(costCtx, {
+            type: 'pie',
+            data: {
+                labels: data.cost_analysis.map(c => c.name),
+                datasets: [{
+                    data: data.cost_analysis.map(c => c.count),
+                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#FF6384']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+}
+
+function renderPerformanceMetrics(performance) {
+    const metricsHtml = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Completion Time Statistics</h6>
+                <ul class="list-unstyled">
+                    <li><strong>Average:</strong> ${performance.avg_completion_time} hours</li>
+                    <li><strong>Minimum:</strong> ${performance.min_completion_time} hours</li>
+                    <li><strong>Maximum:</strong> ${performance.max_completion_time} hours</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6>Maintenance Balance</h6>
+                <ul class="list-unstyled">
+                    <li><strong>Corrective:</strong> ${performance.corrective_count.toLocaleString()}</li>
+                    <li><strong>Preventive:</strong> ${performance.preventive_count.toLocaleString()}</li>
+                    <li><strong>Ratio:</strong> ${performance.corrective_preventive_ratio}:1</li>
+                </ul>
+            </div>
+        </div>
+    `;
+    $('#performance-metrics').html(metricsHtml);
+}
+
+function renderEquipmentTable(equipment) {
+    let tableHtml = '';
+    equipment.forEach(eq => {
+        const reliabilityScore = eq.avg_downtime < 2 ? 'High' : eq.avg_downtime < 5 ? 'Medium' : 'Low';
+        const reliabilityClass = reliabilityScore === 'High' ? 'text-success' : 
+                                reliabilityScore === 'Medium' ? 'text-warning' : 'text-danger';
+        
+        tableHtml += `
+            <tr>
+                <td><strong>${eq.equipment}</strong></td>
+                <td>${eq.work_orders}</td>
+                <td>${(eq.work_orders * eq.avg_downtime).toFixed(2)}</td>
+                <td>${eq.avg_downtime}</td>
+                <td><span class="${reliabilityClass}">${reliabilityScore}</span></td>
+            </tr>
+        `;
+    });
+    $('#equipment-tbody').html(tableHtml);
+}
+
+function renderSupplierList(suppliers) {
+    let supplierHtml = '<h6>Top Work Suppliers</h6>';
+    suppliers.slice(0, 10).forEach(supplier => {
+        supplierHtml += `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span>${supplier.supplier}</span>
+                <div>
+                    <span class="badge badge-primary">${supplier.work_orders}</span>
+                    <span class="text-muted">(${supplier.percentage}%)</span>
+                </div>
+            </div>
+            <div class="percentage-bar">
+                <div class="percentage-fill" style="width: ${supplier.percentage}%"></div>
+            </div>
+        `;
+    });
+    $('#supplier-list').html(supplierHtml);
+}
+
+function renderLocationAnalysis(locations) {
+    let locationHtml = '<h6>Work Orders by Location</h6>';
+    locations.locations.slice(0, 10).forEach(location => {
+        const total = locations.locations.reduce((sum, loc) => sum + loc.count, 0);
+        const percentage = ((location.count / total) * 100).toFixed(1);
+        locationHtml += `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span>${location.name}</span>
+                <div>
+                    <span class="badge badge-info">${location.count}</span>
+                    <span class="text-muted">(${percentage}%)</span>
+                </div>
+            </div>
+        `;
+    });
+    $('#location-analysis').html(locationHtml);
+}
+
+function populateFilterOptions(data) {
+    // Populate equipment filter
+    let equipmentOptions = '<option value="">All Equipment</option>';
+    if (data.equipment && data.equipment.length > 0) {
+        data.equipment.slice(0, 20).forEach(eq => {
+            equipmentOptions += `<option value="${eq.equipment}">${eq.equipment}</option>`;
+        });
+    }
+    $('#equipment-filter').html(equipmentOptions);
+}
+
+function performSearch() {
+    const searchTerm = $('#search-input').val().trim();
+    const jobType = $('#job-type-filter').val();
+    const priority = $('#priority-filter').val();
+    const equipment = $('#equipment-filter').val();
+    
+    const params = new URLSearchParams();
+    if (searchTerm) params.append('search', searchTerm);
+    if (jobType) params.append('job_type', jobType);
+    if (priority) params.append('priority', priority);
+    if (equipment) params.append('equipment', equipment);
+    
+    $.ajax({
+        url: '/api/work-orders/search?' + params.toString(),
+        method: 'GET',
+        success: function(response) {
+            if (response.success) {
+                renderSearchResults(response.work_orders);
+                $('#search-results').show();
+            } else {
+                showError('Search failed: ' + response.error);
+            }
+        },
+        error: function(xhr, status, error) {
+            showError('Search error: ' + error);
+        }
+    });
+}
+
+function renderSearchResults(workOrders) {
+    let resultsHtml = '';
+    workOrders.forEach(wo => {
+        const statusClass = wo.etatjob === 'TER' ? 'status-completed' : 
+                           wo.etatjob === 'EXE' ? 'status-active' : 'status-planned';
+        
+        resultsHtml += `
+            <tr>
+                <td>${wo.wo_key || wo.wo_name}</td>
+                <td>${wo.equipement || 'N/A'}</td>
+                <td title="${wo.description}">${wo.description ? wo.description.substring(0, 50) + '...' : 'N/A'}</td>
+                <td><span class="badge badge-secondary">${wo.job_type}</span></td>
+                <td><span class="badge badge-info">${wo.priority_key}</span></td>
+                <td><span class="status-badge ${statusClass}">${wo.etatjob}</span></td>
+                <td>${wo.order_date ? new Date(wo.order_date).toLocaleDateString() : 'N/A'}</td>
+            </tr>
+        `;
+    });
+    $('#search-results-tbody').html(resultsHtml);
+}
+
+function showError(message) {
+    $('#loading').hide();
+    $('#analysis-content').html(`
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Error</h4>
+            <p>${message}</p>
+            <hr>
+            <p class="mb-0">Please check the database connection and try again.</p>
+        </div>
+    `).show();
+}
+</script>
+{% endblock %}

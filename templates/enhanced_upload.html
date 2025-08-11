@@ -1,0 +1,1050 @@
+{% extends "base.html" %}
+
+{% block title %}Enhanced Upload - LDA{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2><i class="bi bi-cloud-upload"></i> Enhanced Data Import</h2>
+        <p class="text-muted">Upload Excel files and choose how to import them into your database</p>
+    </div>
+</div>
+
+<!-- Current Database Tables -->
+<div class="card mb-4" id="currentTablesCard">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-database"></i> Current Database Tables
+        </h5>
+    </div>
+    <div class="card-body">
+        <div id="existingTablesListContainer">
+            <div class="text-center">
+                <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 small">Loading existing tables...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Step 1: File Upload -->
+<div class="card mb-4" id="uploadCard">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <span class="badge bg-primary me-2">1</span>
+            Upload Excel File
+        </h5>
+    </div>
+    <div class="card-body">
+        <form id="enhancedUploadForm" method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="file" class="form-label">Select Excel File</label>
+                <input type="file" class="form-control" id="file" name="file" 
+                       accept=".xlsx,.xls,.xlsm" required>
+                <div class="form-text">
+                    Supported formats: .xlsx, .xls, .xlsm (Maximum size: 512MB)
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary" id="analyzeBtn">
+                    <i class="bi bi-search"></i> Analyze Excel File
+                </button>
+            </div>
+        </form>
+        
+        <!-- Progress Bar -->
+        <div id="progressContainer" class="mt-3" style="display: none;">
+            <div class="progress">
+                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                     role="progressbar" style="width: 0%"></div>
+            </div>
+            <div id="progressText" class="text-center mt-2">Analyzing...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Step 1.5: Database Selection -->
+<div class="card mb-4" id="databaseSelectionCard" style="display: none;">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <span class="badge bg-info me-2">1.5</span>
+            Select Target Database
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> Choose which database to import your data into. You can create a new database or use an existing one.
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-database-add"></i> Create New Database</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="newDatabaseName" class="form-label">Database Name</label>
+                            <input type="text" class="form-control" id="newDatabaseName" 
+                                   placeholder="Enter new database name" 
+                                   onchange="validateDatabaseSelection()">
+                            <div class="form-text">Creates a new database file for your data</div>
+                        </div>
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="radio" name="databaseChoice" 
+                                   id="useNewDatabase" value="new" onchange="setDatabaseChoice('new')">
+                            <label class="form-check-label" for="useNewDatabase">
+                                Use new database
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="bi bi-database"></i> Use Existing Database</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="existingDatabaseSelect" class="form-label">Select Database</label>
+                            <select class="form-select" id="existingDatabaseSelect" onchange="validateDatabaseSelection()">
+                                <option value="">Loading databases...</option>
+                            </select>
+                            <div class="form-text">Import into an existing database</div>
+                        </div>
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="radio" name="databaseChoice" 
+                                   id="useExistingDatabase" value="existing" onchange="setDatabaseChoice('existing')">
+                            <label class="form-check-label" for="useExistingDatabase">
+                                Use existing database
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-primary" id="confirmDatabaseBtn" disabled onclick="confirmDatabaseSelection()">
+                        <i class="bi bi-arrow-right"></i> Continue with Selected Database
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Step 2: Batch Worksheet Mapping -->
+<div class="card mb-4" id="worksheetCard" style="display: none;">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <span class="badge bg-success me-2">2</span>
+            Map Worksheets to Tables
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Configure import settings for each worksheet. Choose the target database and table assignment for each sheet.
+        </div>
+        
+        <!-- Mapping Configuration List -->
+        <div id="worksheetMappingContainer">
+            <!-- Dynamic worksheet mapping items will be loaded here -->
+        </div>
+        
+        <!-- Summary and Actions -->
+        <div class="card mt-4" id="summaryCard" style="display: none;">
+            <div class="card-header bg-light">
+                <h6 class="card-title mb-0"><i class="bi bi-list-check"></i> Import Summary</h6>
+            </div>
+            <div class="card-body">
+                <div id="importSummaryContent">
+                    <!-- Summary will be populated here -->
+                </div>
+                <div class="d-grid gap-2 mt-3">
+                    <button type="button" class="btn btn-success btn-lg" id="finishUpdateBtn" disabled>
+                        <i class="bi bi-check-circle"></i> Finish Update Data
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="resetAllBtn">
+                        <i class="bi bi-arrow-clockwise"></i> Reset All Mappings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Step 3: Worksheet Preview -->
+<div class="card mb-4" id="previewCard" style="display: none;">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <span class="badge bg-info me-2">3</span>
+            Worksheet Preview
+        </h5>
+    </div>
+    <div class="card-body">
+        <div id="worksheetPreview">
+            <!-- Preview content will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<!-- Step 4: Column Mapping (when needed) -->
+<div class="card mb-4" id="mappingCard" style="display: none;">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <span class="badge bg-warning me-2">4</span>
+            Column Mapping
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            The worksheet columns don't exactly match the target table. Please review the column mapping below.
+        </div>
+        <div id="columnMappingSection">
+            <!-- Column mapping will be loaded here -->
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let uploadedFilePath = '';
+let worksheetsData = {};
+let existingTables = [];
+let worksheetMappings = {}; // Store mapping configurations
+let availableDatabases = []; // Store available databases
+let selectedTargetDatabase = null; // Currently selected database
+let databaseChoice = null; // 'new' or 'existing'
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadExistingTables();
+    setupEventHandlers();
+});
+
+function setupEventHandlers() {
+    // Enhanced upload form
+    document.getElementById('enhancedUploadForm').addEventListener('submit', handleFileUpload);
+    
+    // Batch action buttons
+    document.getElementById('finishUpdateBtn').addEventListener('click', handleBatchImport);
+    document.getElementById('resetAllBtn').addEventListener('click', resetAllMappings);
+}
+
+function loadExistingTables() {
+    fetch('/api/tables/existing')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                existingTables = data.tables;
+                displayExistingTablesOverview(data.tables);
+                displayExistingTablesForSelection(data.tables);
+            } else {
+                document.getElementById('existingTablesListContainer').innerHTML = 
+                    '<div class="alert alert-warning small">No existing tables found.</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading existing tables:', error);
+            document.getElementById('existingTablesListContainer').innerHTML = 
+                '<div class="alert alert-danger small">Error loading existing tables.</div>';
+        });
+}
+
+function displayExistingTablesOverview(tables) {
+    const container = document.getElementById('existingTablesListContainer');
+    
+    if (tables.length === 0) {
+        container.innerHTML = '<div class="alert alert-info small"><i class="bi bi-info-circle"></i> No existing tables found. All uploaded worksheets will create new tables.</div>';
+        return;
+    }
+    
+    let html = '<div class="table-container"><div class="table-responsive"><table class="table-enhanced"><thead><tr><th><i class="bi bi-table me-2"></i>Table Name</th><th><i class="bi bi-database me-2"></i>Records</th><th><i class="bi bi-list-columns me-2"></i>Columns</th></tr></thead><tbody>';
+    
+    tables.forEach(table => {
+        html += `
+            <tr>
+                <td><strong>${table.name}</strong></td>
+                <td><span class="badge-enhanced badge-status">${table.row_count}</span></td>
+                <td><span class="badge-enhanced badge-count">${table.column_count}</span></td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div></div>';
+    html += `<div class="text-center mt-2"><small class="text-muted">Total: ${tables.length} tables</small></div>`;
+    
+    container.innerHTML = html;
+}
+
+function displayExistingTablesForSelection(tables) {
+    const container = document.getElementById('existingTablesSelectContainer');
+    
+    if (tables.length === 0) {
+        return; // No existing tables to show for selection
+    }
+    
+    let html = '<h6 class="small text-muted mb-2">Or select existing table to replace:</h6>';
+    tables.forEach(table => {
+        html += `
+            <div class="card mb-2 table-item" data-table-name="${table.name}" style="cursor: pointer;">
+                <div class="card-body p-2">
+                    <h6 class="card-title mb-1">${table.name}</h6>
+                    <small class="text-muted">
+                        <i class="bi bi-list-ol"></i> ${table.row_count} records | 
+                        <i class="bi bi-columns"></i> ${table.column_count} columns
+                    </small>
+                    <div class="small text-muted mt-1">
+                        ${table.columns.slice(0, 3).join(', ')}${table.columns.length > 3 ? '...' : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    
+    // Add click handlers for table selection
+    container.querySelectorAll('.table-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const tableName = this.dataset.tableName;
+            selectTable(tableName);
+        });
+    });
+}
+
+function handleFileUpload(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
+    // Show progress
+    progressContainer.style.display = 'block';
+    analyzeBtn.disabled = true;
+    analyzeBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Analyzing...';
+    
+    // Simulate progress
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        if (progress < 90) {
+            progress += Math.random() * 20;
+            progressBar.style.width = progress + '%';
+            
+            if (progress < 30) {
+                progressText.textContent = 'Uploading file...';
+            } else if (progress < 60) {
+                progressText.textContent = 'Reading worksheets...';
+            } else {
+                progressText.textContent = 'Analyzing structure...';
+            }
+        }
+    }, 200);
+    
+    fetch('/api/excel/analyze', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        clearInterval(progressInterval);
+        progressBar.style.width = '100%';
+        progressText.textContent = 'Analysis complete!';
+        
+        if (data.success) {
+            uploadedFilePath = data.file_path;
+            worksheetsData = data.worksheets;
+            
+            // Load database selection info
+            loadDatabaseSelectionInfo();
+            
+            // Show database selection card instead of worksheet mapping
+            document.getElementById('databaseSelectionCard').style.display = 'block';
+            
+            // Pre-populate worksheet mapping interface (but don't show it yet)
+            createWorksheetMappingInterface(data.worksheets);
+            
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+                analyzeBtn.disabled = false;
+                analyzeBtn.innerHTML = '<i class="bi bi-search"></i> Analyze Excel File';
+            }, 1000);
+        } else {
+            progressContainer.style.display = 'none';
+            analyzeBtn.disabled = false;
+            analyzeBtn.innerHTML = '<i class="bi bi-search"></i> Analyze Excel File';
+            alert('Analysis failed: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        clearInterval(progressInterval);
+        progressContainer.style.display = 'none';
+        analyzeBtn.disabled = false;
+        analyzeBtn.innerHTML = '<i class="bi bi-search"></i> Analyze Excel File';
+        console.error('Error:', error);
+        alert('Upload failed. Please try again.');
+    });
+}
+
+function createWorksheetMappingInterface(worksheets) {
+    const container = document.getElementById('worksheetMappingContainer');
+    let html = '';
+    
+    Object.keys(worksheets).forEach(sheetName => {
+        const sheet = worksheets[sheetName];
+        if (!sheet.error) {
+            html += createWorksheetMappingCard(sheetName, sheet);
+        } else {
+            html += `
+                <div class="card mb-3 border-danger">
+                    <div class="card-body">
+                        <h6 class="text-danger">${sheetName}</h6>
+                        <small class="text-danger">${sheet.error}</small>
+                    </div>
+                </div>
+            `;
+        }
+    });
+    
+    container.innerHTML = html;
+    
+    // Initialize mapping objects
+    worksheetMappings = {};
+    Object.keys(worksheets).forEach(sheetName => {
+        if (!worksheets[sheetName].error) {
+            worksheetMappings[sheetName] = {
+                configured: false,
+                mode: null,
+                targetDatabase: null,
+                targetTable: null,
+                newTableName: null
+            };
+        }
+    });
+    
+    // Auto-initialize "Create New Table" mode for all worksheets
+    setTimeout(() => {
+        Object.keys(worksheets).forEach(sheetName => {
+            if (!worksheets[sheetName].error) {
+                const mappingId = `mapping_${sheetName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                const newRadio = document.getElementById(`new_${mappingId}`);
+                if (newRadio) {
+                    newRadio.checked = true;
+                    setMappingMode(sheetName, 'new');
+                }
+            }
+        });
+    }, 100);
+    
+    updateImportSummary();
+}
+
+function createWorksheetMappingCard(sheetName, sheetData) {
+    const mappingId = `mapping_${sheetName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    
+    return `
+        <div class="card mb-3 worksheet-mapping-card" data-sheet-name="${sheetName}">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h6 class="mb-0">
+                            <i class="bi bi-file-earmark-spreadsheet text-primary"></i> 
+                            ${sheetName}
+                            <span class="badge bg-secondary ms-2">${sheetData.row_count} rows</span>
+                            <span class="badge bg-info ms-1">${sheetData.column_count} columns</span>
+                        </h6>
+                    </div>
+                    <div class="col-auto">
+                        <span class="mapping-status badge bg-warning">Not Configured</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Worksheet Info -->
+                    <div class="col-md-3">
+                        <h6 class="small text-muted">WORKSHEET PREVIEW</h6>
+                        <div class="small">
+                            <strong>Suggested table:</strong> <code>${sheetData.suggested_table_name}</code><br>
+                            <strong>Columns:</strong> ${sheetData.columns.slice(0, 3).join(', ')}${sheetData.columns.length > 3 ? '...' : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- Database Selection -->
+                    <div class="col-md-3">
+                        <h6 class="small text-muted">TARGET DATABASE</h6>
+                        <select class="form-select form-select-sm" id="database_${mappingId}" onchange="setMappingDatabase('${sheetName}', this.value)">
+                            <option value="">Choose database...</option>
+                        </select>
+                        <div class="form-text small">Select target database</div>
+                    </div>
+                    
+                    <!-- Import Mode Selection -->
+                    <div class="col-md-3">
+                        <h6 class="small text-muted">IMPORT MODE</h6>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="mode_${mappingId}" id="new_${mappingId}" value="new" onchange="setMappingMode('${sheetName}', 'new')" checked>
+                            <label class="btn btn-outline-primary btn-sm" for="new_${mappingId}">New Table</label>
+                            
+                            <input type="radio" class="btn-check" name="mode_${mappingId}" id="replace_${mappingId}" value="replace" onchange="setMappingMode('${sheetName}', 'replace')">
+                            <label class="btn btn-outline-success btn-sm" for="replace_${mappingId}">Update</label>
+                        </div>
+                        <div class="form-text small">Choose how to import</div>
+                    </div>
+                    
+                    <!-- Target Configuration -->
+                    <div class="col-md-3">
+                        <h6 class="small text-muted">TARGET TABLE</h6>
+                        <div id="target_${mappingId}">
+                            <div class="text-muted small">Select database and mode first</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function setMappingMode(sheetName, mode) {
+    const mappingId = `mapping_${sheetName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    const targetContainer = document.getElementById(`target_${mappingId}`);
+    
+    worksheetMappings[sheetName].mode = mode;
+    worksheetMappings[sheetName].configured = false;
+    worksheetMappings[sheetName].targetTable = null;
+    worksheetMappings[sheetName].newTableName = null;
+    
+    if (mode === 'new') {
+        targetContainer.innerHTML = `
+            <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="bi bi-table"></i></span>
+                <input type="text" class="form-control" 
+                       placeholder="Enter new table name" 
+                       value="${worksheetsData[sheetName].suggested_table_name}"
+                       onchange="setNewTableName('${sheetName}', this.value)">
+            </div>
+            <div class="form-text small text-success">✓ Will create new table with this name</div>
+        `;
+        worksheetMappings[sheetName].newTableName = worksheetsData[sheetName].suggested_table_name;
+        worksheetMappings[sheetName].configured = true;
+    } else if (mode === 'replace') {
+        let tableOptions = '<option value="">Choose existing table to update...</option>';
+        existingTables.forEach(table => {
+            tableOptions += `<option value="${table.name}">${table.name} (${table.row_count} records)</option>`;
+        });
+        
+        targetContainer.innerHTML = `
+            <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="bi bi-arrow-repeat"></i></span>
+                <select class="form-select" onchange="setTargetTable('${sheetName}', this.value)">
+                    ${tableOptions}
+                </select>
+            </div>
+            <div class="form-text small text-warning">⚠️ Will replace data in selected table</div>
+        `;
+    }
+    
+    updateMappingStatus(sheetName);
+    updateImportSummary();
+}
+
+function setNewTableName(sheetName, tableName) {
+    worksheetMappings[sheetName].newTableName = tableName || worksheetsData[sheetName].suggested_table_name;
+    worksheetMappings[sheetName].configured = true;
+    updateMappingStatus(sheetName);
+    updateImportSummary();
+}
+
+function setTargetTable(sheetName, tableName) {
+    worksheetMappings[sheetName].targetTable = tableName;
+    worksheetMappings[sheetName].configured = !!tableName;
+    updateMappingStatus(sheetName);
+    updateImportSummary();
+}
+
+function updateMappingStatus(sheetName) {
+    const card = document.querySelector(`[data-sheet-name="${sheetName}"]`);
+    const statusBadge = card.querySelector('.mapping-status');
+    const mapping = worksheetMappings[sheetName];
+    
+    if (mapping.configured) {
+        statusBadge.className = 'mapping-status badge bg-success';
+        statusBadge.textContent = 'Configured';
+        card.classList.remove('border-warning');
+        card.classList.add('border-success');
+    } else {
+        statusBadge.className = 'mapping-status badge bg-warning';
+        statusBadge.textContent = 'Not Configured';
+        card.classList.remove('border-success');
+        card.classList.add('border-warning');
+    }
+}
+
+function updateImportSummary() {
+    const summaryCard = document.getElementById('summaryCard');
+    const summaryContent = document.getElementById('importSummaryContent');
+    const finishBtn = document.getElementById('finishUpdateBtn');
+    
+    const configuredMappings = Object.entries(worksheetMappings).filter(([_, mapping]) => mapping.configured);
+    const totalMappings = Object.keys(worksheetMappings).length;
+    
+    if (configuredMappings.length === 0) {
+        summaryCard.style.display = 'none';
+        return;
+    }
+    
+    let html = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="text-success">Ready to Import (${configuredMappings.length}/${totalMappings})</h6>
+                <ul class="list-unstyled small">
+    `;
+    
+    configuredMappings.forEach(([sheetName, mapping]) => {
+        const action = mapping.mode === 'new' ? 
+            `Create table: <strong>${mapping.newTableName}</strong>` :
+            `Replace table: <strong>${mapping.targetTable}</strong>`;
+        html += `<li><i class="bi bi-check-circle text-success"></i> ${sheetName} → ${action}</li>`;
+    });
+    
+    html += `
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-muted">Statistics</h6>
+                <div class="small">
+                    <div>Total worksheets: <strong>${totalMappings}</strong></div>
+                    <div>Configured: <strong>${configuredMappings.length}</strong></div>
+                    <div>Pending: <strong>${totalMappings - configuredMappings.length}</strong></div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    summaryContent.innerHTML = html;
+    summaryCard.style.display = 'block';
+    
+    // Enable finish button if at least one mapping is configured
+    finishBtn.disabled = configuredMappings.length === 0;
+}
+
+function displayWorksheetPreview(sheetName, sheetData) {
+    const previewContainer = document.getElementById('worksheetPreview');
+    
+    let html = `
+        <h6>Worksheet: ${sheetName}</h6>
+        <p><strong>Columns:</strong> ${sheetData.column_count} | <strong>Rows:</strong> ${sheetData.row_count}</p>
+        <p><strong>Suggested table name:</strong> <code>${sheetData.suggested_table_name}</code></p>
+    `;
+    
+    if (sheetData.sample_data && sheetData.sample_data.length > 0) {
+        html += '<h6>Sample Data Preview:</h6>';
+        html += '<div class="table-container"><div class="table-responsive"><table class="table-enhanced">';
+        
+        // Headers
+        html += '<thead class="table-light"><tr>';
+        sheetData.columns.forEach(col => {
+            html += `<th>${col}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+        
+        // Sample rows
+        sheetData.sample_data.forEach(row => {
+            html += '<tr>';
+            sheetData.columns.forEach(col => {
+                html += `<td>${row[col] || ''}</td>`;
+            });
+            html += '</tr>';
+        });
+        
+        html += '</tbody></table></div>';
+        
+        if (sheetData.row_count > 3) {
+            html += `<small class="text-muted">Showing 3 of ${sheetData.row_count} rows</small>`;
+        }
+    }
+    
+    previewContainer.innerHTML = html;
+}
+
+function handleBatchImport() {
+    const configuredMappings = Object.entries(worksheetMappings).filter(([_, mapping]) => mapping.configured);
+    
+    if (configuredMappings.length === 0) {
+        alert('Please configure at least one worksheet mapping.');
+        return;
+    }
+    
+    const finishBtn = document.getElementById('finishUpdateBtn');
+    finishBtn.disabled = true;
+    finishBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+    
+    // Process mappings one by one
+    processNextMapping(configuredMappings, 0, []);
+}
+
+function processNextMapping(mappings, index, results) {
+    if (index >= mappings.length) {
+        // All mappings processed, show results and cleanup
+        showBatchResults(results);
+        cleanupUploadedFile();
+        return;
+    }
+    
+    const [sheetName, mapping] = mappings[index];
+    
+    // Update UI to show current processing
+    updateProcessingStatus(sheetName, 'processing');
+    
+    const formData = new FormData();
+    formData.append('file_path', uploadedFilePath);
+    formData.append('worksheet', sheetName);
+    formData.append('import_mode', mapping.mode);
+    
+    if (mapping.mode === 'replace') {
+        formData.append('target_table', mapping.targetTable);
+    } else if (mapping.mode === 'new') {
+        formData.append('new_table_name', mapping.newTableName);
+    }
+    
+    fetch('/api/excel/import', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        const result = {
+            sheetName: sheetName,
+            success: data.success,
+            message: data.message,
+            records: data.records_imported || 0,
+            tableName: data.table_name
+        };
+        
+        results.push(result);
+        updateProcessingStatus(sheetName, data.success ? 'success' : 'error');
+        
+        // Process next mapping after a short delay
+        setTimeout(() => {
+            processNextMapping(mappings, index + 1, results);
+        }, 500);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        results.push({
+            sheetName: sheetName,
+            success: false,
+            message: 'Network error: ' + error.message,
+            records: 0
+        });
+        
+        updateProcessingStatus(sheetName, 'error');
+        
+        // Continue with next mapping
+        setTimeout(() => {
+            processNextMapping(mappings, index + 1, results);
+        }, 500);
+    });
+}
+
+function updateProcessingStatus(sheetName, status) {
+    const card = document.querySelector(`[data-sheet-name="${sheetName}"]`);
+    const statusBadge = card.querySelector('.mapping-status');
+    
+    switch (status) {
+        case 'processing':
+            statusBadge.className = 'mapping-status badge bg-primary';
+            statusBadge.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+            break;
+        case 'success':
+            statusBadge.className = 'mapping-status badge bg-success';
+            statusBadge.innerHTML = '<i class="bi bi-check-circle"></i> Completed';
+            card.classList.remove('border-warning', 'border-success');
+            card.classList.add('border-success');
+            break;
+        case 'error':
+            statusBadge.className = 'mapping-status badge bg-danger';
+            statusBadge.innerHTML = '<i class="bi bi-x-circle"></i> Failed';
+            card.classList.remove('border-warning', 'border-success');
+            card.classList.add('border-danger');
+            break;
+    }
+}
+
+function showBatchResults(results) {
+    const successful = results.filter(r => r.success);
+    const failed = results.filter(r => !r.success);
+    
+    let message = `Batch import completed!\n\n`;
+    message += `✅ Successful: ${successful.length}\n`;
+    message += `❌ Failed: ${failed.length}\n\n`;
+    
+    if (successful.length > 0) {
+        message += `Successfully imported:\n`;
+        successful.forEach(r => {
+            message += `• ${r.sheetName} → ${r.tableName} (${r.records} records)\n`;
+        });
+    }
+    
+    if (failed.length > 0) {
+        message += `\nFailed imports:\n`;
+        failed.forEach(r => {
+            message += `• ${r.sheetName}: ${r.message}\n`;
+        });
+    }
+    
+    alert(message);
+    
+    // Reset finish button
+    const finishBtn = document.getElementById('finishUpdateBtn');
+    finishBtn.disabled = false;
+    finishBtn.innerHTML = '<i class="bi bi-check-circle"></i> Finish Update Data';
+    
+    // Redirect to tables page if any imports were successful
+    if (successful.length > 0) {
+        setTimeout(() => {
+            window.location.href = '/tables';
+        }, 2000);
+    }
+}
+
+function cleanupUploadedFile() {
+    if (uploadedFilePath) {
+        fetch('/api/excel/cleanup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ file_path: uploadedFilePath })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('File cleanup completed successfully');
+            } else {
+                console.warn('File cleanup warning:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error during cleanup:', error);
+        });
+    }
+}
+
+function resetAllMappings() {
+    if (confirm('Are you sure you want to reset all worksheet mappings?')) {
+        worksheetMappings = {};
+        Object.keys(worksheetsData).forEach(sheetName => {
+            if (!worksheetsData[sheetName].error) {
+                worksheetMappings[sheetName] = {
+                    configured: false,
+                    mode: null,
+                    targetTable: null,
+                    newTableName: null
+                };
+            }
+        });
+        
+        // Recreate the interface
+        createWorksheetMappingInterface(worksheetsData);
+    }
+}
+
+// Database Selection Functions
+function loadDatabaseSelectionInfo() {
+    fetch('/api/database/selection-info')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                availableDatabases = data.databases;
+                populateDatabaseSelects();
+            }
+        })
+        .catch(error => console.error('Error loading database info:', error));
+}
+
+function populateDatabaseSelects() {
+    const existingSelect = document.getElementById('existingDatabaseSelect');
+    
+    existingSelect.innerHTML = '<option value="">Select existing database...</option>';
+    availableDatabases.forEach(db => {
+        const option = document.createElement('option');
+        option.value = db.name.replace('.db', '');
+        option.textContent = `${db.name.replace('.db', '')} (${db.table_count} tables, ${db.size})`;
+        existingSelect.appendChild(option);
+    });
+}
+
+function setDatabaseChoice(choice) {
+    databaseChoice = choice;
+    validateDatabaseSelection();
+}
+
+function validateDatabaseSelection() {
+    const confirmBtn = document.getElementById('confirmDatabaseBtn');
+    let isValid = false;
+    
+    if (databaseChoice === 'new') {
+        const newDbName = document.getElementById('newDatabaseName').value.trim();
+        isValid = newDbName.length > 0;
+    } else if (databaseChoice === 'existing') {
+        const selectedDb = document.getElementById('existingDatabaseSelect').value;
+        isValid = selectedDb.length > 0;
+    }
+    
+    confirmBtn.disabled = !isValid;
+}
+
+function confirmDatabaseSelection() {
+    if (databaseChoice === 'new') {
+        const newDbName = document.getElementById('newDatabaseName').value.trim();
+        selectedTargetDatabase = newDbName;
+        
+        // Create new database
+        fetch('/api/database/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newDbName })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(`Database "${newDbName}" created successfully`, 'success');
+                proceedToWorksheetMapping();
+            } else {
+                showAlert(`Error creating database: ${data.error}`, 'danger');
+            }
+        });
+    } else {
+        selectedTargetDatabase = document.getElementById('existingDatabaseSelect').value;
+        proceedToWorksheetMapping();
+    }
+}
+
+function proceedToWorksheetMapping() {
+    document.getElementById('databaseSelectionCard').style.display = 'none';
+    document.getElementById('worksheetCard').style.display = 'block';
+    
+    // Load database tables for the selected database
+    loadDatabaseTables(selectedTargetDatabase);
+}
+
+function loadDatabaseTables(databaseName) {
+    fetch(`/api/database/tables/${databaseName}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                existingTables = data.tables;
+                populateWorksheetDatabaseSelects();
+            }
+        })
+        .catch(error => console.error('Error loading database tables:', error));
+}
+
+function populateWorksheetDatabaseSelects() {
+    // Populate database selects in worksheet mappings
+    Object.keys(worksheetsData).forEach(sheetName => {
+        const mappingId = `mapping_${sheetName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const databaseSelect = document.getElementById(`database_${mappingId}`);
+        
+        if (databaseSelect) {
+            databaseSelect.innerHTML = `<option value="${selectedTargetDatabase}" selected>${selectedTargetDatabase}</option>`;
+            
+            // Also add other available databases as options
+            availableDatabases.forEach(db => {
+                const dbName = db.name.replace('.db', '');
+                if (dbName !== selectedTargetDatabase) {
+                    const option = document.createElement('option');
+                    option.value = dbName;
+                    option.textContent = `${dbName} (${db.table_count} tables)`;
+                    databaseSelect.appendChild(option);
+                }
+            });
+            
+            // Set default database selection
+            setMappingDatabase(sheetName, selectedTargetDatabase);
+        }
+    });
+}
+
+function setMappingDatabase(sheetName, databaseName) {
+    if (!worksheetMappings[sheetName]) {
+        worksheetMappings[sheetName] = {};
+    }
+    
+    worksheetMappings[sheetName].targetDatabase = databaseName;
+    
+    // Load tables for this database and update target options
+    if (databaseName) {
+        loadTablesForDatabase(sheetName, databaseName);
+    }
+    
+    updateMappingStatus(sheetName);
+}
+
+function loadTablesForDatabase(sheetName, databaseName) {
+    fetch(`/api/database/tables/${databaseName}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update existing tables for this specific mapping
+                const mappingId = `mapping_${sheetName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                
+                // Update the replace mode dropdown if it's selected
+                if (worksheetMappings[sheetName].mode === 'replace') {
+                    const targetContainer = document.getElementById(`target_${mappingId}`);
+                    
+                    let tableOptions = '<option value="">Choose table to update...</option>';
+                    data.tables.forEach(table => {
+                        tableOptions += `<option value="${table.name}">${table.name} (${table.row_count} records)</option>`;
+                    });
+                    
+                    targetContainer.innerHTML = `
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-arrow-repeat"></i></span>
+                            <select class="form-select" onchange="setTargetTable('${sheetName}', this.value)">
+                                ${tableOptions}
+                            </select>
+                        </div>
+                        <div class="form-text small text-warning">⚠️ Will replace data in selected table</div>
+                    `;
+                }
+            }
+        })
+        .catch(error => console.error('Error loading tables for database:', error));
+}
+
+function showAlert(message, type = 'info') {
+    // Create a simple alert
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Insert at the top of the page
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

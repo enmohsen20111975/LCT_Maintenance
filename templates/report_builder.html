@@ -1,0 +1,932 @@
+{% extends "base.html" %}
+
+{% block title %}Report Builder - LDA{% endblock %}
+
+{% block extra_css %}
+<style>
+.report-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-radius: 15px;
+}
+
+.design-workspace {
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 15px;
+    min-height: 600px;
+    position: relative;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.report-element {
+    background: white;
+    border: 2px solid #dee2e6;
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 0.5rem;
+    cursor: move;
+    position: absolute;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    min-width: 200px;
+    min-height: 150px;
+}
+
+.report-element:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.report-element.selected {
+    border-color: #007bff;
+    background: #f0f8ff;
+}
+
+.element-toolbar {
+    background: white;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.element-item {
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin: 0.25rem;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.3s ease;
+    user-select: none;
+}
+
+.element-item:hover {
+    border-color: #007bff;
+    background: #e3f2fd;
+}
+
+.element-item i {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.properties-panel {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.template-card {
+    background: white;
+    border: 2px solid #dee2e6;
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.template-card:hover {
+    border-color: #007bff;
+    background: #f0f8ff;
+}
+
+.template-card.selected {
+    border-color: #007bff;
+    background: #e3f2fd;
+}
+
+.report-preview {
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 1rem;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.drag-over {
+    background: #e3f2fd;
+    border-color: #007bff;
+}
+
+.resize-handle {
+    width: 10px;
+    height: 10px;
+    background: #007bff;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    cursor: se-resize;
+    border-radius: 50%;
+}
+
+.grid-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+        linear-gradient(to right, #e9ecef 1px, transparent 1px),
+        linear-gradient(to bottom, #e9ecef 1px, transparent 1px);
+    background-size: 20px 20px;
+    pointer-events: none;
+    opacity: 0.3;
+}
+
+.toolbar-button {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 0.5rem 1rem;
+    margin: 0.25rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.toolbar-button:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.toolbar-button.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+@media (max-width: 768px) {
+    .template-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .design-workspace {
+        min-height: 400px;
+        padding: 1rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="report-header text-center">
+    <div class="container">
+        <h1 class="display-4 mb-3">
+            <i class="bi bi-file-text me-3"></i>
+            Interactive Report Builder
+        </h1>
+        <p class="lead">Create professional reports with drag-and-drop simplicity</p>
+    </div>
+</div>
+
+<!-- Report Builder Interface -->
+<div class="container-fluid">
+    <div class="row">
+        <!-- Left Panel - Elements & Data -->
+        <div class="col-lg-3">
+            <!-- Report Elements -->
+            <div class="element-toolbar">
+                <h5><i class="bi bi-tools"></i> Report Elements</h5>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="element-item" draggable="true" data-type="chart">
+                            <i class="bi bi-bar-chart"></i>
+                            Chart
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="element-item" draggable="true" data-type="table">
+                            <i class="bi bi-table"></i>
+                            Table
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="element-item" draggable="true" data-type="kpi">
+                            <i class="bi bi-speedometer2"></i>
+                            KPI Card
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="element-item" draggable="true" data-type="text">
+                            <i class="bi bi-text-paragraph"></i>
+                            Text
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="element-item" draggable="true" data-type="image">
+                            <i class="bi bi-image"></i>
+                            Image
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="element-item" draggable="true" data-type="filter">
+                            <i class="bi bi-funnel"></i>
+                            Filter
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Sources -->
+            <div class="element-toolbar">
+                <h5><i class="bi bi-database"></i> Data Sources</h5>
+                <div class="mb-3">
+                    <label class="form-label">Database:</label>
+                    <select id="databaseSelect" class="form-select form-select-sm" onchange="loadTables()">
+                        <option value="">Select database...</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Table:</label>
+                    <select id="tableSelect" class="form-select form-select-sm" onchange="loadColumns()">
+                        <option value="">Select table...</option>
+                    </select>
+                </div>
+                <div id="columnsList" class="small">
+                    <div class="text-muted">Select a table to view columns</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Panel - Design Canvas -->
+        <div class="col-lg-6">
+            <!-- Toolbar -->
+            <div class="element-toolbar">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="toolbar-button" onclick="newReport()">
+                            <i class="bi bi-file-plus"></i> New
+                        </span>
+                        <span class="toolbar-button" onclick="saveReport()">
+                            <i class="bi bi-save"></i> Save
+                        </span>
+                        <span class="toolbar-button" onclick="previewReport()">
+                            <i class="bi bi-eye"></i> Preview
+                        </span>
+                        <span class="toolbar-button" onclick="exportReport()">
+                            <i class="bi bi-download"></i> Export
+                        </span>
+                    </div>
+                    <div>
+                        <span class="toolbar-button" onclick="toggleGrid()" id="gridToggle">
+                            <i class="bi bi-grid"></i> Grid
+                        </span>
+                        <span class="toolbar-button" onclick="alignElements()">
+                            <i class="bi bi-distribute-horizontal"></i> Align
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Design Workspace -->
+            <div class="design-workspace" id="designWorkspace" ondrop="dropElement(event)" ondragover="allowDrop(event)">
+                <div class="grid-overlay" id="gridOverlay"></div>
+                <div class="text-center text-muted position-absolute" style="top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                    <i class="bi bi-file-text" style="font-size: 3rem;"></i>
+                    <p class="mt-2">Drag elements here to build your report</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel - Properties -->
+        <div class="col-lg-3">
+            <div class="properties-panel">
+                <h5><i class="bi bi-sliders"></i> Properties</h5>
+                <div id="propertiesContent">
+                    <div class="text-muted">
+                        <i class="bi bi-info-circle"></i>
+                        Select an element to edit properties
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Templates Modal -->
+<div class="modal fade" id="templatesModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-file-text"></i> Report Templates
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="template-grid">
+                    <div class="template-card" onclick="selectTemplate('dashboard')">
+                        <i class="bi bi-speedometer2" style="font-size: 2rem; color: #007bff;"></i>
+                        <h6 class="mt-2">Executive Dashboard</h6>
+                        <p class="small text-muted">KPIs and key metrics overview</p>
+                    </div>
+                    <div class="template-card" onclick="selectTemplate('sales')">
+                        <i class="bi bi-graph-up" style="font-size: 2rem; color: #28a745;"></i>
+                        <h6 class="mt-2">Sales Report</h6>
+                        <p class="small text-muted">Sales performance and trends</p>
+                    </div>
+                    <div class="template-card" onclick="selectTemplate('financial')">
+                        <i class="bi bi-currency-dollar" style="font-size: 2rem; color: #ffc107;"></i>
+                        <h6 class="mt-2">Financial Summary</h6>
+                        <p class="small text-muted">Financial metrics and analysis</p>
+                    </div>
+                    <div class="template-card" onclick="selectTemplate('operations')">
+                        <i class="bi bi-gear" style="font-size: 2rem; color: #6f42c1;"></i>
+                        <h6 class="mt-2">Operations Report</h6>
+                        <p class="small text-muted">Operational efficiency metrics</p>
+                    </div>
+                    <div class="template-card" onclick="selectTemplate('custom')">
+                        <i class="bi bi-file-plus" style="font-size: 2rem; color: #6c757d;"></i>
+                        <h6 class="mt-2">Blank Report</h6>
+                        <p class="small text-muted">Start from scratch</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-eye"></i> Report Preview
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="report-preview" id="reportPreview">
+                    <!-- Preview content will be generated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedElement = null;
+let elementCounter = 0;
+let reportElements = [];
+let currentDatabase = null;
+let currentTable = null;
+let isDragging = false;
+let gridEnabled = true;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    loadDatabases();
+    setupDragAndDrop();
+    showTemplatesModal();
+});
+
+function showTemplatesModal() {
+    const modal = new bootstrap.Modal(document.getElementById('templatesModal'));
+    modal.show();
+}
+
+async function loadDatabases() {
+    try {
+        const response = await fetch('/api/databases');
+        const data = await response.json();
+        
+        if (data.success) {
+            const select = document.getElementById('databaseSelect');
+            select.innerHTML = '<option value="">Select database...</option>';
+            
+            data.databases.forEach(db => {
+                select.innerHTML += `<option value="${db}">${db}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('Error loading databases:', error);
+    }
+}
+
+async function loadTables() {
+    const databaseSelect = document.getElementById('databaseSelect');
+    currentDatabase = databaseSelect.value;
+    
+    if (!currentDatabase) return;
+    
+    try {
+        const response = await fetch(`/api/relationships/tables?database=${currentDatabase}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const select = document.getElementById('tableSelect');
+            select.innerHTML = '<option value="">Select table...</option>';
+            
+            data.tables.forEach(table => {
+                select.innerHTML += `<option value="${table}">${table}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('Error loading tables:', error);
+    }
+}
+
+async function loadColumns() {
+    const tableSelect = document.getElementById('tableSelect');
+    currentTable = tableSelect.value;
+    
+    if (!currentTable || !currentDatabase) return;
+    
+    try {
+        const response = await fetch(`/api/relationships/columns/${currentTable}?database=${currentDatabase}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const columnsList = document.getElementById('columnsList');
+            columnsList.innerHTML = '<strong class="small">Columns:</strong><br>' +
+                data.columns.map(col => `
+                    <span class="badge bg-light text-dark me-1 mb-1" draggable="true" data-column="${col.name}">
+                        ${col.name}
+                    </span>
+                `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading columns:', error);
+    }
+}
+
+function setupDragAndDrop() {
+    // Setup drag for elements
+    document.querySelectorAll('.element-item').forEach(item => {
+        item.addEventListener('dragstart', function(e) {
+            e.dataTransfer.setData('text/plain', this.dataset.type);
+            isDragging = true;
+        });
+    });
+}
+
+function allowDrop(event) {
+    event.preventDefault();
+    if (isDragging) {
+        event.currentTarget.classList.add('drag-over');
+    }
+}
+
+function dropElement(event) {
+    event.preventDefault();
+    event.currentTarget.classList.remove('drag-over');
+    
+    const elementType = event.dataTransfer.getData('text/plain');
+    const rect = event.currentTarget.getBoundingClientRect();
+    
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
+    createElement(elementType, x, y);
+    isDragging = false;
+}
+
+function createElement(type, x, y) {
+    elementCounter++;
+    const elementId = `element_${elementCounter}`;
+    
+    const element = document.createElement('div');
+    element.className = 'report-element';
+    element.id = elementId;
+    element.style.left = x + 'px';
+    element.style.top = y + 'px';
+    element.onclick = () => selectElement(elementId);
+    
+    // Add resize handle
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'resize-handle';
+    element.appendChild(resizeHandle);
+    
+    // Set content based on type
+    switch (type) {
+        case 'chart':
+            element.innerHTML = `
+                <div class="text-center">
+                    <i class="bi bi-bar-chart" style="font-size: 2rem; color: #007bff;"></i>
+                    <h6 class="mt-2">Chart ${elementCounter}</h6>
+                    <small class="text-muted">Configure chart properties</small>
+                </div>
+                ${resizeHandle.outerHTML}
+            `;
+            break;
+        case 'table':
+            element.innerHTML = `
+                <div class="text-center">
+                    <i class="bi bi-table" style="font-size: 2rem; color: #28a745;"></i>
+                    <h6 class="mt-2">Data Table ${elementCounter}</h6>
+                    <small class="text-muted">Select data source</small>
+                </div>
+                ${resizeHandle.outerHTML}
+            `;
+            break;
+        case 'kpi':
+            element.innerHTML = `
+                <div class="text-center">
+                    <div style="font-size: 2rem; font-weight: bold; color: #007bff;">85%</div>
+                    <h6>KPI Metric</h6>
+                    <small class="text-muted">Performance indicator</small>
+                </div>
+                ${resizeHandle.outerHTML}
+            `;
+            break;
+        case 'text':
+            element.innerHTML = `
+                <div>
+                    <h6>Text Element ${elementCounter}</h6>
+                    <p class="text-muted">Edit this text content...</p>
+                </div>
+                ${resizeHandle.outerHTML}
+            `;
+            break;
+        case 'image':
+            element.innerHTML = `
+                <div class="text-center">
+                    <i class="bi bi-image" style="font-size: 2rem; color: #6c757d;"></i>
+                    <h6 class="mt-2">Image ${elementCounter}</h6>
+                    <small class="text-muted">Upload or select image</small>
+                </div>
+                ${resizeHandle.outerHTML}
+            `;
+            break;
+        case 'filter':
+            element.innerHTML = `
+                <div>
+                    <h6><i class="bi bi-funnel"></i> Filter ${elementCounter}</h6>
+                    <select class="form-select form-select-sm">
+                        <option>All values</option>
+                    </select>
+                </div>
+                ${resizeHandle.outerHTML}
+            `;
+            break;
+    }
+    
+    document.getElementById('designWorkspace').appendChild(element);
+    
+    // Store element data
+    reportElements.push({
+        id: elementId,
+        type: type,
+        x: x,
+        y: y,
+        width: 200,
+        height: 150,
+        properties: {}
+    });
+    
+    selectElement(elementId);
+    makeDraggable(element);
+    makeResizable(element);
+}
+
+function makeDraggable(element) {
+    let isDragging = false;
+    let startX, startY, startLeft, startTop;
+    
+    element.addEventListener('mousedown', function(e) {
+        if (e.target.classList.contains('resize-handle')) return;
+        
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startLeft = parseInt(element.style.left);
+        startTop = parseInt(element.style.top);
+        
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        e.preventDefault();
+    });
+    
+    function onMouseMove(e) {
+        if (!isDragging) return;
+        
+        const newLeft = startLeft + (e.clientX - startX);
+        const newTop = startTop + (e.clientY - startY);
+        
+        element.style.left = Math.max(0, newLeft) + 'px';
+        element.style.top = Math.max(0, newTop) + 'px';
+    }
+    
+    function onMouseUp() {
+        isDragging = false;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+    }
+}
+
+function makeResizable(element) {
+    const resizeHandle = element.querySelector('.resize-handle');
+    let isResizing = false;
+    let startX, startY, startWidth, startHeight;
+    
+    resizeHandle.addEventListener('mousedown', function(e) {
+        isResizing = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startWidth = parseInt(window.getComputedStyle(element).width);
+        startHeight = parseInt(window.getComputedStyle(element).height);
+        
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        e.preventDefault();
+        e.stopPropagation();
+    });
+    
+    function onMouseMove(e) {
+        if (!isResizing) return;
+        
+        const newWidth = Math.max(150, startWidth + (e.clientX - startX));
+        const newHeight = Math.max(100, startHeight + (e.clientY - startY));
+        
+        element.style.width = newWidth + 'px';
+        element.style.height = newHeight + 'px';
+    }
+    
+    function onMouseUp() {
+        isResizing = false;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+    }
+}
+
+function selectElement(elementId) {
+    // Clear previous selection
+    document.querySelectorAll('.report-element').forEach(el => {
+        el.classList.remove('selected');
+    });
+    
+    // Select new element
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.classList.add('selected');
+        selectedElement = elementId;
+        showProperties(elementId);
+    }
+}
+
+function showProperties(elementId) {
+    const elementData = reportElements.find(el => el.id === elementId);
+    if (!elementData) return;
+    
+    const propertiesContent = document.getElementById('propertiesContent');
+    
+    let propertiesHTML = `
+        <h6>${elementData.type.charAt(0).toUpperCase() + elementData.type.slice(1)} Properties</h6>
+        <div class="mb-3">
+            <label class="form-label">Width:</label>
+            <input type="number" class="form-control form-control-sm" value="200" onchange="updateElementProperty('width', this.value)">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Height:</label>
+            <input type="number" class="form-control form-control-sm" value="150" onchange="updateElementProperty('height', this.value)">
+        </div>
+    `;
+    
+    // Add type-specific properties
+    switch (elementData.type) {
+        case 'chart':
+            propertiesHTML += `
+                <div class="mb-3">
+                    <label class="form-label">Chart Type:</label>
+                    <select class="form-select form-select-sm" onchange="updateElementProperty('chartType', this.value)">
+                        <option value="bar">Bar Chart</option>
+                        <option value="line">Line Chart</option>
+                        <option value="pie">Pie Chart</option>
+                        <option value="scatter">Scatter Plot</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Data Source:</label>
+                    <select class="form-select form-select-sm" onchange="updateElementProperty('dataSource', this.value)">
+                        <option value="">${currentTable || 'Select table first'}</option>
+                    </select>
+                </div>
+            `;
+            break;
+        case 'text':
+            propertiesHTML += `
+                <div class="mb-3">
+                    <label class="form-label">Text Content:</label>
+                    <textarea class="form-control form-control-sm" rows="3" onchange="updateElementProperty('content', this.value)">Edit this text...</textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Font Size:</label>
+                    <select class="form-select form-select-sm" onchange="updateElementProperty('fontSize', this.value)">
+                        <option value="12px">12px</option>
+                        <option value="14px">14px</option>
+                        <option value="16px">16px</option>
+                        <option value="18px">18px</option>
+                        <option value="24px">24px</option>
+                    </select>
+                </div>
+            `;
+            break;
+        case 'kpi':
+            propertiesHTML += `
+                <div class="mb-3">
+                    <label class="form-label">KPI Title:</label>
+                    <input type="text" class="form-control form-control-sm" value="KPI Metric" onchange="updateElementProperty('title', this.value)">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Value:</label>
+                    <input type="text" class="form-control form-control-sm" value="85%" onchange="updateElementProperty('value', this.value)">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Color:</label>
+                    <select class="form-select form-select-sm" onchange="updateElementProperty('color', this.value)">
+                        <option value="primary">Blue</option>
+                        <option value="success">Green</option>
+                        <option value="warning">Yellow</option>
+                        <option value="danger">Red</option>
+                    </select>
+                </div>
+            `;
+            break;
+    }
+    
+    propertiesHTML += `
+        <hr>
+        <button class="btn btn-danger btn-sm w-100" onclick="deleteElement('${elementId}')">
+            <i class="bi bi-trash"></i> Delete Element
+        </button>
+    `;
+    
+    propertiesContent.innerHTML = propertiesHTML;
+}
+
+function updateElementProperty(property, value) {
+    if (!selectedElement) return;
+    
+    const elementData = reportElements.find(el => el.id === selectedElement);
+    if (elementData) {
+        elementData.properties[property] = value;
+        
+        // Apply visual changes
+        const element = document.getElementById(selectedElement);
+        if (property === 'width') {
+            element.style.width = value + 'px';
+        } else if (property === 'height') {
+            element.style.height = value + 'px';
+        }
+    }
+}
+
+function deleteElement(elementId) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.remove();
+        reportElements = reportElements.filter(el => el.id !== elementId);
+        
+        // Clear properties panel
+        document.getElementById('propertiesContent').innerHTML = `
+            <div class="text-muted">
+                <i class="bi bi-info-circle"></i>
+                Select an element to edit properties
+            </div>
+        `;
+        selectedElement = null;
+    }
+}
+
+function selectTemplate(templateType) {
+    // Clear existing elements
+    document.querySelectorAll('.report-element').forEach(el => el.remove());
+    reportElements = [];
+    elementCounter = 0;
+    
+    // Create template elements based on type
+    switch (templateType) {
+        case 'dashboard':
+            createElement('kpi', 50, 50);
+            createElement('kpi', 270, 50);
+            createElement('kpi', 490, 50);
+            createElement('chart', 50, 250);
+            createElement('chart', 320, 250);
+            break;
+        case 'sales':
+            createElement('chart', 50, 50);
+            createElement('table', 350, 50);
+            createElement('kpi', 50, 300);
+            createElement('kpi', 250, 300);
+            break;
+        case 'custom':
+            // Start blank
+            break;
+    }
+    
+    // Close modal
+    bootstrap.Modal.getInstance(document.getElementById('templatesModal')).hide();
+}
+
+function newReport() {
+    if (confirm('Start a new report? All current work will be lost.')) {
+        document.querySelectorAll('.report-element').forEach(el => el.remove());
+        reportElements = [];
+        elementCounter = 0;
+        selectedElement = null;
+        document.getElementById('propertiesContent').innerHTML = `
+            <div class="text-muted">
+                <i class="bi bi-info-circle"></i>
+                Select an element to edit properties
+            </div>
+        `;
+    }
+}
+
+function saveReport() {
+    const reportData = {
+        elements: reportElements,
+        settings: {
+            title: 'My Report',
+            database: currentDatabase,
+            table: currentTable
+        }
+    };
+    
+    // For now, just show the JSON data
+    console.log('Report data:', reportData);
+    alert('Report saved! (Mock implementation - data logged to console)');
+}
+
+function previewReport() {
+    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+    const preview = document.getElementById('reportPreview');
+    
+    // Generate preview HTML
+    preview.innerHTML = `
+        <div class="text-center mb-4">
+            <h3>Report Preview</h3>
+            <small class="text-muted">Generated: ${new Date().toLocaleString()}</small>
+        </div>
+        <div class="row">
+            ${reportElements.map(el => `
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6>${el.type.charAt(0).toUpperCase() + el.type.slice(1)} Element</h6>
+                            <p class="text-muted">Preview of ${el.type} content</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    modal.show();
+}
+
+function exportReport() {
+    alert('Export functionality coming soon! Will support PDF, Excel, and PowerPoint formats.');
+}
+
+function toggleGrid() {
+    gridEnabled = !gridEnabled;
+    const gridOverlay = document.getElementById('gridOverlay');
+    const gridToggle = document.getElementById('gridToggle');
+    
+    if (gridEnabled) {
+        gridOverlay.style.display = 'block';
+        gridToggle.classList.add('active');
+    } else {
+        gridOverlay.style.display = 'none';
+        gridToggle.classList.remove('active');
+    }
+}
+
+function alignElements() {
+    if (reportElements.length < 2) {
+        alert('Select at least 2 elements to align');
+        return;
+    }
+    
+    // Simple alignment - align to top of first element
+    const firstElement = reportElements[0];
+    reportElements.forEach(el => {
+        const element = document.getElementById(el.id);
+        if (element) {
+            element.style.top = firstElement.y + 'px';
+        }
+    });
+}
+</script>
+{% endblock %}

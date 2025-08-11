@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+
+{% block title %}Interactive Excel Upload{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-file-excel"></i> Interactive Excel Upload</h3>
+                    <p class="mb-0">Upload an Excel file to analyze sheets and customize data types before processing</p>
+                </div>
+                <div class="card-body">
+                    <!-- Step 1: File Upload -->
+                    <div id="step1" class="upload-step">
+                        <h5>Step 1: Select Excel File</h5>
+                        <div class="mb-3">
+                            <input type="file" class="form-control" id="fileInput" accept=".xlsx,.xls,.xlsm,.xlsb">
+                        </div>
+                        <button type="button" class="btn btn-primary" id="analyzeBtn" disabled>
+                            <i class="fas fa-search"></i> Analyze File
+                        </button>
+                    </div>
+
+                    <!-- Step 2: Sheet Selection -->
+                    <div id="step2" class="upload-step" style="display: none;">
+                        <h5>Step 2: Select Sheets to Process</h5>
+                        <div id="sheetsContainer" class="mb-3">
+                            <!-- Sheets will be populated here -->
+                        </div>
+                        <button type="button" class="btn btn-success" id="continueBtn" disabled>
+                            Continue to Data Types
+                        </button>
+                    </div>
+
+                    <!-- Step 3: Data Type Configuration -->
+                    <div id="step3" class="upload-step" style="display: none;">
+                        <h5>Step 3: Review and Customize Data Types</h5>
+                        <div id="dataTypesContainer">
+                            <!-- Data type configurations will be populated here -->
+                        </div>
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-secondary" id="backBtn">
+                                <i class="fas fa-arrow-left"></i> Back to Sheet Selection
+                            </button>
+                            <button type="button" class="btn btn-success" id="processBtn">
+                                <i class="fas fa-upload"></i> Process Selected Sheets
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Results -->
+                    <div id="results" class="mt-4" style="display: none;">
+                        <div class="alert alert-success">
+                            <h5><i class="fas fa-check-circle"></i> Processing Complete!</h5>
+                            <p id="resultsMessage"></p>
+                            <a href="/" class="btn btn-primary">View Tables</a>
+                        </div>
+                    </div>
+
+                    <!-- Loading Indicator -->
+                    <div id="loadingIndicator" style="display: none;">
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="sr-only">Loading...</span>
+                            </div>
+                            <p class="mt-2">Processing file...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.upload-step {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.sheet-item {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 10px;
+    background-color: #f8f9fa;
+}
+
+.sheet-item.selected {
+    border-color: #007bff;
+    background-color: #e7f3ff;
+}
+
+.column-config {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.sample-values {
+    font-size: 0.85em;
+    color: #6c757d;
+    font-family: monospace;
+}
+
+.data-issues {
+    font-size: 0.85em;
+    color: #dc3545;
+}
+
+.data-stats {
+    font-size: 0.85em;
+    color: #6c757d;
+}
+
+.preview-table {
+    font-size: 0.85em;
+}
+
+.preview-table th,
+.preview-table td {
+    padding: 0.25rem 0.5rem;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('fileInput');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const continueBtn = document.getElementById('continueBtn');
+    const backBtn = document.getElementById('backBtn');
+    const processBtn = document.getElementById('processBtn');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    
+    let analysisData = null;
+    let selectedSheets = [];
+    let columnTypes = {};
+
+    // File input change handler
+    fileInput.addEventListener('change', function() {
+        analyzeBtn.disabled = !this.files.length;
+    });
+
+    // Analyze file
+    analyzeBtn.addEventListener('click', function() {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        showLoading(true);
+        
+        const formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/api/excel/analyze', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            showLoading(false);
+            if (data.success) {
+                analysisData = data.analysis;
+                showSheetSelection();
+            } else {
+                alert('Error analyzing file: ' + data.error);
+            }
+        })
+        .catch(error => {
+            showLoading(false);
+            alert('Error: ' + error.message);
+        });
+    });
+
+    // Continue to data types
+    continueBtn.addEventListener('click', function() {
+        if (selectedSheets.length === 0) {
+            alert('Please select at least one sheet to process.');
+            return;
+        }
+        showDataTypeConfiguration();
+    });
+
+    // Back to sheet selection
+    backBtn.addEventListener('click', function() {
+        showSheetSelection();
+    });
+
+    // Process sheets
+    processBtn.addEventListener('click', function() {
+        processSelectedSheets();
+    });
+
+    function showLoading(show) {
+        loadingIndicator.style.display = show ? 'block' : 'none';
+        document.querySelectorAll('.upload-step').forEach(step => {
+            step.style.display = show ? 'none' : 'block';
+        });
+    }
+
+    function showSheetSelection() {
+        document.getElementById('step1').style.display = 'none';
+        document.getElementById('step2').style.display = 'block';
+        document.getElementById('step3').style.display = 'none';
+        
+        const container = document.getElementById('sheetsContainer');
+        container.innerHTML = '';
+
+        analysisData.sheets.forEach((sheet, index) => {
+            if (sheet.error) {
+                container.innerHTML += `
+                    <div class="sheet-item">
+                        <h6>${sheet.name}</h6>
+                        <p class="text-danger">Error: ${sheet.error}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const isSelected = selectedSheets.includes(sheet.name);
+            const sheetDiv = document.createElement('div');
+            sheetDiv.className = `sheet-item ${isSelected ? 'selected' : ''}`;
+            sheetDiv.style.cursor = 'pointer';
+            
+            sheetDiv.innerHTML = `
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="sheet_${index}" 
+                           ${isSelected ? 'checked' : ''} data-sheet-name="${sheet.name}">
+                    <label class="form-check-label" for="sheet_${index}">
+                        <h6>${sheet.name}</h6>
+                    </label>
+                </div>
+                <p class="mb-2"><strong>${sheet.rows}</strong> rows, <strong>${sheet.columns}</strong> columns</p>
+                
+                <div class="preview-table-container">
+                    <h6>Preview:</h6>
+                    <table class="table table-sm preview-table">
+                        <thead>
+                            <tr>
+                                ${sheet.columns_info.slice(0, 5).map(col => `<th>${col.name}</th>`).join('')}
+                                ${sheet.columns_info.length > 5 ? '<th>...</th>' : ''}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sheet.preview_data.slice(0, 3).map(row => 
+                                `<tr>
+                                    ${sheet.columns_info.slice(0, 5).map(col => `<td>${row[col.name] || ''}</td>`).join('')}
+                                    ${sheet.columns_info.length > 5 ? '<td>...</td>' : ''}
+                                </tr>`
+                            ).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            // Add click handler
+            sheetDiv.addEventListener('click', function(e) {
+                if (e.target.type !== 'checkbox') {
+                    const checkbox = sheetDiv.querySelector('input[type="checkbox"]');
+                    checkbox.checked = !checkbox.checked;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+            });
+
+            // Add checkbox change handler
+            const checkbox = sheetDiv.querySelector('input[type="checkbox"]');
+            checkbox.addEventListener('change', function() {
+                const sheetName = this.dataset.sheetName;
+                if (this.checked) {
+                    if (!selectedSheets.includes(sheetName)) {
+                        selectedSheets.push(sheetName);
+                    }
+                    sheetDiv.classList.add('selected');
+                } else {
+                    selectedSheets = selectedSheets.filter(name => name !== sheetName);
+                    sheetDiv.classList.remove('selected');
+                }
+                
+                continueBtn.disabled = selectedSheets.length === 0;
+            });
+
+            container.appendChild(sheetDiv);
+        });
+
+        continueBtn.disabled = selectedSheets.length === 0;
+    }
+
+    function showDataTypeConfiguration() {
+        document.getElementById('step2').style.display = 'none';
+        document.getElementById('step3').style.display = 'block';
+        
+        const container = document.getElementById('dataTypesContainer');
+        container.innerHTML = '';
+
+        selectedSheets.forEach(sheetName => {
+            const sheet = analysisData.sheets.find(s => s.name === sheetName);
+            if (!sheet || sheet.error) return;
+
+            const sheetDiv = document.createElement('div');
+            sheetDiv.className = 'mb-4';
+            
+            let sheetHtml = `
+                <h6 class="border-bottom pb-2">${sheetName}</h6>
+                <div class="row">
+            `;
+
+            sheet.columns_info.forEach((col, colIndex) => {
+                const currentType = (columnTypes[sheetName] && columnTypes[sheetName][col.name]) || 'auto';
+                
+                sheetHtml += `
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="column-config">
+                            <h6>${col.name}</h6>
+                            <div class="mb-2">
+                                <select class="form-control form-control-sm" 
+                                        data-sheet="${sheetName}" data-column="${col.name}">
+                                    <option value="auto" ${currentType === 'auto' ? 'selected' : ''}>
+                                        Auto (${col.suggested_type})
+                                    </option>
+                                    <option value="text" ${currentType === 'text' ? 'selected' : ''}>Text</option>
+                                    <option value="integer" ${currentType === 'integer' ? 'selected' : ''}>Integer</option>
+                                    <option value="float" ${currentType === 'float' ? 'selected' : ''}>Float</option>
+                                    <option value="datetime" ${currentType === 'datetime' ? 'selected' : ''}>Date/Time</option>
+                                    <option value="boolean" ${currentType === 'boolean' ? 'selected' : ''}>Boolean</option>
+                                </select>
+                            </div>
+                            <div class="data-stats">
+                                ${col.total_rows} rows, ${col.null_count} nulls, ${col.unique_count} unique
+                            </div>
+                            ${col.sample_values.length > 0 ? `
+                                <div class="sample-values mt-1">
+                                    Samples: ${col.sample_values.slice(0, 3).map(v => JSON.stringify(v)).join(', ')}
+                                </div>
+                            ` : ''}
+                            ${col.issues.length > 0 ? `
+                                <div class="data-issues mt-1">
+                                    Issues: ${col.issues.join(', ')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            sheetHtml += '</div>';
+            sheetDiv.innerHTML = sheetHtml;
+
+            // Add change handlers for selects
+            sheetDiv.querySelectorAll('select').forEach(select => {
+                select.addEventListener('change', function() {
+                    const sheetName = this.dataset.sheet;
+                    const columnName = this.dataset.column;
+                    const selectedType = this.value;
+                    
+                    if (!columnTypes[sheetName]) {
+                        columnTypes[sheetName] = {};
+                    }
+                    columnTypes[sheetName][columnName] = selectedType;
+                });
+            });
+
+            container.appendChild(sheetDiv);
+        });
+    }
+
+    function processSelectedSheets() {
+        showLoading(true);
+        
+        const file = fileInput.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('config', JSON.stringify({
+            selected_sheets: selectedSheets,
+            column_types: columnTypes
+        }));
+
+        fetch('/api/excel/process-with-config', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            showLoading(false);
+            if (data.success) {
+                document.getElementById('step3').style.display = 'none';
+                document.getElementById('results').style.display = 'block';
+                document.getElementById('resultsMessage').textContent = data.message;
+            } else {
+                alert('Error processing file: ' + data.error);
+            }
+        })
+        .catch(error => {
+            showLoading(false);
+            alert('Error: ' + error.message);
+        });
+    }
+});
+</script>
+{% endblock %}

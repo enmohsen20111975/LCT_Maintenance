@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Requests - LCT STS{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-clipboard-check text-primary"></i>
+            Purchase Requests
+        </h1>
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('purchase_requests') }}?status=En attente" class="btn btn-warning btn-sm">
+                <i class="bi bi-clock"></i> Pending
+            </a>
+            <a href="{{ url_for('purchase_requests') }}?status=Approuvée" class="btn btn-success btn-sm">
+                <i class="bi bi-check-circle"></i> Approved
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    {% if stats %}
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total PR Lines</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "{:,}".format(stats.total_prs) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-file-earmark-text fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Unique PRs</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "{:,}".format(stats.unique_prs) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-collection fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Value</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">${{ "{:,.2f}".format(stats.total_value) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-currency-dollar fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Requesters</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "{:,}".format(stats.requesters_count) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-people fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Search and Filter -->
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="GET" class="row align-items-end">
+                <div class="col-md-4">
+                    <label for="search">Search PRs</label>
+                    <input type="text" name="search" id="search" class="form-control" 
+                           placeholder="Search by PR number, article, requester..." 
+                           value="{{ current_filters.search or '' }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="status">Status</label>
+                    <select name="status" id="status" class="form-control">
+                        <option value="">All Status</option>
+                        {% for status in statuses %}
+                        <option value="{{ status }}" {{ 'selected' if current_filters.status == status }}>{{ status }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="sort">Sort By</label>
+                    <select name="sort" id="sort" class="form-control">
+                        <option value="no_demande" {{ 'selected' if current_filters.sort == 'no_demande' }}>PR Number</option>
+                        <option value="date_demande" {{ 'selected' if current_filters.sort == 'date_demande' }}>Request Date</option>
+                        <option value="prix_total" {{ 'selected' if current_filters.sort == 'prix_total' }}>Amount</option>
+                        <option value="demandeur" {{ 'selected' if current_filters.sort == 'demandeur' }}>Requester</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary mr-2">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                    <a href="{{ url_for('purchase_requests') }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-clockwise"></i> Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Purchase Requests Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                Purchase Requests
+                {% if current_filters.search %}
+                - Search: "{{ current_filters.search }}"
+                {% endif %}
+                {% if current_filters.status %}
+                - Status: {{ current_filters.status }}
+                {% endif %}
+            </h6>
+        </div>
+        <div class="card-body">
+            {% if purchase_requests %}
+            <div class="table-responsive">
+                <table class="table table-bordered" id="prTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>PR Number</th>
+                            <th>Article Code</th>
+                            <th>Description</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Total Price</th>
+                            <th>Requester</th>
+                            <th>Status</th>
+                            <th>Request Date</th>
+                            <th>Justification</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pr in purchase_requests %}
+                        <tr>
+                            <td><strong>{{ pr.no_demande }}</strong></td>
+                            <td>{{ pr.article }}</td>
+                            <td>
+                                <span title="{{ pr.designation }}">
+                                    {{ pr.designation[:50] if pr.designation else 'N/A' }}{% if pr.designation and pr.designation|length > 50 %}...{% endif %}
+                                </span>
+                            </td>
+                            <td class="text-right">{{ "{:,}".format(pr.quantite) if pr.quantite else '0' }}</td>
+                            <td class="text-right">${{ "{:.2f}".format(pr.prix_unitaire) if pr.prix_unitaire else '0.00' }}</td>
+                            <td class="text-right font-weight-bold">${{ "{:.2f}".format(pr.prix_total) if pr.prix_total else '0.00' }}</td>
+                            <td>{{ pr.demandeur or 'N/A' }}</td>
+                            <td>
+                                {% if pr.statut == 'Approuvée' %}
+                                    <span class="badge badge-success">{{ pr.statut }}</span>
+                                {% elif pr.statut == 'En attente' %}
+                                    <span class="badge badge-warning">{{ pr.statut }}</span>
+                                {% elif pr.statut == 'Rejetée' %}
+                                    <span class="badge badge-danger">{{ pr.statut }}</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">{{ pr.statut or 'Unknown' }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ pr.date_demande or 'N/A' }}</td>
+                            <td>
+                                <span title="{{ pr.justification }}">
+                                    {{ pr.justification[:30] if pr.justification else 'N/A' }}{% if pr.justification and pr.justification|length > 30 %}...{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-sm btn-info" onclick="viewPR({{ pr.id }})" title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-primary" onclick="editPR({{ pr.id }})" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-clipboard-check fa-4x text-gray-300 mb-4"></i>
+                <h4 class="text-gray-500">No Purchase Requests Found</h4>
+                {% if current_filters.search %}
+                <p class="text-gray-400">No purchase requests match your search criteria.</p>
+                {% else %}
+                <p class="text-gray-400">No purchase request data available.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- PR Details Modal -->
+<div class="modal fade" id="prModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Purchase Request Details</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include DataTables -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
+<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('#prTable').DataTable({
+        "pageLength": 25,
+        "order": [[ 0, "desc" ]],
+        "columnDefs": [
+            { "orderable": false, "targets": 10 }
+        ]
+    });
+});
+
+function viewPR(id) {
+    fetch(`/api/purchase-requests/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const pr = data.item;
+                document.getElementById('modalBody').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Request Information</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>PR Number:</strong></td><td>${pr.no_demande}</td></tr>
+                                <tr><td><strong>Article Code:</strong></td><td>${pr.article}</td></tr>
+                                <tr><td><strong>Description:</strong></td><td>${pr.designation || 'N/A'}</td></tr>
+                                <tr><td><strong>Requester:</strong></td><td>${pr.demandeur || 'N/A'}</td></tr>
+                                <tr><td><strong>Status:</strong></td><td><span class="badge badge-secondary">${pr.statut || 'Unknown'}</span></td></tr>
+                                <tr><td><strong>Cost Center:</strong></td><td>${pr.centre_de_cout || 'N/A'}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Financial Information</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>Quantity:</strong></td><td class="font-weight-bold">${pr.quantite || 0}</td></tr>
+                                <tr><td><strong>Unit Price:</strong></td><td>$${parseFloat(pr.prix_unitaire || 0).toFixed(2)}</td></tr>
+                                <tr><td><strong>Total Price:</strong></td><td class="font-weight-bold">$${parseFloat(pr.prix_total || 0).toFixed(2)}</td></tr>
+                                <tr><td><strong>Request Date:</strong></td><td>${pr.date_demande || 'N/A'}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Justification</h6>
+                            <div class="border p-3 bg-light">
+                                ${pr.justification || 'No justification provided'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                $('#prModal').modal('show');
+            } else {
+                alert('Error loading purchase request details: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading purchase request details');
+        });
+}
+
+function editPR(id) {
+    // Redirect to edit page or open edit modal
+    alert('Edit functionality will be implemented soon');
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Work Order Analysis - STS Maintenance</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        .analysis-card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: none;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .keyword-tag {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 5px 10px;
+            border-radius: 20px;
+            margin: 3px;
+            display: inline-block;
+            font-size: 0.85rem;
+        }
+        
+        .pattern-item {
+            background: #f5f5f5;
+            border-left: 4px solid #4caf50;
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .loading-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        
+        .progress-custom {
+            height: 25px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
+        
+        .recommendation-item {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #f39c12;
+        }
+        
+        .data-table {
+            font-size: 0.9rem;
+        }
+        
+        .badge-equipment { background-color: #17a2b8; }
+        .badge-action { background-color: #28a745; }
+        .badge-problem { background-color: #dc3545; }
+        .badge-keyword { background-color: #6f42c1; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-robot"></i> AI Work Order Analysis
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/work-orders">Work Orders</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Dashboard</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Header Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1><i class="fas fa-brain text-primary"></i> AI Work Order Analysis</h1>
+                        <p class="text-muted">Intelligent analysis of work order names and descriptions using AI pattern recognition</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary me-2" onclick="runAnalysis()">
+                            <i class="fas fa-play"></i> Run Analysis
+                        </button>
+                        <button class="btn btn-success me-2" onclick="exportResults()" disabled id="exportBtn">
+                            <i class="fas fa-download"></i> Export Results
+                        </button>
+                        <button class="btn btn-info btn-sm" onclick="testJS()">
+                            <i class="fas fa-bug"></i> Test JS
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Controls -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card analysis-card">
+                    <div class="card-body">
+                        <!-- Advanced Filter Component -->
+                        {% include 'components/advanced_work_order_filters.html' %}
+
+                        <!-- Template-specific integration script -->
+                        <script>
+                        // Integration for ai_work_order_analysis.html
+                        function applyMainFilters(filters) {
+                            console.log('Applying filters for AI work order analysis:', filters);
+                            
+                            // Apply filters to existing checkbox system
+                            if (filters.job_type) {
+                                document.querySelectorAll('.job-type-filter').forEach(cb => cb.checked = false);
+                                filters.job_type.forEach(type => {
+                                    const checkbox = document.getElementById('jobType' + type);
+                                    if (checkbox) checkbox.checked = true;
+                                });
+                            }
+                            
+                            if (filters.equipment) {
+                                document.querySelectorAll('.equipment-filter').forEach(cb => cb.checked = false);
+                                filters.equipment.forEach(eq => {
+                                    const checkbox = document.getElementById(eq.toLowerCase() + 'All');
+                                    if (checkbox) checkbox.checked = true;
+                                });
+                            }
+                            
+                            // Apply date filters
+                            if (filters.startDate) {
+                                document.getElementById('dateFrom').value = filters.startDate;
+                            }
+                            if (filters.endDate) {
+                                document.getElementById('dateTo').value = filters.endDate;
+                            }
+                            
+                            // Trigger analysis
+                            if (typeof runAnalysis === 'function') {
+                                runAnalysis();
+                            }
+                            
+                            return Promise.resolve();
+                        }
+                        </script>
+                        
+                        <!-- Basic Settings -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <label for="analysisLimit" class="form-label">Number of Work Orders</label>
+                                <select class="form-select" id="analysisLimit">
+                                    <option value="500">500 (Quick)</option>
+                                    <option value="1000" selected>1,000 (Standard)</option>
+                                    <option value="2000">2,000 (Comprehensive)</option>
+                                    <option value="5000">5,000 (Extensive)</option>
+                                    <option value="0">All Available (Slow)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="minFrequency" class="form-label">Minimum Pattern Frequency</label>
+                                <input type="number" class="form-control" id="minFrequency" value="3" min="1" max="10">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="dateFrom" class="form-label">Date From</label>
+                                <input type="date" class="form-control" id="dateFrom">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="dateTo" class="form-label">Date To</label>
+                                <input type="date" class="form-control" id="dateTo">
+                            </div>
+                        </div>
+
+                        <!-- Category Filters -->
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="form-label"><i class="fas fa-tasks"></i> Job Types</label>
+                                <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                    <div class="form-check">
+                                        <input class="form-check-input job-type-filter" type="checkbox" value="C" id="jobTypeC">
+                                        <label class="form-check-label" for="jobTypeC">
+                                            <span class="badge bg-danger me-2">C</span>Corrective
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input job-type-filter" type="checkbox" value="P" id="jobTypeP">
+                                        <label class="form-check-label" for="jobTypeP">
+                                            <span class="badge bg-success me-2">P</span>Preventive
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input job-type-filter" type="checkbox" value="U" id="jobTypeU">
+                                        <label class="form-check-label" for="jobTypeU">
+                                            <span class="badge bg-warning me-2">U</span>Urgent
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input job-type-filter" type="checkbox" value="I" id="jobTypeI">
+                                        <label class="form-check-label" for="jobTypeI">
+                                            <span class="badge bg-info me-2">I</span>Inspection
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input job-type-filter" type="checkbox" value="O" id="jobTypeO">
+                                        <label class="form-check-label" for="jobTypeO">
+                                            <span class="badge bg-secondary me-2">O</span>Operational
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label class="form-label"><i class="fas fa-industry"></i> Equipment Types</label>
+                                <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                    <div class="form-check">
+                                        <input class="form-check-input equipment-filter" type="checkbox" value="STS_ALL" id="stsAll">
+                                        <label class="form-check-label" for="stsAll">
+                                            <strong>All STS Equipment (Cranes)</strong>
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input equipment-filter" type="checkbox" value="SPS_ALL" id="spsAll">
+                                        <label class="form-check-label" for="spsAll">
+                                            <strong>All SPS Equipment (Spreaders)</strong>
+                                        </label>
+                                    </div>
+                                    <hr>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <small class="text-muted"><strong>STS Cranes (01-06):</strong></small>
+                                            <div id="stsEquipmentList1">
+                                                <!-- STS01-STS06 will be populated here -->
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted"><strong>STS Cranes (07-12):</strong></small>
+                                            <div id="stsEquipmentList2">
+                                                <!-- STS07-STS12 will be populated here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <small class="text-muted"><strong>SPS Spreaders (201-211):</strong></small>
+                                            <div id="spsEquipmentList1">
+                                                <!-- SPS201-SPS211 will be populated here -->
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted"><strong>SPS Spreaders (212-222):</strong></small>
+                                            <div id="spsEquipmentList2">
+                                                <!-- SPS212-SPS222 will be populated here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label class="form-label"><i class="fas fa-tools"></i> Equipment Components</label>
+                                <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                    <small class="text-muted"><strong>STS Components:</strong></small>
+                                    <div class="form-check">
+                                        <input class="form-check-input component-filter" type="checkbox" value="MNH" id="compMNH">
+                                        <label class="form-check-label" for="compMNH">MNH (Main Hoist / Treuil Principal)</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input component-filter" type="checkbox" value="HDB" id="compHDB">
+                                        <label class="form-check-label" for="compHDB">HDB (Head Block / Moufle)</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input component-filter" type="checkbox" value="ELE" id="compELE">
+                                        <label class="form-check-label" for="compELE">ELE (Electrical / Électrique)</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input component-filter" type="checkbox" value="STR" id="compSTR">
+                                        <label class="form-check-label" for="compSTR">STR (Structure)</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input component-filter" type="checkbox" value="HYD" id="compHYD">
+                                        <label class="form-check-label" for="compHYD">HYD (Hydraulic / Hydraulique)</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input component-filter" type="checkbox" value="GAN" id="compGAN">
+                                        <label class="form-check-label" for="compGAN">GAN (Gantry / Portique)</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input component-filter" type="checkbox" value="LIG" id="compLIG">
+                                        <label class="form-check-label" for="compLIG">LIG (Lighting / Éclairage)</label>
+                                    </div>
+                                    <hr>
+                                    <small class="text-muted"><strong>SPS Components:</strong></small>
+                                    <div class="form-check">
+                                        <input class="form-check-input component-filter" type="checkbox" value="FLP" id="compFLP">
+                                        <label class="form-check-label" for="compFLP">FLP (Flipper)</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input component-filter" type="checkbox" value="TWL" id="compTWL">
+                                        <label class="form-check-label" for="compTWL">TWL (Trolley / Chariot)</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Filter Buttons -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <label class="form-label"><i class="fas fa-magic"></i> Quick Filters</label>
+                                <div class="btn-group me-2" role="group">
+                                    <button type="button" class="btn btn-outline-danger" onclick="applyQuickFilter('corrective')">
+                                        <i class="fas fa-exclamation-triangle"></i> Corrective Only
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success" onclick="applyQuickFilter('preventive')">
+                                        <i class="fas fa-calendar-check"></i> Preventive Only
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning" onclick="applyQuickFilter('urgent')">
+                                        <i class="fas fa-bolt"></i> Urgent Only
+                                    </button>
+                                </div>
+                                <div class="btn-group me-2" role="group">
+                                    <button type="button" class="btn btn-outline-info" onclick="applyQuickFilter('sts_all')">
+                                        <i class="fas fa-industry"></i> All STS Cranes
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning" onclick="applyQuickFilter('sps_all')">
+                                        <i class="fas fa-cube"></i> All SPS Spreaders
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary" onclick="applyQuickFilter('recent')">
+                                        <i class="fas fa-clock"></i> Last 6 Months
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="applyQuickFilter('clear')">
+                                        <i class="fas fa-times"></i> Clear Filters
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Overview -->
+        <div class="row" id="statisticsSection" style="display: none;">
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card text-center">
+                    <div class="stat-number" id="totalWorkOrders">0</div>
+                    <div>Work Orders Analyzed</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card text-center">
+                    <div class="stat-number" id="uniqueKeywords">0</div>
+                    <div>Unique Keywords Found</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card text-center">
+                    <div class="stat-number" id="equipmentTypes">0</div>
+                    <div>Equipment Types</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card text-center">
+                    <div class="stat-number" id="repeatedPatterns">0</div>
+                    <div>Repeated Patterns</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Analysis Results -->
+        <div class="row" id="resultsSection" style="display: none;">
+            
+            <!-- Timeline Analysis -->
+            <div class="col-12 mb-4">
+                <div class="card analysis-card">
+                    <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <h5 class="mb-0"><i class="fas fa-chart-line"></i> Timeline Analysis</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <div class="chart-container">
+                                    <canvas id="timelineChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <h6>Yearly Distribution</h6>
+                                <div id="yearlyStats"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category-Specific Analysis -->
+            <div class="col-12 mb-4">
+                <div class="card analysis-card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="fas fa-layer-group"></i> Category-Specific Analysis</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Corrective Analysis -->
+                            <div class="col-lg-4 mb-3">
+                                <div class="border rounded p-3 bg-light">
+                                    <h6 class="text-danger"><i class="fas fa-exclamation-triangle"></i> Corrective Maintenance</h6>
+                                    <div id="correctiveAnalysis"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Preventive Analysis -->
+                            <div class="col-lg-4 mb-3">
+                                <div class="border rounded p-3 bg-light">
+                                    <h6 class="text-success"><i class="fas fa-calendar-check"></i> Preventive Maintenance</h6>
+                                    <div id="preventiveAnalysis"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Urgent Analysis -->
+                            <div class="col-lg-4 mb-3">
+                                <div class="border rounded p-3 bg-light">
+                                    <h6 class="text-warning"><i class="fas fa-bolt"></i> Urgent Maintenance</h6>
+                                    <div id="urgentAnalysis"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STS Equipment Specific Analysis -->
+            <div class="col-12 mb-4">
+                <div class="card analysis-card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-industry"></i> STS Equipment Analysis</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="stsSpecificAnalysis">
+                            <!-- STS-specific analysis will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Equipment Analysis -->
+            <div class="col-lg-6">
+                <div class="card analysis-card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-cog"></i> Equipment Analysis</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="equipmentChart"></canvas>
+                        </div>
+                        <div id="equipmentList" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Maintenance Actions -->
+            <div class="col-lg-6">
+                <div class="card analysis-card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-tools"></i> Maintenance Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="actionsChart"></canvas>
+                        </div>
+                        <div id="actionsList" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Problems Analysis -->
+            <div class="col-lg-6">
+                <div class="card analysis-card">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Problems & Issues</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="problemsChart"></canvas>
+                        </div>
+                        <div id="problemsList" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Job Type Distribution -->
+            <div class="col-lg-6">
+                <div class="card analysis-card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Job Type Distribution</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="jobTypeChart"></canvas>
+                        </div>
+                        <div id="jobTypeList" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Keywords with French Translation -->
+            <div class="col-12">
+                <div class="card analysis-card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="fas fa-tags"></i> Top Keywords (with French translations)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <div id="keywordCloud" class="text-center"></div>
+                            </div>
+                            <div class="col-lg-4">
+                                <h6><i class="fas fa-language"></i> French Terms Guide</h6>
+                                <div id="frenchTranslations" class="small">
+                                    <div class="mb-2"><strong>réparation</strong> = repair</div>
+                                    <div class="mb-2"><strong>remplacement</strong> = replacement</div>
+                                    <div class="mb-2"><strong>maintenance</strong> = maintenance</div>
+                                    <div class="mb-2"><strong>inspection</strong> = inspection</div>
+                                    <div class="mb-2"><strong>nettoyage</strong> = cleaning</div>
+                                    <div class="mb-2"><strong>contrôle</strong> = control/check</div>
+                                    <div class="mb-2"><strong>défaut</strong> = defect/fault</div>
+                                    <div class="mb-2"><strong>panne</strong> = breakdown</div>
+                                    <div class="mb-2"><strong>fuite</strong> = leak</div>
+                                    <div class="mb-2"><strong>usure</strong> = wear</div>
+                                    <div class="mb-2"><strong>moteur</strong> = motor</div>
+                                    <div class="mb-2"><strong>frein</strong> = brake</div>
+                                    <div class="mb-2"><strong>câble</strong> = cable</div>
+                                    <div class="mb-2"><strong>capteur</strong> = sensor</div>
+                                    <div class="mb-2"><strong>hydraulique</strong> = hydraulic</div>
+                                    <div class="mb-2"><strong>électrique</strong> = electrical</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Phrases -->
+            <div class="col-lg-6">
+                <div class="card analysis-card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="fas fa-quotes-left"></i> Common Phrases</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="phrasesList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Repeated Patterns -->
+            <div class="col-lg-6">
+                <div class="card analysis-card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0"><i class="fas fa-copy"></i> Repeated Patterns</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="patternsList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Recommendations -->
+            <div class="col-12">
+                <div class="card analysis-card">
+                    <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                        <h5 class="mb-0"><i class="fas fa-lightbulb"></i> AI Recommendations</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="recommendationsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
+            <h4>Running AI Analysis</h4>
+            <p class="text-muted">Analyzing work order patterns and extracting insights...</p>
+            <div class="progress progress-custom">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="analysisProgress"></div>
+            </div>
+            <small class="text-muted" id="analysisStatus">Initializing analysis...</small>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        let analysisResults = null;
+        let charts = {};
+
+        function destroyAllCharts() {
+            // Destroy all existing charts to prevent conflicts
+            Object.keys(charts).forEach(key => {
+                if (charts[key]) {
+                    charts[key].destroy();
+                    charts[key] = null;
+                }
+            });
+        }
+
+        function getFilters() {
+            const filters = {};
+            
+            // Get job types
+            const jobTypes = [];
+            document.querySelectorAll('.job-type-filter:checked').forEach(cb => {
+                jobTypes.push(cb.value);
+            });
+            if (jobTypes.length > 0) filters.job_types = jobTypes;
+            
+            // Get equipment categories
+            const equipmentCategories = [];
+            document.querySelectorAll('.equipment-filter:checked').forEach(cb => {
+                equipmentCategories.push(cb.value);
+            });
+            if (equipmentCategories.length > 0) filters.equipment_categories = equipmentCategories;
+            
+            // Get component filters  
+            const components = [];
+            document.querySelectorAll('.component-filter:checked').forEach(cb => {
+                components.push(cb.value);
+            });
+            if (components.length > 0) filters.equipment_categories = [...(filters.equipment_categories || []), ...components];
+            
+            // Get date range
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+            if (dateFrom) filters.date_from = dateFrom;
+            if (dateTo) filters.date_to = dateTo;
+            
+            return filters;
+        }
+
+        function applyQuickFilter(type) {
+            // Clear all filters first
+            document.querySelectorAll('.job-type-filter, .equipment-filter, .component-filter').forEach(cb => {
+                cb.checked = false;
+            });
+            document.getElementById('dateFrom').value = '';
+            document.getElementById('dateTo').value = '';
+            
+            switch(type) {
+                case 'corrective':
+                    document.getElementById('jobTypeC').checked = true;
+                    break;
+                case 'preventive':
+                    document.getElementById('jobTypeP').checked = true;
+                    break;
+                case 'urgent':
+                    document.getElementById('jobTypeU').checked = true;
+                    break;
+                case 'sts_all':
+                    document.getElementById('stsAll').checked = true;
+                    break;
+                case 'sps_all':
+                    document.getElementById('spsAll').checked = true;
+                    break;
+                case 'recent':
+                    // Set date to last 6 months
+                    const today = new Date();
+                    const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 6, today.getDate());
+                    document.getElementById('dateFrom').value = sixMonthsAgo.toISOString().split('T')[0];
+                    document.getElementById('dateTo').value = today.toISOString().split('T')[0];
+                    break;
+                case 'clear':
+                    // Already cleared above
+                    break;
+            }
+        }
+
+        function populateStsEquipment() {
+            // Populate STS equipment checkboxes
+            const list1 = document.getElementById('stsEquipmentList1');
+            const list2 = document.getElementById('stsEquipmentList2');
+            const spsList1 = document.getElementById('spsEquipmentList1');
+            const spsList2 = document.getElementById('spsEquipmentList2');
+            
+            // STS01-STS06
+            for (let i = 1; i <= 6; i++) {
+                const stsNum = String(i).padStart(2, '0');
+                list1.innerHTML += `
+                    <div class="form-check">
+                        <input class="form-check-input equipment-filter" type="checkbox" value="STS${stsNum}" id="sts${stsNum}">
+                        <label class="form-check-label" for="sts${stsNum}">STS${stsNum}</label>
+                    </div>
+                `;
+            }
+            
+            // STS07-STS12
+            for (let i = 7; i <= 12; i++) {
+                const stsNum = String(i).padStart(2, '0');
+                list2.innerHTML += `
+                    <div class="form-check">
+                        <input class="form-check-input equipment-filter" type="checkbox" value="STS${stsNum}" id="sts${stsNum}">
+                        <label class="form-check-label" for="sts${stsNum}">STS${stsNum}</label>
+                    </div>
+                `;
+            }
+            
+            // SPS201-SPS211
+            for (let i = 201; i <= 211; i++) {
+                spsList1.innerHTML += `
+                    <div class="form-check">
+                        <input class="form-check-input equipment-filter" type="checkbox" value="SPS${i}" id="sps${i}">
+                        <label class="form-check-label" for="sps${i}">SPS${i}</label>
+                    </div>
+                `;
+            }
+            
+            // SPS212-SPS222
+            for (let i = 212; i <= 222; i++) {
+                spsList2.innerHTML += `
+                    <div class="form-check">
+                        <input class="form-check-input equipment-filter" type="checkbox" value="SPS${i}" id="sps${i}">
+                        <label class="form-check-label" for="sps${i}">SPS${i}</label>
+                    </div>
+                `;
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            simulateProgress();
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        function simulateProgress() {
+            const progress = document.getElementById('analysisProgress');
+            const status = document.getElementById('analysisStatus');
+            const steps = [
+                { percent: 20, text: 'Extracting work order data...' },
+                { percent: 40, text: 'Processing text with AI algorithms...' },
+                { percent: 60, text: 'Identifying patterns and keywords...' },
+                { percent: 80, text: 'Analyzing repetitions and trends...' },
+                { percent: 95, text: 'Generating insights and recommendations...' },
+                { percent: 100, text: 'Analysis complete!' }
+            ];
+
+            let stepIndex = 0;
+            const interval = setInterval(() => {
+                if (stepIndex < steps.length) {
+                    const step = steps[stepIndex];
+                    progress.style.width = step.percent + '%';
+                    status.textContent = step.text;
+                    stepIndex++;
+                } else {
+                    clearInterval(interval);
+                }
+            }, 1000);
+        }
+
+        async function runAnalysis() {
+            try {
+                console.log('🚀 Starting AI analysis...');
+                showLoading();
+                
+                // Destroy existing charts first to prevent conflicts
+                destroyAllCharts();
+                
+                const limit = document.getElementById('analysisLimit').value;
+                const minFrequency = document.getElementById('minFrequency').value;
+                const filters = getFilters();
+                
+                console.log(`📊 Analysis parameters: limit=${limit}, minFrequency=${minFrequency}, filters=`, filters);
+                
+                // Build URL with filters
+                let url = `/api/ai-work-order-analysis?limit=${limit}&min_frequency=${minFrequency}`;
+                
+                // Add filter parameters
+                if (filters.job_types) {
+                    filters.job_types.forEach(jt => url += `&job_types=${jt}`);
+                }
+                if (filters.equipment_categories) {
+                    filters.equipment_categories.forEach(eq => url += `&equipment_categories=${eq}`);
+                }
+                if (filters.date_from) {
+                    url += `&date_from=${filters.date_from}`;
+                }
+                if (filters.date_to) {
+                    url += `&date_to=${filters.date_to}`;
+                }
+                
+                console.log(`🌐 Requesting: ${url}`);
+                
+                const response = await fetch(url);
+                console.log(`📡 Response status: ${response.status}`);
+                
+                const result = await response.json();
+                console.log('📦 Response data:', result);
+                
+                hideLoading();
+                
+                if (result.success) {
+                    console.log('✅ Analysis successful, displaying results...');
+                    analysisResults = result.data;
+                    displayResults(analysisResults);
+                    document.getElementById('exportBtn').disabled = false;
+                    
+                    // Show success message with filter info
+                    let filterInfo = '';
+                    if (Object.keys(filters).length > 0) {
+                        filterInfo = ` (${Object.keys(filters).length} filter(s) applied)`;
+                    }
+                    showAlert(`Analysis completed successfully${filterInfo}!`, 'success');
+                } else {
+                    console.error('❌ Analysis failed:', result.error);
+                    showAlert('Analysis failed: ' + result.error, 'danger');
+                }
+                
+            } catch (error) {
+                console.error('💥 Error running analysis:', error);
+                hideLoading();
+                showAlert('Error running analysis: ' + error.message, 'danger');
+            }
+        }
+
+        function displayResults(data) {
+            console.log('📊 Displaying results...', data);
+            
+            // Destroy all existing charts first
+            destroyAllCharts();
+            
+            // Show sections
+            document.getElementById('statisticsSection').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'block';
+            
+            const insights = data.insights || {};
+            const summary = insights.summary || {};
+            const analysis = data.analysis || {};
+            
+            console.log('📈 Summary data:', summary);
+            
+            // Update statistics
+            document.getElementById('totalWorkOrders').textContent = summary.total_work_orders_analyzed || 0;
+            document.getElementById('uniqueKeywords').textContent = summary.unique_keywords_found || 0;
+            document.getElementById('equipmentTypes').textContent = Object.keys(summary.most_common_equipment || {}).length;
+            document.getElementById('repeatedPatterns').textContent = Object.keys(data.patterns?.repeated_names || {}).length;
+            
+            console.log('📊 Creating charts...');
+            
+            // Create timeline chart
+            try {
+                createTimelineChart(analysis.yearly_distribution || {});
+                displayYearlyStats(analysis.yearly_distribution || {});
+                console.log('✅ Timeline chart created');
+            } catch (e) {
+                console.error('❌ Timeline chart error:', e);
+            }
+            
+            // Create charts
+            try {
+                createEquipmentChart(summary.most_common_equipment || {});
+                console.log('✅ Equipment chart created');
+            } catch (e) {
+                console.error('❌ Equipment chart error:', e);
+            }
+            
+            try {
+                createActionsChart(summary.most_common_actions || {});
+                console.log('✅ Actions chart created');
+            } catch (e) {
+                console.error('❌ Actions chart error:', e);
+            }
+            
+            try {
+                createProblemsChart(summary.most_common_problems || {});
+                console.log('✅ Problems chart created');
+            } catch (e) {
+                console.error('❌ Problems chart error:', e);
+            }
+            
+            try {
+                createJobTypeChart(insights.job_type_breakdown || {});
+                console.log('✅ Job type chart created');
+            } catch (e) {
+                console.error('❌ Job type chart error:', e);
+            }
+            
+            // Display category-specific analysis
+            try {
+                displayCategoryAnalysis(analysis.category_insights || {});
+                console.log('✅ Category analysis displayed');
+            } catch (e) {
+                console.error('❌ Category analysis error:', e);
+            }
+            
+            // Display STS-specific analysis
+            try {
+                displayStsSpecificAnalysis(analysis.sts_specific_analysis || {});
+                console.log('✅ STS analysis displayed');
+            } catch (e) {
+                console.error('❌ STS analysis error:', e);
+            }
+            
+            // Display lists
+            try {
+                displayKeywords(insights.top_keywords || {});
+                displayPhrases(insights.top_phrases || {});
+                displayPatterns(data.patterns || {});
+                displayRecommendations(insights.recommendations || []);
+                console.log('✅ All content displayed successfully');
+            } catch (e) {
+                console.error('❌ Error displaying content:', e);
+            }
+        }
+
+        function createTimelineChart(data) {
+            const ctx = document.getElementById('timelineChart').getContext('2d');
+            
+            if (charts.timeline) {
+                charts.timeline.destroy();
+                charts.timeline = null;
+            }
+            
+            const years = Object.keys(data).sort();
+            const values = years.map(year => data[year]);
+            
+            charts.timeline = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: years,
+                    datasets: [{
+                        label: 'Work Orders per Year',
+                        data: values,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Work Orders'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Year'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function displayYearlyStats(data) {
+            const yearlyStats = document.getElementById('yearlyStats');
+            const years = Object.keys(data).sort((a, b) => b - a); // Descending order
+            
+            let html = '';
+            const maxCount = Math.max(...Object.values(data));
+            
+            years.slice(0, 8).forEach(year => {
+                const count = data[year];
+                const percentage = (count / maxCount) * 100;
+                html += `<div class="mb-2">
+                    <strong>${year}:</strong> ${count.toLocaleString()} work orders
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar" style="width: ${percentage}%"></div>
+                    </div>
+                </div>`;
+            });
+            
+            yearlyStats.innerHTML = html;
+        }
+
+        function displayCategoryAnalysis(categoryInsights) {
+            // Corrective Analysis
+            const corrective = categoryInsights.corrective_analysis || {};
+            let correctiveHtml = `
+                <div class="mb-2"><strong>Total:</strong> ${corrective.total_count || 0} work orders</div>
+                <div class="mb-2"><strong>Percentage:</strong> ${(corrective.percentage_of_total || 0).toFixed(1)}%</div>
+                <div class="mb-2"><strong>Top Problems:</strong></div>
+            `;
+            
+            Object.entries(corrective.top_problems || {}).slice(0, 3).forEach(([problem, count]) => {
+                correctiveHtml += `<span class="badge bg-danger me-1">${problem}: ${count}</span>`;
+            });
+            
+            correctiveHtml += '<div class="mt-2"><strong>Top Equipment:</strong></div>';
+            
+            Object.entries(corrective.top_equipment || {}).slice(0, 3).forEach(([eq, count]) => {
+                correctiveHtml += `<span class="badge bg-secondary me-1">${eq}: ${count}</span>`;
+            });
+            
+            document.getElementById('correctiveAnalysis').innerHTML = correctiveHtml;
+            
+            // Preventive Analysis
+            const preventive = categoryInsights.preventive_analysis || {};
+            let preventiveHtml = `
+                <div class="mb-2"><strong>Total:</strong> ${preventive.total_count || 0} work orders</div>
+                <div class="mb-2"><strong>Percentage:</strong> ${(preventive.percentage_of_total || 0).toFixed(1)}%</div>
+                <div class="mb-2"><strong>Top Actions:</strong></div>
+            `;
+            
+            Object.entries(preventive.top_actions || {}).slice(0, 3).forEach(([action, count]) => {
+                preventiveHtml += `<span class="badge bg-success me-1">${action}: ${count}</span>`;
+            });
+            
+            preventiveHtml += '<div class="mt-2"><strong>Top Equipment:</strong></div>';
+            
+            Object.entries(preventive.top_equipment || {}).slice(0, 3).forEach(([eq, count]) => {
+                preventiveHtml += `<span class="badge bg-secondary me-1">${eq}: ${count}</span>`;
+            });
+            
+            document.getElementById('preventiveAnalysis').innerHTML = preventiveHtml;
+            
+            // Urgent Analysis
+            const urgent = categoryInsights.urgent_analysis || {};
+            let urgentHtml = `
+                <div class="mb-2"><strong>Total:</strong> ${urgent.total_count || 0} work orders</div>
+                <div class="mb-2"><strong>Percentage:</strong> ${(urgent.percentage_of_total || 0).toFixed(1)}%</div>
+                <div class="mb-2"><strong>Top Problems:</strong></div>
+            `;
+            
+            Object.entries(urgent.top_problems || {}).slice(0, 3).forEach(([problem, count]) => {
+                urgentHtml += `<span class="badge bg-warning me-1">${problem}: ${count}</span>`;
+            });
+            
+            urgentHtml += '<div class="mt-2"><strong>Top Equipment:</strong></div>';
+            
+            Object.entries(urgent.top_equipment || {}).slice(0, 3).forEach(([eq, count]) => {
+                urgentHtml += `<span class="badge bg-secondary me-1">${eq}: ${count}</span>`;
+            });
+            
+            document.getElementById('urgentAnalysis').innerHTML = urgentHtml;
+        }
+
+        function displayStsSpecificAnalysis(stsAnalysis) {
+            const stsContainer = document.getElementById('stsSpecificAnalysis');
+            const equipmentUnits = Object.keys(stsAnalysis).sort();
+            let html = '';
+            
+            // Group by equipment type
+            const stsUnits = equipmentUnits.filter(unit => unit.startsWith('STS')).slice(0, 8);
+            const spsUnits = equipmentUnits.filter(unit => unit.startsWith('SPS')).slice(0, 8);
+            
+            if (stsUnits.length > 0) {
+                html += '<div class="col-12 mb-3"><h6 class="text-primary"><i class="fas fa-industry"></i> STS Cranes Analysis</h6></div>';
+                
+                stsUnits.forEach(stsUnit => {
+                    const data = stsAnalysis[stsUnit];
+                    const corrective = data.job_type_breakdown.C || 0;
+                    const preventive = data.job_type_breakdown.P || 0;
+                    const urgent = data.job_type_breakdown.U || 0;
+                    const total = data.total_work_orders || 0;
+                    
+                    html += `
+                        <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <div class="border rounded p-3 bg-light">
+                                <h6 class="text-primary">${stsUnit} <small class="text-muted">(${data.equipment_type || 'Crane'})</small></h6>
+                                <div class="mb-2"><strong>Total:</strong> ${total} work orders</div>
+                                <div class="mb-1">
+                                    <strong>Corrective:</strong> ${corrective} 
+                                    <span class="badge bg-danger">${total > 0 ? ((corrective/total)*100).toFixed(1) : 0}%</span>
+                                </div>
+                                <div class="mb-1">
+                                    <strong>Preventive:</strong> ${preventive}
+                                    <span class="badge bg-success">${total > 0 ? ((preventive/total)*100).toFixed(1) : 0}%</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Urgent:</strong> ${urgent}
+                                    <span class="badge bg-warning">${total > 0 ? ((urgent/total)*100).toFixed(1) : 0}%</span>
+                                </div>
+                                <div class="mb-2"><strong>Top Problems:</strong></div>
+                    `;
+                    
+                    Object.entries(data.top_problems || {}).slice(0, 2).forEach(([problem, count]) => {
+                        html += `<span class="badge bg-danger me-1 mb-1">${problem}</span>`;
+                    });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            if (spsUnits.length > 0) {
+                html += '<div class="col-12 mb-3"><h6 class="text-warning"><i class="fas fa-cube"></i> SPS Spreaders Analysis</h6></div>';
+                
+                spsUnits.forEach(spsUnit => {
+                    const data = stsAnalysis[spsUnit];
+                    const corrective = data.job_type_breakdown.C || 0;
+                    const preventive = data.job_type_breakdown.P || 0;
+                    const urgent = data.job_type_breakdown.U || 0;
+                    const total = data.total_work_orders || 0;
+                    
+                    html += `
+                        <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <div class="border rounded p-3 bg-light">
+                                <h6 class="text-warning">${spsUnit} <small class="text-muted">(${data.equipment_type || 'Spreader'})</small></h6>
+                                <div class="mb-2"><strong>Total:</strong> ${total} work orders</div>
+                                <div class="mb-1">
+                                    <strong>Corrective:</strong> ${corrective} 
+                                    <span class="badge bg-danger">${total > 0 ? ((corrective/total)*100).toFixed(1) : 0}%</span>
+                                </div>
+                                <div class="mb-1">
+                                    <strong>Preventive:</strong> ${preventive}
+                                    <span class="badge bg-success">${total > 0 ? ((preventive/total)*100).toFixed(1) : 0}%</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Urgent:</strong> ${urgent}
+                                    <span class="badge bg-warning">${total > 0 ? ((urgent/total)*100).toFixed(1) : 0}%</span>
+                                </div>
+                                <div class="mb-2"><strong>Top Problems:</strong></div>
+                    `;
+                    
+                    Object.entries(data.top_problems || {}).slice(0, 2).forEach(([problem, count]) => {
+                        html += `<span class="badge bg-danger me-1 mb-1">${problem}</span>`;
+                    });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            if (html === '') {
+                html = '<div class="col-12"><p class="text-muted">No significant equipment-specific data available with current filters.</p></div>';
+            }
+            
+            stsContainer.innerHTML = html;
+        }
+
+        function createEquipmentChart(data) {
+            const ctx = document.getElementById('equipmentChart').getContext('2d');
+            
+            // Properly destroy existing chart
+            if (charts.equipment) {
+                charts.equipment.destroy();
+                charts.equipment = null;
+            }
+            
+            const labels = Object.keys(data).slice(0, 8);
+            const values = Object.values(data).slice(0, 8);
+            
+            charts.equipment = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels.map(l => l.charAt(0).toUpperCase() + l.slice(1)),
+                    datasets: [{
+                        data: values,
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                            '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+            
+            // Display equipment list
+            const equipmentList = document.getElementById('equipmentList');
+            equipmentList.innerHTML = labels.map((label, index) => 
+                `<span class="badge badge-equipment me-2 mb-2">${label}: ${values[index]}</span>`
+            ).join('');
+        }
+
+        function createActionsChart(data) {
+            const ctx = document.getElementById('actionsChart').getContext('2d');
+            
+            // Properly destroy existing chart
+            if (charts.actions) {
+                charts.actions.destroy();
+                charts.actions = null;
+            }
+            
+            const labels = Object.keys(data).slice(0, 8);
+            const values = Object.values(data).slice(0, 8);
+            
+            charts.actions = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels.map(l => l.charAt(0).toUpperCase() + l.slice(1)),
+                    datasets: [{
+                        data: values,
+                        backgroundColor: '#28a745',
+                        borderColor: '#1e7e34',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            // Display actions list
+            const actionsList = document.getElementById('actionsList');
+            actionsList.innerHTML = labels.map((label, index) => 
+                `<span class="badge badge-action me-2 mb-2">${label}: ${values[index]}</span>`
+            ).join('');
+        }
+
+        function createProblemsChart(data) {
+            const ctx = document.getElementById('problemsChart').getContext('2d');
+            
+            // Properly destroy existing chart
+            if (charts.problems) {
+                charts.problems.destroy();
+                charts.problems = null;
+            }
+            
+            const labels = Object.keys(data).slice(0, 6);
+            const values = Object.values(data).slice(0, 6);
+            
+            charts.problems = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels.map(l => l.charAt(0).toUpperCase() + l.slice(1)),
+                    datasets: [{
+                        data: values,
+                        backgroundColor: '#dc3545',
+                        borderColor: '#c82333',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',  // This makes it horizontal
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            // Display problems list
+            const problemsList = document.getElementById('problemsList');
+            problemsList.innerHTML = labels.map((label, index) => 
+                `<span class="badge badge-problem me-2 mb-2">${label}: ${values[index]}</span>`
+            ).join('');
+        }
+
+        function createJobTypeChart(data) {
+            const ctx = document.getElementById('jobTypeChart').getContext('2d');
+            
+            // Properly destroy existing chart
+            if (charts.jobType) {
+                charts.jobType.destroy();
+                charts.jobType = null;
+            }
+            
+            // Job type mappings
+            const jobTypeNames = {
+                'C': 'Corrective',
+                'P': 'Preventive',
+                'I': 'Inspection',
+                'O': 'Operational',
+                'U': 'Urgent'
+            };
+            
+            const labels = Object.keys(data).map(key => jobTypeNames[key] || key);
+            const values = Object.values(data);
+            
+            charts.jobType = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: [
+                            '#dc3545', '#28a745', '#ffc107', '#17a2b8', '#6f42c1'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+            
+            // Display job type list
+            const total = values.reduce((a, b) => a + b, 0);
+            const jobTypeList = document.getElementById('jobTypeList');
+            jobTypeList.innerHTML = labels.map((label, index) => {
+                const percentage = ((values[index] / total) * 100).toFixed(1);
+                return `<div class="mb-2"><strong>${label}:</strong> ${values[index]} (${percentage}%)</div>`;
+            }).join('');
+        }
+
+        function displayKeywords(keywords) {
+            const keywordCloud = document.getElementById('keywordCloud');
+            const keywordEntries = Object.entries(keywords).slice(0, 30);
+            
+            keywordCloud.innerHTML = keywordEntries.map(([keyword, count]) => {
+                const size = Math.min(Math.max(count / 50, 0.8), 2);
+                return `<span class="keyword-tag" style="font-size: ${size}rem;">${keyword} (${count})</span>`;
+            }).join('');
+        }
+
+        function displayPhrases(phrases) {
+            const phrasesList = document.getElementById('phrasesList');
+            const phraseEntries = Object.entries(phrases).slice(0, 15);
+            
+            phrasesList.innerHTML = phraseEntries.map(([phrase, count], index) => 
+                `<div class="mb-2">
+                    <span class="badge bg-secondary me-2">${index + 1}</span>
+                    <strong>"${phrase}"</strong> 
+                    <span class="text-muted">(${count} occurrences)</span>
+                </div>`
+            ).join('');
+        }
+
+        function displayPatterns(patterns) {
+            const patternsList = document.getElementById('patternsList');
+            const repeatedNames = patterns.repeated_names || {};
+            const repeatedPatterns = patterns.repeated_name_patterns || {};
+            
+            let html = '<h6>Repeated Work Order Names:</h6>';
+            html += Object.entries(repeatedNames).slice(0, 10).map(([name, count]) => 
+                `<div class="pattern-item">
+                    <strong>${name}</strong><br>
+                    <small class="text-muted">Repeated ${count} times</small>
+                </div>`
+            ).join('');
+            
+            html += '<h6 class="mt-4">Common Name Patterns:</h6>';
+            html += Object.entries(repeatedPatterns).slice(0, 5).map(([pattern, count]) => 
+                `<div class="pattern-item">
+                    <code>${pattern}</code><br>
+                    <small class="text-muted">Pattern occurs ${count} times</small>
+                </div>`
+            ).join('');
+            
+            patternsList.innerHTML = html;
+        }
+
+        function displayRecommendations(recommendations) {
+            const recommendationsList = document.getElementById('recommendationsList');
+            
+            recommendationsList.innerHTML = recommendations.map((rec, index) => 
+                `<div class="recommendation-item">
+                    <i class="fas fa-lightbulb text-warning me-2"></i>
+                    <strong>Recommendation ${index + 1}:</strong><br>
+                    ${rec}
+                </div>`
+            ).join('');
+        }
+
+        async function exportResults() {
+            if (!analysisResults) {
+                showAlert('No analysis results to export', 'warning');
+                return;
+            }
+            
+            try {
+                const limit = document.getElementById('analysisLimit').value;
+                const response = await fetch(`/api/ai-work-order-analysis/export?limit=${limit}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(`Results exported successfully to ${result.filename}`, 'success');
+                } else {
+                    showAlert('Export failed: ' + result.error, 'danger');
+                }
+                
+            } catch (error) {
+                showAlert('Error exporting results: ' + error.message, 'danger');
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            // Insert alert at top of page
+            const container = document.querySelector('.container-fluid');
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = alertHtml;
+            container.insertBefore(tempDiv.firstElementChild, container.firstElementChild);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                const alert = container.querySelector('.alert');
+                if (alert) alert.remove();
+            }, 5000);
+        }
+
+        function testJS() {
+            console.log('🧪 JavaScript test function called');
+            showAlert('JavaScript is working! Check browser console for detailed logs.', 'info');
+            
+            // Test form elements
+            const limit = document.getElementById('analysisLimit').value;
+            const minFreq = document.getElementById('minFrequency').value;
+            console.log(`📋 Form values - Limit: ${limit}, Min Frequency: ${minFreq}`);
+            
+            // Test basic fetch
+            fetch('/api/ai-work-order-analysis?limit=1')
+                .then(response => {
+                    console.log(`🌐 Test API response status: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('📦 Test API data:', data);
+                    if (data.success) {
+                        showAlert('API connection test successful!', 'success');
+                    } else {
+                        showAlert('API test failed: ' + data.error, 'warning');
+                    }
+                })
+                .catch(error => {
+                    console.error('💥 Test API error:', error);
+                    showAlert('API test error: ' + error.message, 'danger');
+                });
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎉 AI Work Order Analysis page loaded successfully!');
+            console.log('📋 Page elements check:');
+            console.log('  - Run button:', document.querySelector('button[onclick="runAnalysis()"]') ? '✅' : '❌');
+            console.log('  - Settings form:', document.getElementById('analysisLimit') ? '✅' : '❌');
+            console.log('  - Charts section:', document.getElementById('resultsSection') ? '✅' : '❌');
+            
+            // Initialize charts object
+            charts = {};
+            
+            // Populate STS equipment checkboxes
+            populateStsEquipment();
+            
+            // Set default date range (last year)
+            const today = new Date();
+            const lastYear = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+            document.getElementById('dateTo').value = today.toISOString().split('T')[0];
+            document.getElementById('dateFrom').value = lastYear.toISOString().split('T')[0];
+            
+            // Test basic functionality
+            showAlert('Page loaded successfully! Configure filters and run the AI analysis.', 'info');
+        });
+
+        // Clean up when page is about to unload
+        window.addEventListener('beforeunload', function() {
+            destroyAllCharts();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,641 @@
+<!-- Advanced Work Order Filters Component -->
+<!-- This component provides a comprehensive filter system for work order windows -->
+
+<style>
+/* Advanced Filter Styles */
+.filter-toggle {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+    width: 100%;
+    max-width: 300px;
+}
+
+.filter-toggle:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.advanced-filter-section {
+    background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 100%);
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border: 1px solid #e1e8f5;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.filter-row {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.filter-row:last-child {
+    margin-bottom: 0;
+}
+
+.form-label.fw-bold {
+    color: #495057;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.form-select, .form-control {
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+    transition: all 0.3s ease;
+}
+
+.form-select:focus, .form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.filter-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e9ecef;
+}
+
+.btn-filter-action {
+    border-radius: 25px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.btn-filter-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.quick-filters {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.quick-filter-btn {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid #dee2e6;
+    background: white;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.quick-filter-btn:hover, .quick-filter-btn.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+@media (max-width: 768px) {
+    .advanced-filter-section {
+        padding: 1rem;
+    }
+    
+    .filter-row {
+        padding: 0.5rem;
+    }
+    
+    .filter-actions {
+        flex-direction: column;
+    }
+    
+    .btn-filter-action {
+        width: 100%;
+    }
+}
+</style>
+
+<!-- Filter Toggle Button -->
+<button class="filter-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFilters" aria-expanded="false" aria-controls="advancedFilters">
+    <i class="bi bi-funnel"></i> Advanced Filters & Search
+</button>
+
+<!-- Advanced Filters Collapsible Section -->
+<div class="collapse" id="advancedFilters">
+    <div class="advanced-filter-section">
+        <h5 class="mb-4">
+            <i class="bi bi-funnel-fill text-primary"></i> Advanced Filtering Options
+        </h5>
+        
+        <!-- Quick Filter Presets -->
+        <div class="quick-filters">
+            <span class="quick-filter-btn active" onclick="applyQuickFilter('all')" data-filter="all">
+                <i class="fas fa-list"></i> All Work Orders
+            </span>
+            <span class="quick-filter-btn" onclick="applyQuickFilter('active')" data-filter="active">
+                <i class="fas fa-play"></i> Active Only
+            </span>
+            <span class="quick-filter-btn" onclick="applyQuickFilter('completed')" data-filter="completed">
+                <i class="fas fa-check"></i> Completed
+            </span>
+            <span class="quick-filter-btn" onclick="applyQuickFilter('urgent')" data-filter="urgent">
+                <i class="fas fa-exclamation-triangle"></i> Urgent
+            </span>
+            <span class="quick-filter-btn" onclick="applyQuickFilter('corrective')" data-filter="corrective">
+                <i class="fas fa-wrench"></i> Corrective
+            </span>
+            <span class="quick-filter-btn" onclick="applyQuickFilter('preventive')" data-filter="preventive">
+                <i class="fas fa-calendar-check"></i> Preventive
+            </span>
+            <span class="quick-filter-btn" onclick="applyQuickFilter('recent')" data-filter="recent">
+                <i class="fas fa-clock"></i> Last 30 Days
+            </span>
+        </div>
+        
+        <form id="filterForm">
+            <!-- Row 1: Status and Job Details -->
+            <div class="row filter-row">
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label fw-bold">Work Order Status (ETATJOB)</label>
+                    <select class="form-select select2" id="etatjobFilter" name="etatjob" multiple>
+                        <option value="">All Statuses</option>
+                    </select>
+                    <small class="text-muted">Select one or more statuses</small>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label fw-bold">Work Supplier</label>
+                    <select class="form-select select2" id="supplierFilter" name="work_supplier_key" multiple>
+                        <option value="">All Suppliers</option>
+                    </select>
+                    <small class="text-muted">Select suppliers to filter</small>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label fw-bold">Job Type</label>
+                    <select class="form-select select2" id="jobTypeFilter" name="job_type" multiple>
+                        <option value="">All Types</option>
+                    </select>
+                    <small class="text-muted">Maintenance type categories</small>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label fw-bold">Priority Level</label>
+                    <select class="form-select select2" id="priorityFilter" name="priority" multiple>
+                        <option value="">All Priorities</option>
+                    </select>
+                    <small class="text-muted">Priority levels</small>
+                </div>
+            </div>
+            
+            <!-- Row 2: Categories and Organization -->
+            <div class="row filter-row">
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label fw-bold">POS Key</label>
+                    <select class="form-select select2" id="posKeyFilter" name="pos_key" multiple>
+                        <option value="">All POS</option>
+                    </select>
+                    <small class="text-muted">Position/Location keys</small>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label fw-bold">Cost Purpose</label>
+                    <select class="form-select select2" id="costPurposeFilter" name="cost_purpose_key" multiple>
+                        <option value="">All Purposes</option>
+                    </select>
+                    <small class="text-muted">Cost classification</small>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label fw-bold">Inspector</label>
+                    <select class="form-select select2" id="inspectorFilter" name="inspector" multiple>
+                        <option value="">All Inspectors</option>
+                    </select>
+                    <small class="text-muted">Assigned inspectors</small>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label fw-bold">Equipment</label>
+                    <select class="form-select select2" id="equipmentFilter" name="equipment" multiple>
+                        <option value="">All Equipment</option>
+                    </select>
+                    <small class="text-muted">Equipment/Asset IDs</small>
+                </div>
+            </div>
+            
+            <!-- Row 3: Date Filters and Search -->
+            <div class="row filter-row">
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label fw-bold">Date Type</label>
+                    <select class="form-select" id="dateType" name="dateType">
+                        <option value="order_date">Order Date</option>
+                        <option value="execution_date">Execution Date</option>
+                        <option value="created_date">Created Date</option>
+                        <option value="completion_date">Completion Date</option>
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label fw-bold">Date From</label>
+                    <input type="date" class="form-control" id="dateFrom" name="startDate">
+                </div>
+                <div class="col-lg-2 col-md-4">
+                    <label class="form-label fw-bold">Date To</label>
+                    <input type="date" class="form-control" id="dateTo" name="endDate">
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label fw-bold">Search Term</label>
+                    <input type="text" class="form-control" id="searchTerm" name="search" placeholder="Search in description, equipment, WO number...">
+                    <small class="text-muted">Search across multiple fields</small>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label fw-bold">Record Limit</label>
+                    <select class="form-select" id="recordLimit" name="limit">
+                        <option value="500">500 records</option>
+                        <option value="1000" selected>1,000 records</option>
+                        <option value="2000">2,000 records</option>
+                        <option value="5000">5,000 records</option>
+                        <option value="">All records</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Filter Actions -->
+            <div class="filter-actions">
+                <button type="button" class="btn btn-primary btn-filter-action" onclick="applyFilters()">
+                    <i class="bi bi-search"></i> Apply Filters
+                </button>
+                <button type="button" class="btn btn-secondary btn-filter-action" onclick="clearFilters()">
+                    <i class="bi bi-x-circle"></i> Clear Filters
+                </button>
+                <button type="button" class="btn btn-info btn-filter-action" onclick="saveFilterPreset()">
+                    <i class="bi bi-bookmark"></i> Save Preset
+                </button>
+                <button type="button" class="btn btn-outline-info btn-filter-action" onclick="loadFilterPreset()">
+                    <i class="bi bi-folder"></i> Load Preset
+                </button>
+                <button type="button" class="btn btn-success btn-filter-action" onclick="exportFiltered()">
+                    <i class="bi bi-download"></i> Export Results
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Filter JavaScript Functions -->
+<script>
+// Advanced Filter System JavaScript
+let currentFilters = {};
+let filterPresets = {};
+
+// Initialize filters
+function initializeAdvancedFilters() {
+    initializeSelect2();
+    loadFilterOptions();
+    loadSavedPresets();
+    setupFilterEventListeners();
+}
+
+// Initialize Select2 for multi-select dropdowns
+function initializeSelect2() {
+    $('.select2').select2({
+        placeholder: 'Select options...',
+        allowClear: true,
+        width: '100%',
+        theme: 'bootstrap-5'
+    });
+}
+
+// Load filter options from API
+async function loadFilterOptions() {
+    try {
+        const response = await fetch('/api/work-orders/filter-options');
+        const data = await response.json();
+        
+        if (data.success) {
+            populateFilterDropdowns(data.data);
+        } else {
+            console.error('Failed to load filter options:', data.error);
+        }
+    } catch (error) {
+        console.error('Error loading filter options:', error);
+    }
+}
+
+// Populate filter dropdowns with data
+function populateFilterDropdowns(options) {
+    // Status (ETATJOB) options
+    const etatjobSelect = document.getElementById('etatjobFilter');
+    etatjobSelect.innerHTML = '<option value="">All Statuses</option>';
+    options.etatjob?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        etatjobSelect.add(optionElement);
+    });
+    
+    // Work Supplier options
+    const supplierSelect = document.getElementById('supplierFilter');
+    supplierSelect.innerHTML = '<option value="">All Suppliers</option>';
+    options.work_supplier_key?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        supplierSelect.add(optionElement);
+    });
+    
+    // Job Type options
+    const jobTypeSelect = document.getElementById('jobTypeFilter');
+    jobTypeSelect.innerHTML = '<option value="">All Types</option>';
+    options.job_type?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        jobTypeSelect.add(optionElement);
+    });
+    
+    // Priority options
+    const prioritySelect = document.getElementById('priorityFilter');
+    prioritySelect.innerHTML = '<option value="">All Priorities</option>';
+    options.priority?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        prioritySelect.add(optionElement);
+    });
+    
+    // POS Key options
+    const posKeySelect = document.getElementById('posKeyFilter');
+    posKeySelect.innerHTML = '<option value="">All POS</option>';
+    options.pos_key?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        posKeySelect.add(optionElement);
+    });
+    
+    // Cost Purpose options
+    const costPurposeSelect = document.getElementById('costPurposeFilter');
+    costPurposeSelect.innerHTML = '<option value="">All Purposes</option>';
+    options.cost_purpose_key?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        costPurposeSelect.add(optionElement);
+    });
+    
+    // Inspector options
+    const inspectorSelect = document.getElementById('inspectorFilter');
+    inspectorSelect.innerHTML = '<option value="">All Inspectors</option>';
+    options.inspector?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        inspectorSelect.add(optionElement);
+    });
+    
+    // Equipment options
+    const equipmentSelect = document.getElementById('equipmentFilter');
+    equipmentSelect.innerHTML = '<option value="">All Equipment</option>';
+    options.equipment?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        equipmentSelect.add(optionElement);
+    });
+    
+    // Refresh Select2 after populating
+    $('.select2').select2();
+}
+
+// Setup event listeners for filter changes
+function setupFilterEventListeners() {
+    // Auto-apply filters on change for non-multi-select fields
+    ['dateType', 'dateFrom', 'dateTo', 'searchTerm', 'recordLimit'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('change', debounce(applyFilters, 500));
+        }
+    });
+    
+    // Handle search term typing
+    const searchTerm = document.getElementById('searchTerm');
+    if (searchTerm) {
+        searchTerm.addEventListener('keyup', debounce(applyFilters, 1000));
+    }
+}
+
+// Apply quick filters
+function applyQuickFilter(filterType) {
+    // Update active state
+    document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-filter="${filterType}"]`).classList.add('active');
+    
+    // Clear existing filters
+    clearFiltersInternal();
+    
+    const today = new Date();
+    const formatDate = (date) => date.toISOString().split('T')[0];
+    
+    switch (filterType) {
+        case 'all':
+            // No additional filters
+            break;
+            
+        case 'active':
+            $('#etatjobFilter').val(['EXE', 'INI']).trigger('change');
+            break;
+            
+        case 'completed':
+            $('#etatjobFilter').val(['TER']).trigger('change');
+            break;
+            
+        case 'urgent':
+            $('#priorityFilter').val(['HIGH', 'URGENT']).trigger('change');
+            break;
+            
+        case 'corrective':
+            $('#jobTypeFilter').val(['C']).trigger('change');
+            break;
+            
+        case 'preventive':
+            $('#jobTypeFilter').val(['P']).trigger('change');
+            break;
+            
+        case 'recent':
+            const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+            document.getElementById('dateFrom').value = formatDate(thirtyDaysAgo);
+            document.getElementById('dateTo').value = formatDate(today);
+            break;
+    }
+    
+    // Apply the filters
+    setTimeout(() => applyFilters(), 100);
+}
+
+// Apply filters
+async function applyFilters() {
+    const formData = new FormData(document.getElementById('filterForm'));
+    const filters = {};
+    
+    // Collect all form data
+    for (let [key, value] of formData.entries()) {
+        if (value && value.trim() !== '') {
+            if (filters[key]) {
+                // Handle multiple values for the same key
+                if (Array.isArray(filters[key])) {
+                    filters[key].push(value);
+                } else {
+                    filters[key] = [filters[key], value];
+                }
+            } else {
+                filters[key] = value;
+            }
+        }
+    }
+    
+    // Collect multi-select values
+    $('.select2').each(function() {
+        const values = $(this).val();
+        if (values && values.length > 0) {
+            filters[this.name] = values;
+        }
+    });
+    
+    currentFilters = filters;
+    
+    // Call the main filter application function (to be implemented in each template)
+    if (typeof applyMainFilters === 'function') {
+        await applyMainFilters(filters);
+    }
+    
+    // Update URL with current filters
+    updateURLWithFilters(filters);
+}
+
+// Clear filters
+function clearFilters() {
+    clearFiltersInternal();
+    applyFilters();
+}
+
+function clearFiltersInternal() {
+    // Clear form
+    document.getElementById('filterForm').reset();
+    
+    // Clear Select2 selections
+    $('.select2').val(null).trigger('change');
+    
+    // Reset quick filter buttons
+    document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector('[data-filter="all"]').classList.add('active');
+    
+    currentFilters = {};
+}
+
+// Save filter preset
+function saveFilterPreset() {
+    const presetName = prompt('Enter a name for this filter preset:');
+    if (presetName && presetName.trim()) {
+        filterPresets[presetName.trim()] = { ...currentFilters };
+        localStorage.setItem('workOrderFilterPresets', JSON.stringify(filterPresets));
+        alert('Filter preset saved successfully!');
+    }
+}
+
+// Load filter preset
+function loadFilterPreset() {
+    const presetNames = Object.keys(filterPresets);
+    if (presetNames.length === 0) {
+        alert('No saved filter presets found.');
+        return;
+    }
+    
+    const presetName = prompt(`Choose a preset to load:\n${presetNames.join('\n')}`);
+    if (presetName && filterPresets[presetName]) {
+        // Apply the preset
+        currentFilters = { ...filterPresets[presetName] };
+        applyStoredFilters(currentFilters);
+        applyFilters();
+    }
+}
+
+// Load saved presets from localStorage
+function loadSavedPresets() {
+    const saved = localStorage.getItem('workOrderFilterPresets');
+    if (saved) {
+        try {
+            filterPresets = JSON.parse(saved);
+        } catch (error) {
+            console.error('Error loading saved presets:', error);
+        }
+    }
+}
+
+// Apply stored filters to form
+function applyStoredFilters(filters) {
+    // Clear current filters first
+    clearFiltersInternal();
+    
+    // Apply each filter
+    Object.entries(filters).forEach(([key, value]) => {
+        const element = document.getElementById(key + 'Filter') || document.getElementById(key);
+        if (element) {
+            if (element.multiple) {
+                $(element).val(Array.isArray(value) ? value : [value]).trigger('change');
+            } else {
+                element.value = value;
+            }
+        }
+    });
+}
+
+// Export filtered results
+function exportFiltered() {
+    if (typeof exportData === 'function') {
+        exportData('excel', currentFilters);
+    } else {
+        alert('Export functionality not available in this view.');
+    }
+}
+
+// Update URL with current filters
+function updateURLWithFilters(filters) {
+    const url = new URL(window.location);
+    
+    // Clear existing filter parameters
+    Object.keys(filters).forEach(key => {
+        url.searchParams.delete(key);
+    });
+    
+    // Add current filters
+    Object.entries(filters).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+            value.forEach(v => url.searchParams.append(key, v));
+        } else {
+            url.searchParams.set(key, value);
+        }
+    });
+    
+    // Update URL without page reload
+    window.history.replaceState({}, '', url);
+}
+
+// Debounce function to limit API calls
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Initialize on DOM load
+document.addEventListener('DOMContentLoaded', function() {
+    // Small delay to ensure Select2 is loaded
+    setTimeout(initializeAdvancedFilters, 100);
+});
+</script>

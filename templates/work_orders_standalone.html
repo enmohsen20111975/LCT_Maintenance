@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Orders Analysis - Standalone</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1><i class="fas fa-chart-line text-primary"></i> Work Orders Analysis</h1>
+                <p class="text-muted">Activity Database Analysis - Standalone Version</p>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 fw-bold">Loading work orders data...</p>
+        </div>
+
+        <!-- Content -->
+        <div id="content" style="display: none;">
+            <!-- KPI Row -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h2 id="total-orders" class="display-6">-</h2>
+                            <p class="mb-0">Total Work Orders</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h2 id="completion-rate" class="display-6">-</h2>
+                            <p class="mb-0">Completion Rate</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body text-center">
+                            <h2 id="cp-ratio" class="display-6">-</h2>
+                            <p class="mb-0">C:P Ratio</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body text-center">
+                            <h2 id="urgent-percentage" class="display-6">-</h2>
+                            <p class="mb-0">Urgent Orders</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Tables -->
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="fas fa-tools text-primary"></i> Job Type Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Maintenance Type</th>
+                                            <th>Count</th>
+                                            <th>%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="job-types-table">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="fas fa-exclamation-triangle text-warning"></i> Priority Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Priority Level</th>
+                                            <th>Count</th>
+                                            <th>%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="priorities-table">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Equipment Analysis -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="fas fa-cogs text-info"></i> Top Equipment by Work Orders</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Equipment ID</th>
+                                            <th>Description</th>
+                                            <th>Work Orders</th>
+                                            <th>Avg Downtime (hrs)</th>
+                                            <th>% of Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="equipment-table">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="fas fa-tachometer-alt text-success"></i> Performance Metrics</h5>
+                        </div>
+                        <div class="card-body" id="performance-metrics">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Display -->
+        <div id="error" style="display: none;">
+            <div class="alert alert-danger">
+                <h4><i class="fas fa-exclamation-circle"></i> Error Loading Data</h4>
+                <p id="error-message"></p>
+                <button class="btn btn-outline-danger" onclick="loadData()">
+                    <i class="fas fa-redo"></i> Retry
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let analysisData = null;
+
+        $(document).ready(function() {
+            console.log('Document ready, loading data...');
+            loadData();
+        });
+
+        function loadData() {
+            console.log('Starting data load...');
+            
+            // Reset UI
+            $('#loading').show();
+            $('#content').hide();
+            $('#error').hide();
+            
+            $.ajax({
+                url: '/api/work-orders/analysis',
+                method: 'GET',
+                timeout: 60000,
+                beforeSend: function() {
+                    console.log('Sending AJAX request...');
+                },
+                success: function(response) {
+                    console.log('AJAX Success:', response);
+                    
+                    if (response && response.success) {
+                        analysisData = response.analysis;
+                        displayData(analysisData);
+                        $('#loading').hide();
+                        $('#content').show();
+                    } else {
+                        showError('API returned error: ' + (response.error || 'Unknown error'));
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error:', { xhr, status, error });
+                    showError(`AJAX Error: ${status} - ${error}. Status Code: ${xhr.status}`);
+                }
+            });
+        }
+
+        function displayData(data) {
+            console.log('Displaying data...', data);
+            
+            try {
+                // KPIs
+                $('#total-orders').text((data.basic_stats?.total_records || 0).toLocaleString());
+                $('#completion-rate').text((data.basic_stats?.completed_percentage || 0) + '%');
+                $('#cp-ratio').text(data.performance?.corrective_preventive_ratio || 0);
+                $('#urgent-percentage').text((data.performance?.urgent_percentage || 0) + '%');
+                
+                // Job Types
+                let jobTypesHtml = '';
+                (data.job_types || []).forEach(jt => {
+                    jobTypesHtml += `
+                        <tr>
+                            <td><strong>${jt.name}</strong></td>
+                            <td>${jt.count.toLocaleString()}</td>
+                            <td><span class="badge bg-primary">${jt.percentage}%</span></td>
+                        </tr>
+                    `;
+                });
+                $('#job-types-table').html(jobTypesHtml);
+                
+                // Priorities
+                let prioritiesHtml = '';
+                (data.priorities || []).forEach(p => {
+                    prioritiesHtml += `
+                        <tr>
+                            <td><strong>${p.name}</strong></td>
+                            <td>${p.count.toLocaleString()}</td>
+                            <td><span class="badge bg-warning">${p.percentage}%</span></td>
+                        </tr>
+                    `;
+                });
+                $('#priorities-table').html(prioritiesHtml);
+                
+                // Equipment
+                let equipmentHtml = '';
+                (data.equipment || []).slice(0, 10).forEach(eq => {
+                    equipmentHtml += `
+                        <tr>
+                            <td><code>${eq.equipment}</code></td>
+                            <td>${eq.equipment_name}</td>
+                            <td><strong>${eq.work_orders.toLocaleString()}</strong></td>
+                            <td>${eq.avg_downtime}</td>
+                            <td><span class="badge bg-info">${eq.percentage}%</span></td>
+                        </tr>
+                    `;
+                });
+                $('#equipment-table').html(equipmentHtml);
+                
+                // Performance Metrics
+                const perf = data.performance || {};
+                $('#performance-metrics').html(`
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Maintenance Balance</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Corrective Maintenance:</strong> ${(perf.corrective_count || 0).toLocaleString()}</li>
+                                <li><strong>Preventive Maintenance:</strong> ${(perf.preventive_count || 0).toLocaleString()}</li>
+                                <li><strong>C:P Ratio:</strong> ${perf.corrective_preventive_ratio || 0}:1</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Completion Times</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Average:</strong> ${perf.avg_completion_time || 0} hours</li>
+                                <li><strong>Minimum:</strong> ${perf.min_completion_time || 0} hours</li>
+                                <li><strong>Maximum:</strong> ${perf.max_completion_time || 0} hours</li>
+                            </ul>
+                        </div>
+                    </div>
+                `);
+                
+                console.log('Data display completed successfully');
+                
+            } catch (error) {
+                console.error('Error displaying data:', error);
+                showError('Error displaying data: ' + error.message);
+            }
+        }
+
+        function showError(message) {
+            console.error('Showing error:', message);
+            $('#loading').hide();
+            $('#content').hide();
+            $('#error-message').text(message);
+            $('#error').show();
+        }
+    </script>
+</body>
+</html>

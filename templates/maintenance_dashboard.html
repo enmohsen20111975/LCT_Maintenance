@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}LCT STS Maintenance Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-tools text-primary"></i>
+                    LCT STS Maintenance Dashboard
+                </h1>
+                <div class="btn-group" role="group">
+                    <a href="{{ url_for('work_orders_list') }}" class="btn btn-primary">
+                        <i class="fas fa-clipboard-list"></i> Work Orders
+                    </a>
+                    <a href="{{ url_for('spare_parts_inventory') }}" class="btn btn-success">
+                        <i class="fas fa-boxes"></i> Spare Parts
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Cards Row -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Work Orders
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ kpis.work_orders.total if kpis.work_orders else 0 }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Preventive Maintenance
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ kpis.maintenance_types.pm if kpis.maintenance_types else 0 }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-check fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Corrective/Breakdown
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ (kpis.maintenance_types.cm if kpis.maintenance_types else 0) + (kpis.maintenance_types.breakdown if kpis.maintenance_types else 0) }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Critical Spare Parts
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ critical_parts|length }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-boxes fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Tables Row -->
+    <div class="row">
+        <!-- Work Order Status Chart -->
+        <div class="col-xl-6 col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Work Order Status Overview</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-pie pt-4 pb-2">
+                        <canvas id="workOrderStatusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Maintenance Type Distribution -->
+        <div class="col-xl-6 col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Maintenance Type Distribution</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-pie pt-4 pb-2">
+                        <canvas id="maintenanceTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Work Orders and Critical Parts -->
+    <div class="row">
+        <!-- Recent Work Orders -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Recent Work Orders</h6>
+                    <a href="{{ url_for('work_orders_list') }}" class="btn btn-sm btn-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    {% if recent_work_orders %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>WO Number</th>
+                                    <th>Description</th>
+                                    <th>Type</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for wo in recent_work_orders %}
+                                <tr>
+                                    <td>{{ wo.work_order_number }}</td>
+                                    <td>{{ wo.description[:50] }}{% if wo.description|length > 50 %}...{% endif %}</td>
+                                    <td>
+                                        <span class="badge badge-{{ 'success' if wo.maintenance_type == 'PM' else 'warning' if wo.maintenance_type == 'CM' else 'danger' }}">
+                                            {{ wo.maintenance_type }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-{{ 'danger' if wo.priority == 'High' else 'warning' if wo.priority == 'Medium' else 'secondary' }}">
+                                            {{ wo.priority }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-{{ 'success' if wo.status == 'Completed' else 'primary' if wo.status == 'In Progress' else 'secondary' }}">
+                                            {{ wo.status }}
+                                        </span>
+                                    </td>
+                                    <td>{{ wo.created_date.strftime('%Y-%m-%d') if wo.created_date else 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">No work orders found. <a href="{{ url_for('work_orders_list') }}">Create your first work order</a></p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Critical Spare Parts -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Critical Spare Parts</h6>
+                    <a href="{{ url_for('spare_parts_inventory') }}?filter=critical" class="btn btn-sm btn-danger">View All</a>
+                </div>
+                <div class="card-body">
+                    {% if critical_parts %}
+                    {% for part in critical_parts %}
+                    <div class="mb-3 p-2 border-left border-danger">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>{{ part.part_name }}</strong><br>
+                                <small class="text-muted">{{ part.part_number }}</small>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-danger font-weight-bold">{{ part.quantity_on_hand }}</span><br>
+                                <small class="text-muted">Min: {{ part.reorder_level }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">No critical spare parts at this time.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overdue Work Orders Alert -->
+    {% if overdue_work_orders %}
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-danger" role="alert">
+                <h4 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Overdue Work Orders</h4>
+                <p>You have {{ overdue_work_orders|length }} overdue work order(s) that require immediate attention:</p>
+                <ul class="mb-0">
+                    {% for wo in overdue_work_orders[:5] %}
+                    <li>{{ wo.work_order_number }} - {{ wo.description[:100] }}{% if wo.description|length > 100 %}...{% endif %} ({{ wo.days_overdue }} days overdue)</li>
+                    {% endfor %}
+                    {% if overdue_work_orders|length > 5 %}
+                    <li><em>...and {{ overdue_work_orders|length - 5 }} more</em></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Work Order Status Chart
+const woStatusCtx = document.getElementById('workOrderStatusChart').getContext('2d');
+const workOrderStatusChart = new Chart(woStatusCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Open', 'In Progress', 'Completed', 'On Hold'],
+        datasets: [{
+            data: [
+                {{ kpis.work_orders.open if kpis.work_orders else 0 }},
+                {{ kpis.work_orders.get('in_progress', 0) }},
+                {{ kpis.work_orders.completed if kpis.work_orders else 0 }},
+                {{ kpis.work_orders.get('on_hold', 0) }}
+            ],
+            backgroundColor: ['#f6c23e', '#1cc88a', '#36b9cc', '#858796'],
+            hoverBorderColor: "rgba(234, 236, 244, 1)",
+        }],
+    },
+    options: {
+        maintainAspectRatio: false,
+        legend: {
+            display: true,
+            position: 'bottom'
+        }
+    },
+});
+
+// Maintenance Type Chart
+const mtTypeCtx = document.getElementById('maintenanceTypeChart').getContext('2d');
+const maintenanceTypeChart = new Chart(mtTypeCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Preventive (PM)', 'Corrective (CM)', 'Breakdown', 'Emergency'],
+        datasets: [{
+            data: [
+                {{ kpis.maintenance_types.pm if kpis.maintenance_types else 0 }},
+                {{ kpis.maintenance_types.cm if kpis.maintenance_types else 0 }},
+                {{ kpis.maintenance_types.breakdown if kpis.maintenance_types else 0 }},
+                {{ kpis.maintenance_types.emergency if kpis.maintenance_types else 0 }}
+            ],
+            backgroundColor: ['#1cc88a', '#f6c23e', '#e74a3b', '#858796'],
+            hoverBorderColor: "rgba(234, 236, 244, 1)",
+        }],
+    },
+    options: {
+        maintainAspectRatio: false,
+        legend: {
+            display: true,
+            position: 'bottom'
+        }
+    },
+});
+</script>
+{% endblock %}

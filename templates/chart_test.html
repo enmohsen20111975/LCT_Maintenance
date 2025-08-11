@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Chart.js Test - {{ super() }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1>Chart.js Test Page</h1>
+            <p>Testing if Chart.js loads and works properly</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Simple Bar Chart</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="testChart" style="height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Debug Info</h5>
+                </div>
+                <div class="card-body">
+                    <div id="debug-output">
+                        <p>Checking Chart.js...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+$(document).ready(function() {
+    const debug = $('#debug-output');
+    
+    // Check if Chart is loaded
+    if (typeof Chart !== 'undefined') {
+        debug.append('<p style="color: green;">✓ Chart.js loaded successfully</p>');
+        debug.append('<p>Chart.js version: ' + Chart.version + '</p>');
+        
+        // Create a simple test chart
+        try {
+            const ctx = document.getElementById('testChart').getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Test 1', 'Test 2', 'Test 3'],
+                    datasets: [{
+                        label: 'Test Data',
+                        data: [10, 20, 15],
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+            debug.append('<p style="color: green;">✓ Test chart created successfully</p>');
+        } catch (error) {
+            debug.append('<p style="color: red;">✗ Error creating chart: ' + error.message + '</p>');
+        }
+    } else {
+        debug.append('<p style="color: red;">✗ Chart.js not loaded</p>');
+    }
+    
+    // Check jQuery
+    debug.append('<p>jQuery version: ' + $.fn.jquery + '</p>');
+});
+</script>
+{% endblock %}

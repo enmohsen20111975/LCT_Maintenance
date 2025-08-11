@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}Data Monitoring Dashboard - LCT STS{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2 mb-0">
+                    <i class="bi bi-graph-up-arrow text-primary"></i>
+                    Data Monitoring Dashboard
+                </h1>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" onclick="refreshData()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh Data
+                    </button>
+                    <a href="{{ url_for('upload') }}" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> Import New Data
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Real-time Data Status -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-activity text-success"></i>
+                        Real-time Data Status
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-success bg-opacity-10 rounded-circle p-3 me-3">
+                                    <i class="bi bi-database text-success"></i>
+                                </div>
+                                <div>
+                                    <h4 class="mb-0" id="totalTables">{{ tables|length }}</h4>
+                                    <small class="text-muted">Active Data Tables</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-info bg-opacity-10 rounded-circle p-3 me-3">
+                                    <i class="bi bi-file-earmark-spreadsheet text-info"></i>
+                                </div>
+                                <div>
+                                    <h4 class="mb-0" id="totalRecords">{{ "{:,}".format(total_records or 0) }}</h4>
+                                    <small class="text-muted">Total Records</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-warning bg-opacity-10 rounded-circle p-3 me-3">
+                                    <i class="bi bi-clock-history text-warning"></i>
+                                </div>
+                                <div>
+                                    <h4 class="mb-0" id="lastUpdate">
+                                        {% if last_update %}
+                                            {{ last_update.strftime('%H:%M') }}
+                                        {% else %}
+                                            --:--
+                                        {% endif %}
+                                    </h4>
+                                    <small class="text-muted">Last Update</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                                    <i class="bi bi-graph-up text-primary"></i>
+                                </div>
+                                <div>
+                                    <h4 class="mb-0" id="dataHealth">
+                                        {% if data_health %}{{ data_health }}%{% else %}100%{% endif %}
+                                    </h4>
+                                    <small class="text-muted">Data Health</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Data Tables Overview -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="mb-0">
+                        <i class="bi bi-table"></i>
+                        Data Tables Overview
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if tables %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Table Name</th>
+                                    <th>Records</th>
+                                    <th>Columns</th>
+                                    <th>Last Updated</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for table in tables[:10] %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ table.table_name or table.name }}</strong>
+                                        {% if table.get('original_filename') %}
+                                        <br><small class="text-muted">{{ table.original_filename }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">
+                                            {{ "{:,}".format(table.row_count or table.get('row_count', 0)) }}
+                                        </span>
+                                    </td>
+                                    <td>{{ table.column_count or table.get('column_count', 0) }}</td>
+                                    <td>
+                                        {% if table.created_date %}
+                                            <small>{{ table.created_date.strftime('%Y-%m-%d %H:%M') }}</small>
+                                        {% else %}
+                                            <small class="text-muted">Unknown</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('view_table', table_name=table.table_name or table.name) }}" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <button class="btn btn-outline-secondary btn-sm" 
+                                                    onclick="analyzeTable('{{ table.table_name or table.name }}')">
+                                                <i class="bi bi-graph-up"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if tables|length > 10 %}
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('tables') }}" class="btn btn-outline-primary">
+                            View All {{ tables|length }} Tables
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-inbox display-4 text-muted"></i>
+                        <h5 class="mt-3 text-muted">No Data Tables Found</h5>
+                        <p class="text-muted">Import Excel files to start monitoring your data</p>
+                        <a href="{{ url_for('upload') }}" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> Import Data
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightning-charge"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('upload') }}" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> Import New Data
+                        </a>
+                        <a href="{{ url_for('data_analysis') }}" class="btn btn-outline-success">
+                            <i class="bi bi-bar-chart"></i> Data Analysis
+                        </a>
+                        <a href="{{ url_for('advanced_charts') }}" class="btn btn-outline-info">
+                            <i class="bi bi-graph-up"></i> Create Charts
+                        </a>
+                        <a href="{{ url_for('relationships_new') }}" class="btn btn-outline-warning">
+                            <i class="bi bi-diagram-3"></i> Data Relationships
+                        </a>
+                        <a href="{{ url_for('executive_dashboard') }}" class="btn btn-outline-dark">
+                            <i class="bi bi-speedometer2"></i> Executive Dashboard
+                        </a>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <h6>Recent Activity</h6>
+                    {% if recent_uploads %}
+                        {% for upload in recent_uploads[:3] %}
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-file-earmark-spreadsheet text-primary me-2"></i>
+                            <div class="flex-grow-1">
+                                <small class="d-block">{{ upload.filename }}</small>
+                                <small class="text-muted">{{ upload.upload_date.strftime('%m/%d %H:%M') }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted small">No recent activity</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Insights -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightbulb"></i>
+                        Quick Insights
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Data Summary</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="bi bi-check-circle text-success"></i> {{ tables|length }} active data tables</li>
+                                <li><i class="bi bi-info-circle text-info"></i> Monitoring {{ "{:,}".format(total_records or 0) }} records</li>
+                                <li><i class="bi bi-graph-up text-primary"></i> Ready for analysis and reporting</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Recommended Actions</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="bi bi-arrow-right text-muted"></i> <a href="{{ url_for('data_analysis') }}">Run data analysis</a> to discover trends</li>
+                                <li><i class="bi bi-arrow-right text-muted"></i> <a href="{{ url_for('advanced_charts') }}">Create visualizations</a> for key metrics</li>
+                                <li><i class="bi bi-arrow-right text-muted"></i> <a href="{{ url_for('relationships_new') }}">Analyze relationships</a> between tables</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analysis Modal -->
+<div class="modal fade" id="analysisModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Quick Table Analysis</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="analysisContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Analyzing...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function refreshData() {
+    location.reload();
+}
+
+function analyzeTable(tableName) {
+    const modal = new bootstrap.Modal(document.getElementById('analysisModal'));
+    modal.show();
+    
+    // Load table analysis
+    fetch(`/api/analyze-table/${tableName}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('analysisContent').innerHTML = `
+                    <h6>Table: ${tableName}</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Total Rows:</strong> ${data.analysis.total_rows.toLocaleString()}</p>
+                            <p><strong>Numeric Columns:</strong> ${data.analysis.numeric_columns}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Null Data:</strong> ${data.analysis.null_percentage}%</p>
+                            <p><strong>Unique Values:</strong> ${data.analysis.unique_values.toLocaleString()}</p>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <a href="/view_table/${tableName}" class="btn btn-primary btn-sm">
+                            <i class="bi bi-eye"></i> View Data
+                        </a>
+                        <a href="/advanced-charts?table=${tableName}" class="btn btn-outline-info btn-sm">
+                            <i class="bi bi-graph-up"></i> Create Chart
+                        </a>
+                    </div>
+                `;
+            } else {
+                document.getElementById('analysisContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        Error analyzing table: ${data.error}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            document.getElementById('analysisContent').innerHTML = `
+                <div class="alert alert-danger">
+                    Error: ${error.message}
+                </div>
+            `;
+        });
+}
+
+// Auto-refresh data every 5 minutes
+setInterval(function() {
+    fetch('/api/simple-tables')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('totalTables').textContent = data.total_tables;
+                // Update other metrics as needed
+            }
+        })
+        .catch(error => console.log('Auto-refresh failed:', error));
+}, 300000); // 5 minutes
+</script>
+{% endblock %}

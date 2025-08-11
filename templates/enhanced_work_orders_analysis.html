@@ -1,0 +1,720 @@
+{% extends "base.html" %}
+
+{% block title %}Enhanced Work Orders Analysis{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    .analysis-container {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-label {
+        font-size: 1rem;
+        opacity: 0.9;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        height: 400px;
+    }
+    
+    .chart-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: #333;
+        text-align: center;
+    }
+    
+    .filter-section {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid #e9ecef;
+    }
+    
+    .filter-row {
+        margin-bottom: 1rem;
+    }
+    
+    .filter-row:last-child {
+        margin-bottom: 0;
+    }
+    
+    .data-table-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .status-exe { background-color: #ffc107; color: #212529; }
+    .status-ini { background-color: #17a2b8; color: white; }
+    .status-ter { background-color: #28a745; color: white; }
+    .status-prt { background-color: #fd7e14; color: white; }
+    .status-apc { background-color: #dc3545; color: white; }
+    
+    .job-type-badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .type-c { background-color: #dc3545; color: white; }
+    .type-p { background-color: #28a745; color: white; }
+    .type-i { background-color: #17a2b8; color: white; }
+    .type-o { background-color: #6c757d; color: white; }
+    .type-u { background-color: #fd7e14; color: white; }
+    .type-b { background-color: #6f42c1; color: white; }
+    .type-l { background-color: #20c997; color: white; }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+    
+    .loading-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 10px;
+        text-align: center;
+    }
+    
+    .select2-container {
+        width: 100% !important;
+    }
+    
+    .btn-action {
+        margin: 0.25rem;
+        border-radius: 20px;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .category-analysis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            <i class="bi bi-graph-up-arrow"></i>
+            Enhanced Work Orders Analysis
+        </h1>
+        <div>
+            <button class="btn btn-outline-primary btn-action" onclick="exportData()">
+                <i class="bi bi-download"></i> Export
+            </button>
+            <button class="btn btn-primary btn-action" onclick="refreshAnalysis()">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Advanced Filter Component -->
+    {% include 'components/advanced_work_order_filters.html' %}
+
+    <!-- Template-specific integration script -->
+    <script>
+    // Integration for enhanced_work_orders_analysis.html
+    function applyMainFilters(filters) {
+        // Implementation specific to this template
+        console.log('Applying filters for enhanced work orders analysis:', filters);
+        
+        // Call the existing applyFilters function if it exists
+        if (typeof applyFilters === 'function') {
+            return applyFilters();
+        }
+        
+        // Or implement the filter logic here
+        return loadFilteredData(filters);
+    }
+    
+    async function loadFilteredData(filters) {
+        try {
+            const response = await fetch('/api/work-orders/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(filters)
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                currentData = data.data;
+                displayWorkOrders(currentData);
+                return data;
+            } else {
+                throw new Error(data.error || 'Failed to apply filters');
+            }
+        } catch (error) {
+            console.error('Error applying filters:', error);
+            throw error;
+        }
+    }
+    </script>
+        <form id="filterForm">
+            <div class="row filter-row">
+                <div class="col-md-3">
+                    <label class="form-label">Work Order Status (ETATJOB)</label>
+                    <select class="form-select" id="etatjobFilter" name="etatjob">
+                        <option value="">All Statuses</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Work Supplier</label>
+                    <select class="form-select" id="supplierFilter" name="work_supplier_key">
+                        <option value="">All Suppliers</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Job Type</label>
+                    <select class="form-select" id="jobTypeFilter" name="job_type">
+                        <option value="">All Types</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">POS Key</label>
+                    <select class="form-select" id="posKeyFilter" name="pos_key">
+                        <option value="">All POS</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row filter-row">
+                <div class="col-md-3">
+                    <label class="form-label">Cost Purpose</label>
+                    <select class="form-select" id="costPurposeFilter" name="cost_purpose_key">
+                        <option value="">All Purposes</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Inspector</label>
+                    <select class="form-select" id="inspectorFilter" name="inspector">
+                        <option value="">All Inspectors</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Equipment</label>
+                    <select class="form-select" id="equipmentFilter" name="equipment">
+                        <option value="">All Equipment</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Priority</label>
+                    <select class="form-select" id="priorityFilter" name="priority">
+                        <option value="">All Priorities</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row filter-row">
+                <div class="col-md-4">
+                    <label class="form-label">Date From</label>
+                    <input type="date" class="form-control" id="dateFrom" name="startDate">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Date To</label>
+                    <input type="date" class="form-control" id="dateTo" name="endDate">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Search Term</label>
+                    <input type="text" class="form-control" id="searchTerm" name="search" placeholder="Search in description, equipment...">
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-12">
+                    <button type="button" class="btn btn-primary" onclick="applyFilters()">
+                        <i class="bi bi-search"></i> Apply Filters
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="clearFilters()">
+                        <i class="bi bi-x-circle"></i> Clear Filters
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="stats-grid" id="keyMetrics">
+        <!-- Metrics will be populated here -->
+    </div>
+
+    <!-- Category Analysis Charts -->
+    <div class="category-analysis" id="categoryCharts">
+        <!-- Category charts will be populated here -->
+    </div>
+
+    <!-- Data Table -->
+    <div class="data-table-container">
+        <h5 class="mb-3">
+            <i class="bi bi-table"></i> Work Orders Data
+            <span class="badge bg-primary" id="recordCount">0 records</span>
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="workOrdersTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>WO Number</th>
+                        <th>Status</th>
+                        <th>Type</th>
+                        <th>Equipment</th>
+                        <th>Supplier</th>
+                        <th>Cost Purpose</th>
+                        <th>Inspector</th>
+                        <th>Order Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+        <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h5>Loading Work Orders Analysis...</h5>
+        <p class="text-muted">Please wait while we process your data</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+let currentData = [];
+let currentFilters = {};
+let charts = {};
+
+// Initialize the page
+document.addEventListener('DOMContentLoaded', function() {
+    initializeFilters();
+    loadInitialData();
+});
+
+// Initialize filter dropdowns
+async function initializeFilters() {
+    try {
+        const response = await fetch('/api/work-orders/filter-options');
+        const options = await response.json();
+        
+        if (options.success) {
+            populateFilterDropdowns(options.data);
+        }
+    } catch (error) {
+        console.error('Error loading filter options:', error);
+    }
+}
+
+// Populate filter dropdowns
+function populateFilterDropdowns(options) {
+    // ETATJOB options
+    const etatjobSelect = document.getElementById('etatjobFilter');
+    options.etatjob?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        etatjobSelect.add(optionElement);
+    });
+    
+    // Work Supplier options
+    const supplierSelect = document.getElementById('supplierFilter');
+    options.work_supplier_key?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        supplierSelect.add(optionElement);
+    });
+    
+    // Job Type options
+    const jobTypeSelect = document.getElementById('jobTypeFilter');
+    options.job_type?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        jobTypeSelect.add(optionElement);
+    });
+    
+    // POS Key options
+    const posKeySelect = document.getElementById('posKeyFilter');
+    options.pos_key?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        posKeySelect.add(optionElement);
+    });
+    
+    // Cost Purpose options
+    const costPurposeSelect = document.getElementById('costPurposeFilter');
+    options.cost_purpose_key?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        costPurposeSelect.add(optionElement);
+    });
+    
+    // Inspector options
+    const inspectorSelect = document.getElementById('inspectorFilter');
+    options.inspector?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        inspectorSelect.add(optionElement);
+    });
+    
+    // Equipment options
+    const equipmentSelect = document.getElementById('equipmentFilter');
+    options.equipment?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        equipmentSelect.add(optionElement);
+    });
+    
+    // Priority options
+    const prioritySelect = document.getElementById('priorityFilter');
+    options.priority?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        prioritySelect.add(optionElement);
+    });
+}
+
+// Load initial data
+async function loadInitialData() {
+    showLoading(true);
+    try {
+        const [analysisResponse, dataResponse] = await Promise.all([
+            fetch('/api/work-orders/comprehensive-analysis'),
+            fetch('/api/work-orders/search')
+        ]);
+        
+        const analysisData = await analysisResponse.json();
+        const workOrdersData = await dataResponse.json();
+        
+        if (analysisData.success) {
+            displayAnalysis(analysisData.data);
+        }
+        
+        if (workOrdersData.success) {
+            currentData = workOrdersData.data;
+            displayWorkOrders(currentData);
+        }
+    } catch (error) {
+        console.error('Error loading initial data:', error);
+        showError('Failed to load data. Please refresh the page.');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Display analysis data
+function displayAnalysis(data) {
+    displayKeyMetrics(data.basic_stats);
+    displayCategoryCharts(data.categories);
+}
+
+// Display key metrics
+function displayKeyMetrics(stats) {
+    const metricsContainer = document.getElementById('keyMetrics');
+    metricsContainer.innerHTML = `
+        <div class="metric-card">
+            <div class="metric-value">${stats.total_records || 0}</div>
+            <div class="metric-label">Total Work Orders</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">${stats.completed_percentage || 0}%</div>
+            <div class="metric-label">Completion Rate</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">${Object.keys(stats.status_distribution || {}).length}</div>
+            <div class="metric-label">Status Types</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">${stats.date_range?.start || 'N/A'}</div>
+            <div class="metric-label">Earliest Record</div>
+        </div>
+    `;
+}
+
+// Display category charts
+function displayCategoryCharts(categories) {
+    const chartsContainer = document.getElementById('categoryCharts');
+    chartsContainer.innerHTML = '';
+    
+    // Create charts for each category
+    const chartConfigs = [
+        { key: 'etatjob', title: 'Work Order Status Distribution', type: 'doughnut' },
+        { key: 'work_suppliers', title: 'Work Suppliers Distribution', type: 'bar' },
+        { key: 'job_types', title: 'Job Types Distribution', type: 'pie' },
+        { key: 'cost_purposes', title: 'Cost Purposes Distribution', type: 'bar' },
+        { key: 'inspectors', title: 'Inspectors Distribution', type: 'doughnut' },
+        { key: 'pos_keys', title: 'POS Keys Distribution', type: 'pie' }
+    ];
+    
+    chartConfigs.forEach(config => {
+        if (categories[config.key] && categories[config.key].length > 0) {
+            createCategoryChart(config, categories[config.key]);
+        }
+    });
+}
+
+// Create individual category chart
+function createCategoryChart(config, data) {
+    const chartId = `chart_${config.key}`;
+    const chartContainer = document.createElement('div');
+    chartContainer.className = 'chart-container';
+    chartContainer.innerHTML = `
+        <div class="chart-title">${config.title}</div>
+        <canvas id="${chartId}"></canvas>
+    `;
+    
+    document.getElementById('categoryCharts').appendChild(chartContainer);
+    
+    const ctx = document.getElementById(chartId).getContext('2d');
+    
+    // Prepare chart data
+    const labels = data.map(item => item.name || item.supplier_name || item.inspector_name || 'Unknown');
+    const values = data.map(item => item.count);
+    const colors = generateColors(data.length);
+    
+    charts[chartId] = new Chart(ctx, {
+        type: config.type,
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors,
+                borderColor: colors.map(color => color.replace('0.8', '1')),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: config.type === 'bar' ? 'top' : 'right',
+                    labels: {
+                        boxWidth: 12,
+                        font: { size: 10 }
+                    }
+                }
+            },
+            scales: config.type === 'bar' ? {
+                y: { beginAtZero: true }
+            } : {}
+        }
+    });
+}
+
+// Generate colors for charts
+function generateColors(count) {
+    const baseColors = [
+        'rgba(255, 99, 132, 0.8)',
+        'rgba(54, 162, 235, 0.8)', 
+        'rgba(255, 205, 86, 0.8)',
+        'rgba(75, 192, 192, 0.8)',
+        'rgba(153, 102, 255, 0.8)',
+        'rgba(255, 159, 64, 0.8)',
+        'rgba(199, 199, 199, 0.8)',
+        'rgba(83, 102, 255, 0.8)'
+    ];
+    
+    const colors = [];
+    for (let i = 0; i < count; i++) {
+        colors.push(baseColors[i % baseColors.length]);
+    }
+    return colors;
+}
+
+// Apply filters
+async function applyFilters() {
+    const formData = new FormData(document.getElementById('filterForm'));
+    const filters = Object.fromEntries(formData.entries());
+    
+    // Remove empty values
+    Object.keys(filters).forEach(key => {
+        if (!filters[key]) {
+            delete filters[key];
+        }
+    });
+    
+    currentFilters = filters;
+    
+    showLoading(true);
+    try {
+        const response = await fetch('/api/work-orders/search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(filters)
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            currentData = data.data;
+            displayWorkOrders(currentData);
+        } else {
+            showError(data.error || 'Failed to apply filters');
+        }
+    } catch (error) {
+        console.error('Error applying filters:', error);
+        showError('Error applying filters');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Clear filters
+function clearFilters() {
+    document.getElementById('filterForm').reset();
+    currentFilters = {};
+    loadInitialData();
+}
+
+// Display work orders in table
+function displayWorkOrders(workOrders) {
+    const tableBody = document.querySelector('#workOrdersTable tbody');
+    const recordCount = document.getElementById('recordCount');
+    
+    recordCount.textContent = `${workOrders.length} records`;
+    
+    if (workOrders.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="9" class="text-center">No work orders found</td></tr>';
+        return;
+    }
+    
+    tableBody.innerHTML = workOrders.map(wo => `
+        <tr>
+            <td>${wo.wo_number || 'N/A'}</td>
+            <td><span class="status-badge status-${(wo.etatjob || '').toLowerCase()}">${wo.etatjob || 'N/A'}</span></td>
+            <td><span class="job-type-badge type-${(wo.job_type || '').toLowerCase()}">${wo.job_type || 'N/A'}</span></td>
+            <td>${wo.equipement || 'N/A'}</td>
+            <td>${wo.work_supplier_key || 'N/A'}</td>
+            <td>${wo.cost_purpose_key || 'N/A'}</td>
+            <td>${wo.inspector || 'N/A'}</td>
+            <td>${wo.order_date || 'N/A'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewWorkOrder('${wo.wo_number}')">
+                    <i class="bi bi-eye"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// View work order details
+function viewWorkOrder(woNumber) {
+    // Implement work order detail view
+    alert(`View details for Work Order: ${woNumber}`);
+}
+
+// Export data
+function exportData() {
+    if (currentData.length === 0) {
+        alert('No data to export');
+        return;
+    }
+    
+    // Create CSV content
+    const headers = ['WO Number', 'Status', 'Type', 'Equipment', 'Supplier', 'Cost Purpose', 'Inspector', 'Order Date'];
+    const csvContent = [
+        headers.join(','),
+        ...currentData.map(wo => [
+            wo.wo_number || '',
+            wo.etatjob || '',
+            wo.job_type || '',
+            wo.equipement || '',
+            wo.work_supplier_key || '',
+            wo.cost_purpose_key || '',
+            wo.inspector || '',
+            wo.order_date || ''
+        ].join(','))
+    ].join('\n');
+    
+    // Download CSV
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `work_orders_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+// Refresh analysis
+function refreshAnalysis() {
+    loadInitialData();
+}
+
+// Show/hide loading
+function showLoading(show) {
+    document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+}
+
+// Show error message
+function showError(message) {
+    alert(message); // Replace with a proper notification system
+}
+</script>
+{% endblock %}

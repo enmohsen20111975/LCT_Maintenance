@@ -1,0 +1,852 @@
+{% extends "base.html" %}
+
+{% block title %}Calculated Fields - LDA{% endblock %}
+
+{% block extra_css %}
+<style>
+.calculated-fields-header {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-radius: 15px;
+}
+
+.formula-builder {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.formula-input {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    background: #2d3748;
+    color: #e2e8f0;
+    border: 1px solid #4a5568;
+    border-radius: 5px;
+    padding: 12px;
+    min-height: 80px;
+}
+
+.function-category {
+    margin-bottom: 1rem;
+}
+
+.function-btn {
+    margin: 2px;
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.column-btn {
+    margin: 2px;
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.example-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.example-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.formula-preview {
+    background: #e3f2fd;
+    border: 1px solid #90caf9;
+    border-radius: 5px;
+    padding: 0.75rem;
+    font-family: monospace;
+    margin-top: 0.5rem;
+}
+
+.validation-result {
+    padding: 0.75rem;
+    border-radius: 5px;
+    margin-top: 0.5rem;
+}
+
+.validation-valid {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.validation-invalid {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.field-type-selector {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.field-type-option {
+    flex: 1;
+    text-align: center;
+    padding: 8px;
+    border: 2px solid #dee2e6;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.field-type-option.selected {
+    border-color: #007bff;
+    background: #e3f2fd;
+}
+
+.progress-section {
+    margin-top: 2rem;
+    display: none;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #28a745;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="calculated-fields-header text-center">
+        <h1 class="mb-3">
+            <i class="bi bi-calculator"></i>
+            Calculated Fields
+        </h1>
+        <p class="lead mb-0">Create new fields with mathematical, logical, date/time, and statistical calculations</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Left Panel - Table Selection and Field Builder -->
+        <div class="col-md-8">
+            <!-- Database and Table Selection -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-table"></i>
+                        Select Table
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="databaseSelect" class="form-label">Database</label>
+                            <select id="databaseSelect" class="form-select" onchange="loadTablesForDatabase()">
+                                <option value="">Select Database...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="tableSelect" class="form-label">Table</label>
+                            <select id="tableSelect" class="form-select" onchange="loadTableColumns()">
+                                <option value="">Select Table...</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Table Info -->
+                    <div id="tableInfo" class="mt-3" style="display: none;">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-number" id="columnCount">0</div>
+                                <div class="stat-label">Columns</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number" id="rowCount">0</div>
+                                <div class="stat-label">Rows</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formula Builder -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-code-square"></i>
+                        Formula Builder
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Field Name -->
+                    <div class="mb-3">
+                        <label for="fieldName" class="form-label">New Field Name</label>
+                        <input type="text" id="fieldName" class="form-control" placeholder="Enter field name...">
+                    </div>
+
+                    <!-- Field Type Selection -->
+                    <div class="mb-3">
+                        <label class="form-label">Field Type</label>
+                        <div class="field-type-selector">
+                            <div class="field-type-option selected" data-type="REAL" onclick="selectFieldType('REAL')">
+                                <i class="bi bi-calculator"></i><br>
+                                <small>Number</small>
+                            </div>
+                            <div class="field-type-option" data-type="TEXT" onclick="selectFieldType('TEXT')">
+                                <i class="bi bi-fonts"></i><br>
+                                <small>Text</small>
+                            </div>
+                            <div class="field-type-option" data-type="INTEGER" onclick="selectFieldType('INTEGER')">
+                                <i class="bi bi-hash"></i><br>
+                                <small>Integer</small>
+                            </div>
+                            <div class="field-type-option" data-type="BOOLEAN" onclick="selectFieldType('BOOLEAN')">
+                                <i class="bi bi-check-square"></i><br>
+                                <small>Boolean</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Available Columns -->
+                    <div class="mb-3">
+                        <label class="form-label">Available Columns</label>
+                        <div id="availableColumns" class="border rounded p-2" style="min-height: 60px; background: #f8f9fa;">
+                            <small class="text-muted">Select a table to see available columns</small>
+                        </div>
+                    </div>
+
+                    <!-- Formula Input -->
+                    <div class="mb-3">
+                        <label for="formulaInput" class="form-label">Formula</label>
+                        <textarea id="formulaInput" class="form-control formula-input" rows="4" 
+                                  placeholder="Enter your formula here... Use [column_name] to reference columns"
+                                  oninput="validateFormula()"></textarea>
+                        <small class="form-text text-muted">
+                            Use [column_name] to reference columns. Example: [price] * [quantity]
+                        </small>
+                    </div>
+
+                    <!-- Validation Result -->
+                    <div id="validationResult" style="display: none;"></div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-2">
+                        <button id="createFieldBtn" class="btn btn-success" onclick="createCalculatedField()" disabled>
+                            <i class="bi bi-plus-circle"></i>
+                            Create Field
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearFormula()">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            Clear
+                        </button>
+                        <button class="btn btn-info" onclick="validateFormula()">
+                            <i class="bi bi-check-circle"></i>
+                            Validate
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Section -->
+            <div id="progressSection" class="progress-section">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>Creating Calculated Field...</h6>
+                        <div class="progress">
+                            <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <div id="progressText" class="mt-2 text-center">
+                            Initializing...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel - Functions and Examples -->
+        <div class="col-md-4">
+            <!-- Available Functions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-tools"></i>
+                        Available Functions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="functionsAccordion">
+                        <!-- Mathematical Functions -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#mathFunctions">
+                                    <i class="bi bi-calculator me-2"></i>
+                                    Mathematical
+                                </button>
+                            </h2>
+                            <div id="mathFunctions" class="accordion-collapse collapse show" data-bs-parent="#functionsAccordion">
+                                <div class="accordion-body" id="mathFunctionsList">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Logical Functions -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#logicalFunctions">
+                                    <i class="bi bi-diagram-3 me-2"></i>
+                                    Logical
+                                </button>
+                            </h2>
+                            <div id="logicalFunctions" class="accordion-collapse collapse" data-bs-parent="#functionsAccordion">
+                                <div class="accordion-body" id="logicalFunctionsList">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Text Functions -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#textFunctions">
+                                    <i class="bi bi-fonts me-2"></i>
+                                    Text
+                                </button>
+                            </h2>
+                            <div id="textFunctions" class="accordion-collapse collapse" data-bs-parent="#functionsAccordion">
+                                <div class="accordion-body" id="textFunctionsList">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Date/Time Functions -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dateFunctions">
+                                    <i class="bi bi-calendar me-2"></i>
+                                    Date/Time
+                                </button>
+                            </h2>
+                            <div id="dateFunctions" class="accordion-collapse collapse" data-bs-parent="#functionsAccordion">
+                                <div class="accordion-body" id="dateFunctionsList">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formula Examples -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-lightbulb"></i>
+                        Formula Examples
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="examplesAccordion">
+                        <!-- Mathematical Examples -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#mathExamples">
+                                    Mathematical
+                                </button>
+                            </h2>
+                            <div id="mathExamples" class="accordion-collapse collapse show" data-bs-parent="#examplesAccordion">
+                                <div class="accordion-body" id="mathExamplesList">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Logical Examples -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#logicalExamples">
+                                    Logical
+                                </button>
+                            </h2>
+                            <div id="logicalExamples" class="accordion-collapse collapse" data-bs-parent="#examplesAccordion">
+                                <div class="accordion-body" id="logicalExamplesList">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Text Examples -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#textExamples">
+                                    Text
+                                </button>
+                            </h2>
+                            <div id="textExamples" class="accordion-collapse collapse" data-bs-parent="#examplesAccordion">
+                                <div class="accordion-body" id="textExamplesList">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Date/Time Examples -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dateExamples">
+                                    Date/Time
+                                </button>
+                            </h2>
+                            <div id="dateExamples" class="accordion-collapse collapse" data-bs-parent="#examplesAccordion">
+                                <div class="accordion-body" id="dateExamplesList">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Statistical Examples -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#statExamples">
+                                    Statistical
+                                </button>
+                            </h2>
+                            <div id="statExamples" class="accordion-collapse collapse" data-bs-parent="#examplesAccordion">
+                                <div class="accordion-body" id="statExamplesList">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-check-circle text-success"></i>
+                    Field Created Successfully
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="successMessage"></div>
+                <div class="mt-3">
+                    <strong>Next Steps:</strong>
+                    <ul>
+                        <li>View the updated table to see your new calculated field</li>
+                        <li>Create additional calculated fields if needed</li>
+                        <li>Use the new field in charts and analysis</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="viewUpdatedTable()">View Table</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentDatabase = '';
+let currentTable = '';
+let currentFieldType = 'REAL';
+let availableFunctions = {};
+let formulaExamples = {};
+
+// Initialize the page
+document.addEventListener('DOMContentLoaded', function() {
+    loadDatabases();
+    loadAvailableFunctions();
+    loadFormulaExamples();
+});
+
+// Load available databases
+async function loadDatabases() {
+    try {
+        const response = await fetch('/api/database/list');
+        const data = await response.json();
+        
+        const select = document.getElementById('databaseSelect');
+        select.innerHTML = '<option value="">Select Database...</option>';
+        
+        if (data.success && data.databases) {
+            data.databases.forEach(db => {
+                const option = document.createElement('option');
+                option.value = db.name;
+                option.textContent = `${db.name} (${db.size})`;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading databases:', error);
+    }
+}
+
+// Load tables for selected database
+async function loadTablesForDatabase() {
+    const database = document.getElementById('databaseSelect').value;
+    currentDatabase = database;
+    
+    if (!database) {
+        document.getElementById('tableSelect').innerHTML = '<option value="">Select Table...</option>';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/database/tables/${database}`);
+        const data = await response.json();
+        
+        const select = document.getElementById('tableSelect');
+        select.innerHTML = '<option value="">Select Table...</option>';
+        
+        if (data.success && data.tables) {
+            data.tables.forEach(table => {
+                const option = document.createElement('option');
+                option.value = table.name;
+                option.textContent = `${table.name} (${table.row_count} rows, ${table.column_count} cols)`;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading tables:', error);
+    }
+}
+
+// Load columns for selected table
+async function loadTableColumns() {
+    const table = document.getElementById('tableSelect').value;
+    currentTable = table;
+    
+    if (!table || !currentDatabase) {
+        document.getElementById('availableColumns').innerHTML = '<small class="text-muted">Select a table to see available columns</small>';
+        document.getElementById('tableInfo').style.display = 'none';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/calculated-fields/columns/${table}?database=${currentDatabase}`);
+        const data = await response.json();
+        
+        if (data.success && data.columns) {
+            displayColumns(data.columns);
+            updateTableInfo(data.columns.length, data.row_count || 0);
+        }
+    } catch (error) {
+        console.error('Error loading columns:', error);
+    }
+}
+
+function displayColumns(columns) {
+    const container = document.getElementById('availableColumns');
+    container.innerHTML = '';
+    
+    columns.forEach(col => {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-outline-secondary btn-sm column-btn';
+        btn.onclick = () => insertColumn(col.name);
+        
+        // Add type indicator
+        const typeIcon = getTypeIcon(col.inferred_type);
+        btn.innerHTML = `${typeIcon} ${col.name}`;
+        btn.title = `${col.name} (${col.inferred_type})\nSample: ${col.sample_values.slice(0, 2).join(', ')}`;
+        
+        container.appendChild(btn);
+    });
+}
+
+function getTypeIcon(type) {
+    switch(type) {
+        case 'numeric': return '<i class="bi bi-123"></i>';
+        case 'date': return '<i class="bi bi-calendar"></i>';
+        case 'text': return '<i class="bi bi-fonts"></i>';
+        default: return '<i class="bi bi-question-circle"></i>';
+    }
+}
+
+function updateTableInfo(columnCount, rowCount) {
+    document.getElementById('columnCount').textContent = columnCount;
+    document.getElementById('rowCount').textContent = rowCount;
+    document.getElementById('tableInfo').style.display = 'block';
+}
+
+function insertColumn(columnName) {
+    const formulaInput = document.getElementById('formulaInput');
+    const currentPos = formulaInput.selectionStart;
+    const textBefore = formulaInput.value.substring(0, currentPos);
+    const textAfter = formulaInput.value.substring(formulaInput.selectionEnd);
+    
+    formulaInput.value = textBefore + `[${columnName}]` + textAfter;
+    formulaInput.focus();
+    formulaInput.setSelectionRange(currentPos + columnName.length + 2, currentPos + columnName.length + 2);
+    
+    validateFormula();
+}
+
+function selectFieldType(type) {
+    currentFieldType = type;
+    
+    // Update UI
+    document.querySelectorAll('.field-type-option').forEach(option => {
+        option.classList.remove('selected');
+    });
+    document.querySelector(`[data-type="${type}"]`).classList.add('selected');
+}
+
+async function validateFormula() {
+    const formula = document.getElementById('formulaInput').value.trim();
+    const resultDiv = document.getElementById('validationResult');
+    const createBtn = document.getElementById('createFieldBtn');
+    
+    if (!formula) {
+        resultDiv.style.display = 'none';
+        createBtn.disabled = true;
+        return;
+    }
+    
+    if (!currentTable || !currentDatabase) {
+        showValidationResult(false, 'Please select a database and table first');
+        createBtn.disabled = true;
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/calculated-fields/validate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                formula: formula,
+                table: currentTable,
+                database: currentDatabase
+            })
+        });
+        
+        const data = await response.json();
+        showValidationResult(data.valid, data.message);
+        createBtn.disabled = !data.valid || !document.getElementById('fieldName').value.trim();
+        
+    } catch (error) {
+        showValidationResult(false, 'Error validating formula: ' + error.message);
+        createBtn.disabled = true;
+    }
+}
+
+function showValidationResult(isValid, message) {
+    const resultDiv = document.getElementById('validationResult');
+    resultDiv.style.display = 'block';
+    resultDiv.className = `validation-result ${isValid ? 'validation-valid' : 'validation-invalid'}`;
+    resultDiv.innerHTML = `
+        <i class="bi bi-${isValid ? 'check-circle' : 'exclamation-triangle'}"></i>
+        ${message}
+    `;
+}
+
+async function createCalculatedField() {
+    const fieldName = document.getElementById('fieldName').value.trim();
+    const formula = document.getElementById('formulaInput').value.trim();
+    
+    if (!fieldName || !formula || !currentTable || !currentDatabase) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    // Show progress
+    const progressSection = document.getElementById('progressSection');
+    progressSection.style.display = 'block';
+    
+    try {
+        const response = await fetch('/api/calculated-fields/create', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                table_name: currentTable,
+                field_name: fieldName,
+                formula: formula,
+                field_type: currentFieldType,
+                database: currentDatabase
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showSuccessModal(data);
+            clearForm();
+        } else {
+            alert('Error creating field: ' + data.error);
+        }
+        
+    } catch (error) {
+        alert('Error creating field: ' + error.message);
+    } finally {
+        progressSection.style.display = 'none';
+    }
+}
+
+function showSuccessModal(data) {
+    document.getElementById('successMessage').innerHTML = `
+        <p><strong>Field "${data.field_name || 'field'}" created successfully!</strong></p>
+        <ul>
+            <li>Formula: <code>${data.formula}</code></li>
+            <li>Rows updated: ${data.rows_updated}</li>
+            <li>Table: ${currentTable}</li>
+            <li>Database: ${currentDatabase}</li>
+        </ul>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('successModal'));
+    modal.show();
+}
+
+function clearForm() {
+    document.getElementById('fieldName').value = '';
+    document.getElementById('formulaInput').value = '';
+    document.getElementById('validationResult').style.display = 'none';
+    document.getElementById('createFieldBtn').disabled = true;
+}
+
+function clearFormula() {
+    document.getElementById('formulaInput').value = '';
+    validateFormula();
+}
+
+function viewUpdatedTable() {
+    window.open(`/view_table/${currentTable}?database=${currentDatabase}`, '_blank');
+}
+
+// Load available functions
+async function loadAvailableFunctions() {
+    try {
+        const response = await fetch('/api/calculated-fields/functions');
+        const data = await response.json();
+        
+        if (data.success) {
+            availableFunctions = data.functions;
+            displayFunctions();
+        }
+    } catch (error) {
+        console.error('Error loading functions:', error);
+    }
+}
+
+function displayFunctions() {
+    const categories = ['mathematical', 'logical', 'text', 'date_time'];
+    
+    categories.forEach(category => {
+        const container = document.getElementById(`${category.replace('_', '')}FunctionsList`);
+        container.innerHTML = '';
+        
+        if (availableFunctions[category]) {
+            availableFunctions[category].forEach(func => {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-outline-primary btn-sm function-btn';
+                btn.onclick = () => insertFunction(func.syntax);
+                btn.innerHTML = func.name;
+                btn.title = `${func.syntax}\n${func.description}`;
+                
+                container.appendChild(btn);
+            });
+        }
+    });
+}
+
+// Load formula examples
+async function loadFormulaExamples() {
+    try {
+        const response = await fetch('/api/calculated-fields/examples');
+        const data = await response.json();
+        
+        if (data.success) {
+            formulaExamples = data.examples;
+            displayExamples();
+        }
+    } catch (error) {
+        console.error('Error loading examples:', error);
+    }
+}
+
+function displayExamples() {
+    const categories = ['mathematical', 'logical', 'text', 'date_time', 'statistical'];
+    
+    categories.forEach(category => {
+        const container = document.getElementById(`${category.replace('_', '')}ExamplesList`);
+        container.innerHTML = '';
+        
+        if (formulaExamples[category]) {
+            formulaExamples[category].forEach(example => {
+                const card = document.createElement('div');
+                card.className = 'example-card';
+                card.innerHTML = `
+                    <h6>${example.name}</h6>
+                    <code>${example.formula}</code>
+                    <p class="small text-muted mt-2 mb-0">${example.description}</p>
+                    <button class="btn btn-sm btn-outline-primary mt-2" onclick="insertFormula('${example.formula.replace(/'/g, "\\'")}')">
+                        Use This Formula
+                    </button>
+                `;
+                container.appendChild(card);
+            });
+        }
+    });
+}
+
+function insertFunction(syntax) {
+    const formulaInput = document.getElementById('formulaInput');
+    const currentPos = formulaInput.selectionStart;
+    const textBefore = formulaInput.value.substring(0, currentPos);
+    const textAfter = formulaInput.value.substring(formulaInput.selectionEnd);
+    
+    formulaInput.value = textBefore + syntax + textAfter;
+    formulaInput.focus();
+    
+    validateFormula();
+}
+
+function insertFormula(formula) {
+    document.getElementById('formulaInput').value = formula;
+    validateFormula();
+}
+
+// Enable field name validation
+document.getElementById('fieldName').addEventListener('input', function() {
+    const createBtn = document.getElementById('createFieldBtn');
+    const isValid = this.value.trim() && 
+                   document.getElementById('formulaInput').value.trim() &&
+                   !document.getElementById('validationResult').classList.contains('validation-invalid');
+    createBtn.disabled = !isValid;
+});
+</script>
+{% endblock %}

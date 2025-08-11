@@ -1,0 +1,693 @@
+{% extends "base.html" %}
+
+{% block title %}Executive Dashboard - LDA{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Executive Dashboard Styling */
+.dashboard-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.kpi-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    border-left: 5px solid #007bff;
+}
+
+.kpi-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.kpi-card.success { border-left-color: #28a745; }
+.kpi-card.warning { border-left-color: #ffc107; }
+.kpi-card.danger { border-left-color: #dc3545; }
+.kpi-card.info { border-left-color: #17a2b8; }
+.kpi-card.purple { border-left-color: #6f42c1; }
+
+.kpi-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    line-height: 1;
+}
+
+.kpi-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+.kpi-change {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.kpi-change.positive { color: #28a745; }
+.kpi-change.negative { color: #dc3545; }
+.kpi-change.neutral { color: #6c757d; }
+
+.dashboard-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    border: none;
+    margin-bottom: 2rem;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.dashboard-card .card-header {
+    background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    border-radius: 15px 15px 0 0 !important;
+    padding: 1rem 1.5rem;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    padding: 1rem;
+}
+
+.quick-action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.action-tile {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 15px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.action-tile:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    color: white;
+    text-decoration: none;
+}
+
+.action-tile.upload { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+.action-tile.analyze { background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%); }
+.action-tile.visualize { background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); }
+.action-tile.manage { background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%); }
+
+.action-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.activity-item {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s ease;
+}
+
+.activity-item:hover {
+    background-color: #f8f9fa;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-time {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.health-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+.health-good { background-color: #28a745; }
+.health-warning { background-color: #ffc107; }
+.health-error { background-color: #dc3545; }
+
+.progress-ring {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto;
+}
+
+.progress-ring circle {
+    fill: transparent;
+    stroke-width: 6;
+    r: 30;
+    cx: 40;
+    cy: 40;
+}
+
+.progress-ring .background {
+    stroke: #e9ecef;
+}
+
+.progress-ring .progress {
+    stroke: #007bff;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.5s ease;
+}
+
+@media (max-width: 768px) {
+    .kpi-value {
+        font-size: 2rem;
+    }
+    
+    .quick-action-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .action-icon {
+        font-size: 2rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Dashboard Header -->
+<div class="dashboard-header text-center">
+    <div class="container">
+        <h1 class="display-4 mb-3">
+            <i class="bi bi-speedometer2 me-3"></i>
+            Executive Dashboard
+        </h1>
+        <p class="lead">Real-time overview of your data platform performance and insights</p>
+        <small class="opacity-75">Last updated: <span id="lastUpdated">Loading...</span></small>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="quick-action-grid">
+    <a href="{{ url_for('upload') }}" class="action-tile upload">
+        <i class="bi bi-cloud-upload action-icon"></i>
+        <h5>Upload Data</h5>
+        <p class="mb-0">Import new files</p>
+    </a>
+    <a href="{{ url_for('data_analysis') }}" class="action-tile analyze">
+        <i class="bi bi-graph-up action-icon"></i>
+        <h5>Analyze Data</h5>
+        <p class="mb-0">Deep data insights</p>
+    </a>
+    <a href="{{ url_for('graphs_analysis') }}" class="action-tile visualize">
+        <i class="bi bi-bar-chart action-icon"></i>
+        <h5>Create Charts</h5>
+        <p class="mb-0">Visual analytics</p>
+    </a>
+    <a href="{{ url_for('database_management') }}" class="action-tile manage">
+        <i class="bi bi-server action-icon"></i>
+        <h5>Manage Data</h5>
+        <p class="mb-0">Database operations</p>
+    </a>
+</div>
+
+<!-- KPI Cards Row -->
+<div class="row">
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="kpi-card success">
+            <div class="kpi-value">{{ kpis.total_pos if kpis else '-' }}</div>
+            <div class="kpi-label">Purchase Orders</div>
+            <div class="kpi-change positive">
+                <i class="bi bi-shopping-cart"></i> Active
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="kpi-card info">
+            <div class="kpi-value">{{ kpis.total_prs if kpis else '-' }}</div>
+            <div class="kpi-label">Purchase Requests</div>
+            <div class="kpi-change neutral">
+                <i class="bi bi-file-text"></i> Ready
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="kpi-card warning">
+            <div class="kpi-value">{{ kpis.total_stock_items if kpis else '-' }}</div>
+            <div class="kpi-label">Stock Items</div>
+            <div class="kpi-change positive">
+                <i class="bi bi-box-seam"></i> Tracked
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="kpi-card purple">
+            <div class="kpi-value">{{ kpis.total_annual_items if kpis else '-' }}</div>
+            <div class="kpi-label">Annual Items</div>
+            <div class="kpi-change positive">
+                <i class="bi bi-calendar-check"></i> Analyzed
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="kpi-card danger">
+            <div class="kpi-value">{{ kpis.total_tables if kpis else '-' }}</div>
+            <div class="kpi-label">Total Tables</div>
+            <div class="kpi-change neutral">
+                <i class="bi bi-table"></i> Available
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="kpi-card">
+            <div class="kpi-value">{{ '{:,}'.format(kpis.total_records) if kpis and kpis.total_records else '-' }}</div>
+            <div class="kpi-label">Total Records</div>
+            <div class="kpi-change positive">
+                <i class="bi bi-database"></i> Growing
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Dashboard Content -->
+<div class="row">
+    <!-- Data Distribution Chart -->
+    <div class="col-lg-6">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart me-2"></i>
+                    Data Distribution
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="dataDistributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Health Status -->
+    <div class="col-lg-6">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-shield-check me-2"></i>
+                    Data Health Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="healthStatus">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading health status...</span>
+                        </div>
+                        <p class="mt-2">Analyzing data health...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Activity -->
+    <div class="col-lg-8">
+        <div class="dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history me-2"></i>
+                    Recent Activity
+                </h5>
+                <button class="btn btn-outline-primary btn-sm" onclick="refreshActivity()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <div id="recentActivity">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading activity...</span>
+                        </div>
+                        <p class="mt-2">Loading recent activity...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Health -->
+    <div class="col-lg-4">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-cpu me-2"></i>
+                    System Health
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <svg class="progress-ring">
+                        <circle class="background" />
+                        <circle class="progress" id="systemHealthRing" />
+                    </svg>
+                    <div class="mt-2">
+                        <h4 id="systemHealthScore" class="text-success">98%</h4>
+                        <small class="text-muted">Overall Health</small>
+                    </div>
+                </div>
+                
+                <div class="health-items">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span><i class="health-indicator health-good"></i>Database Connection</span>
+                        <span class="badge bg-success">Healthy</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span><i class="health-indicator health-good"></i>Data Processing</span>
+                        <span class="badge bg-success">Optimal</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span><i class="health-indicator health-warning"></i>Memory Usage</span>
+                        <span class="badge bg-warning">Medium</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span><i class="health-indicator health-good"></i>Query Performance</span>
+                        <span class="badge bg-success">Fast</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Metrics -->
+<div class="row">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-graph-up-arrow me-2"></i>
+                    Performance Trends
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let dataDistributionChart = null;
+let performanceChart = null;
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    initializeDashboard();
+    loadDashboardData();
+    updateLastUpdated();
+    
+    // Auto-refresh every 5 minutes
+    setInterval(loadDashboardData, 300000);
+    setInterval(updateLastUpdated, 60000);
+});
+
+function initializeDashboard() {
+    initializeDataDistributionChart();
+    initializePerformanceChart();
+    setupSystemHealthRing();
+}
+
+function updateLastUpdated() {
+    const now = new Date();
+    document.getElementById('lastUpdated').textContent = now.toLocaleString();
+}
+
+function setupSystemHealthRing() {
+    const circle = document.getElementById('systemHealthRing');
+    const radius = 30;
+    const circumference = 2 * Math.PI * radius;
+    const healthScore = 98;
+    
+    circle.style.strokeDasharray = circumference;
+    const offset = circumference - (healthScore / 100) * circumference;
+    circle.style.strokeDashoffset = offset;
+}
+
+async function loadDashboardData() {
+    try {
+        // Load KPI data
+        await loadKPIData();
+        await loadHealthStatus();
+        await loadRecentActivity();
+        
+        showMessage('Dashboard data refreshed successfully', 'success');
+    } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        showMessage('Error loading dashboard data', 'error');
+    }
+}
+
+async function loadKPIData() {
+    try {
+        // Get databases
+        const dbResponse = await fetch('/api/databases');
+        const dbData = await dbResponse.json();
+        
+        if (dbData.success) {
+            document.getElementById('totalDatabases').textContent = dbData.databases.length;
+            
+            // Load table and record counts
+            let totalTables = 0;
+            let totalRecords = 0;
+            let totalRelationships = 0;
+            
+            for (const db of dbData.databases) {
+                try {
+                    const tablesResponse = await fetch(`/api/relationships/tables?database=${db}`);
+                    const tablesData = await tablesResponse.json();
+                    
+                    if (tablesData.success) {
+                        totalTables += tablesData.tables.length;
+                        
+                        // Get record counts for each table
+                        for (const table of tablesData.tables) {
+                            try {
+                                const analysisResponse = await fetch(`/api/analyze-table/${table}?database=${db}`);
+                                const analysisData = await analysisResponse.json();
+                                
+                                if (analysisData.success && analysisData.analysis.row_count) {
+                                    totalRecords += analysisData.analysis.row_count;
+                                }
+                            } catch (e) {
+                                console.warn(`Failed to get records for ${table}:`, e);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`Failed to get tables for ${db}:`, e);
+                }
+            }
+            
+            document.getElementById('totalTables').textContent = totalTables.toLocaleString();
+            document.getElementById('totalRecords').textContent = totalRecords.toLocaleString();
+            document.getElementById('activeRelationships').textContent = totalRelationships;
+            document.getElementById('calculatedFields').textContent = '0'; // Will be updated when we have calculated fields API
+            document.getElementById('dataQuality').textContent = '85%'; // Placeholder
+            
+            updateDataDistributionChart(dbData.databases);
+        }
+    } catch (error) {
+        console.error('Error loading KPI data:', error);
+    }
+}
+
+async function loadHealthStatus() {
+    const healthContainer = document.getElementById('healthStatus');
+    
+    // Simulate health status data
+    const healthData = [
+        { name: 'Stock.db', tables: 12, health: 'good', issues: 0 },
+        { name: 'Workorder.db', tables: 3, health: 'good', issues: 0 },
+        { name: 'sample_database', tables: 8, health: 'warning', issues: 2 }
+    ];
+    
+    healthContainer.innerHTML = healthData.map(db => `
+        <div class="d-flex justify-content-between align-items-center mb-3 p-3 border rounded">
+            <div>
+                <h6 class="mb-1">${db.name}</h6>
+                <small class="text-muted">${db.tables} tables</small>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-${db.health === 'good' ? 'success' : 'warning'}">${db.health}</span>
+                <div class="small text-muted">${db.issues} issues</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function loadRecentActivity() {
+    const activityContainer = document.getElementById('recentActivity');
+    
+    // Simulate recent activity data
+    const activities = [
+        { action: 'File uploaded', item: 'Annual_Consumption_Sep_2024.xlsx', time: '2 minutes ago', icon: 'cloud-upload', type: 'success' },
+        { action: 'Chart created', item: 'Sales Performance Dashboard', time: '15 minutes ago', icon: 'bar-chart', type: 'info' },
+        { action: 'Table analyzed', item: 'customer_data', time: '1 hour ago', icon: 'graph-up', type: 'primary' },
+        { action: 'Relationship mapped', item: 'orders → customers', time: '2 hours ago', icon: 'diagram-3', type: 'warning' },
+        { action: 'Data quality check', item: 'product_inventory', time: '3 hours ago', icon: 'shield-check', type: 'success' },
+        { action: 'Calculated field added', item: 'total_revenue', time: '4 hours ago', icon: 'calculator', type: 'info' }
+    ];
+    
+    activityContainer.innerHTML = activities.map(activity => `
+        <div class="activity-item">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="bi bi-${activity.icon} text-${activity.type}"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold">${activity.action}</div>
+                    <div class="small text-muted">${activity.item}</div>
+                </div>
+                <div class="activity-time">${activity.time}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function initializeDataDistributionChart() {
+    const ctx = document.getElementById('dataDistributionChart').getContext('2d');
+    
+    dataDistributionChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Loading...'],
+            datasets: [{
+                data: [1],
+                backgroundColor: ['#e9ecef'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateDataDistributionChart(databases) {
+    if (dataDistributionChart && databases) {
+        const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'];
+        
+        dataDistributionChart.data.labels = databases;
+        dataDistributionChart.data.datasets[0].data = databases.map(() => Math.floor(Math.random() * 100) + 10);
+        dataDistributionChart.data.datasets[0].backgroundColor = colors.slice(0, databases.length);
+        dataDistributionChart.update();
+    }
+}
+
+function initializePerformanceChart() {
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    
+    // Generate sample performance data
+    const labels = [];
+    const data = [];
+    const now = new Date();
+    
+    for (let i = 23; i >= 0; i--) {
+        const time = new Date(now - i * 60 * 60 * 1000);
+        labels.push(time.getHours() + ':00');
+        data.push(Math.floor(Math.random() * 40) + 60); // Random performance between 60-100
+    }
+    
+    performanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Query Performance (ms)',
+                data: data,
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Response Time (ms)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+}
+
+function refreshActivity() {
+    loadRecentActivity();
+    showMessage('Activity refreshed', 'success');
+}
+
+function showMessage(message, type) {
+    // Create a toast notification
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>{% block title %}LCT STS Data Monitoring App{% endblock %}</title>
+    
+    <!-- Preload critical fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <!-- Theme CSS -->
+    <link href="{{ url_for('static', filename='css/themes.css') }}" rel="stylesheet">
+    <!-- Top Navigation CSS -->
+    <link href="{{ url_for('static', filename='css/top-nav.css') }}" rel="stylesheet">
+    <!-- Enhanced Tables CSS -->
+    <link href="{{ url_for('static', filename='css/enhanced-tables.css') }}" rel="stylesheet">
+    <!-- Universal Menu Styles CSS -->
+    <link href="{{ url_for('static', filename='css/universal-menu-styles.css') }}" rel="stylesheet">
+    
+    <!-- Meta tags for better SEO and mobile experience -->
+    <meta name="description" content="LCT STS Data Monitoring App - Professional data analysis and monitoring system">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    
+    <!-- Top Navigation Styles -->
+    <style>
+        /* Top Header with Logo */
+        .top-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 0.75rem 0;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 1040;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo-section h5 {
+            margin: 0;
+            font-weight: 600;
+            color: white;
+            font-size: 1.1rem;
+        }
+        
+        .logo-section i {
+            font-size: 1.3rem;
+            margin-right: 0.5rem;
+        }
+        
+        /* Top Navigation Menu */
+        .top-nav-menu {
+            background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
+            top: 60px;
+            z-index: 1039;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .navbar-nav .nav-item {
+            margin: 0 0.25rem;
+        }
+        
+        .navbar-nav .nav-link {
+            color: rgba(255, 255, 255, 0.9) !important;
+            font-weight: 500;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        .navbar-nav .nav-link:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: white !important;
+            transform: translateY(-2px);
+        }
+        
+        .navbar-nav .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .navbar-nav .nav-link i {
+            margin-right: 0.5rem;
+            font-size: 1rem;
+            width: 18px;
+            text-align: center;
+        }
+        
+        /* Dropdown Menu Styles */
+        .dropdown-menu {
+            background: rgba(255, 255, 255, 0.98);
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            margin-top: 0.5rem;
+            min-width: 280px;
+            max-height: 400px;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+        }
+        
+        .dropdown-item {
+            padding: 0.75rem 1.25rem;
+            color: #495057;
+            transition: all 0.2s ease;
+            border-radius: 8px;
+            margin: 0.25rem 0.5rem;
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .dropdown-item:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: translateX(5px);
+        }
+        
+        .dropdown-item:active,
+        .dropdown-item.active {
+            background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%);
+            color: white;
+        }
+        
+        .dropdown-item i {
+            margin-right: 0.75rem;
+            width: 20px;
+            text-align: center;
+            font-size: 1rem;
+            margin-top: 0.1rem;
+            flex-shrink: 0;
+        }
+        
+        .dropdown-item-content {
+            flex: 1;
+        }
+        
+        .dropdown-item small {
+            display: block;
+            opacity: 0.8;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+            line-height: 1.2;
+        }
+        
+        /* Special dropdown items */
+        .dropdown-item.currency-status {
+            background: rgba(40, 167, 69, 0.1);
+            border: 1px solid rgba(40, 167, 69, 0.2);
+            cursor: default;
+            margin: 0.5rem;
+        }
+        
+        .dropdown-item.currency-status:hover {
+            background: rgba(40, 167, 69, 0.15);
+            transform: none;
+        }
+        
+        /* Navbar toggler for mobile */
+        .navbar-toggler {
+            border: none;
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+        }
+        
+        .navbar-toggler:focus {
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+        }
+        
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.9%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        }
+        
+        /* Main content without sidebar */
+        .main-content {
+            margin-left: 0;
+            min-height: calc(100vh - 120px); /* Adjust for both headers */
+            transition: all 0.3s ease;
+        }
+        
+        /* Mobile Navigation */
+        @media (max-width: 991.98px) {
+            .navbar-collapse {
+                background: rgba(0, 0, 0, 0.1);
+                margin-top: 0.5rem;
+                padding: 1rem;
+                border-radius: 12px;
+                backdrop-filter: blur(10px);
+            }
+            
+            .navbar-nav .nav-link {
+                margin: 0.25rem 0;
+                padding: 0.75rem 1rem;
+                border-radius: 8px;
+                background: rgba(255, 255, 255, 0.1);
+            }
+            
+            .dropdown-menu {
+                background: rgba(255, 255, 255, 0.95);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                margin-top: 0.25rem;
+                margin-left: 1rem;
+            }
+            
+            .top-header .logo-section h5 {
+                font-size: 1rem;
+            }
+        }
+        
+        /* Search functionality */
+        .nav-search {
+            position: relative;
+            margin: 0.5rem 1rem;
+        }
+        
+        .nav-search input {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 20px;
+            padding: 0.5rem 1rem;
+            width: 100%;
+            max-width: 200px;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-search input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .nav-search input:focus {
+            background: rgba(255, 255, 255, 0.3);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Theme Toggle */
+        .theme-toggle {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .theme-option {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin: 5px 0;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.2s;
+        }
+        
+        .theme-option:hover {
+            border-color: #333;
+        }
+        
+        .theme-option.active {
+            border-color: #007bff;
+        }
+        
+        .theme-light { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .theme-dark { background: linear-gradient(135deg, #232526 0%, #414345 100%); }
+        .theme-blue { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .theme-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .theme-purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .theme-orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .theme-rose { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); }
+        
+        /* Badge styles for notifications */
+        .nav-badge {
+            position: absolute;
+            top: -5px;
+            right: 5px;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Theme variations */
+        [data-theme="dark"] .top-nav-menu {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        }
+        
+        [data-theme="blue"] .top-nav-menu {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        }
+        
+        [data-theme="green"] .top-nav-menu {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+        }
+        
+        [data-theme="purple"] .top-nav-menu {
+            background: linear-gradient(135deg, #8e44ad 0%, #7d3c98 100%);
+        }
+        
+        [data-theme="orange"] .top-nav-menu {
+            background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+        }
+        
+        [data-theme="rose"] .top-nav-menu {
+            background: linear-gradient(135deg, #e91e63 0%, #c2185b 100%);
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body data-theme="light" class="d-flex flex-column min-vh-100">
+    <!-- Theme Toggle Button -->
+    <div class="theme-toggle d-none d-md-block" id="themeToggle">
+        <div class="d-flex flex-column align-items-center">
+            <div class="theme-option theme-light" data-theme="light" title="Light Theme"></div>
+            <div class="theme-option theme-dark" data-theme="dark" title="Dark Theme"></div>
+            <div class="theme-option theme-blue" data-theme="blue" title="Blue Theme"></div>
+            <div class="theme-option theme-green" data-theme="green" title="Green Theme"></div>
+            <div class="theme-option theme-purple" data-theme="purple" title="Purple Theme"></div>
+            <div class="theme-option theme-orange" data-theme="orange" title="Orange Theme"></div>
+            <div class="theme-option theme-rose" data-theme="rose" title="Rose Theme"></div>
+        </div>
+    </div>
+
+    <!-- Top Header -->
+    <div class="top-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="logo-section">
+                        <i class="bi bi-tools"></i>
+                        <h5>LCT STS Data Monitoring Application</h5>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <!-- Mobile theme selector -->
+                    <div class="dropdown d-md-none me-2">
+                        <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-palette"></i> Theme
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><button class="dropdown-item" onclick="setTheme('light')"><i class="bi bi-sun"></i> Light</button></li>
+                            <li><button class="dropdown-item" onclick="setTheme('dark')"><i class="bi bi-moon"></i> Dark</button></li>
+                            <li><button class="dropdown-item" onclick="setTheme('blue')"><i class="bi bi-droplet"></i> Blue</button></li>
+                            <li><button class="dropdown-item" onclick="setTheme('green')"><i class="bi bi-tree"></i> Green</button></li>
+                            <li><button class="dropdown-item" onclick="setTheme('purple')"><i class="bi bi-heart-pulse"></i> Purple</button></li>
+                            <li><button class="dropdown-item" onclick="setTheme('orange')"><i class="bi bi-fire"></i> Orange</button></li>
+                            <li><button class="dropdown-item" onclick="setTheme('rose')"><i class="bi bi-flower1"></i> Rose</button></li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Database Selector - Only show on certain pages -->
+                    {% set current_route = request.endpoint %}
+                    {% set allowed_db_routes = ['data_analysis', 'report_builder', 'enhanced_upload', 'upload', 'interactive_upload', 'memory_upload', 'relationships_new', 'advanced_charts', 'calculated_fields', 'database_management', 'data_grid', 'graphs_analysis'] %}
+                    {% if current_route in allowed_db_routes %}
+                    <div class="d-flex align-items-center text-white">
+                        <i class="bi bi-database me-2"></i>
+                        <span class="me-2 d-none d-lg-inline">Database:</span>
+                        <select id="globalDatabaseSelect" class="form-select form-select-sm" style="min-width: 120px;">
+                            <option value="">Loading...</option>
+                        </select>
+                    </div>
+                    {% endif %}
+    </div>
+
+    <!-- Top Navigation Menu -->
+    <nav class="navbar navbar-expand-lg top-nav-menu">
+        <div class="container-fluid">
+            <!-- Search Box (visible on larger screens) -->
+            <div class="nav-search d-none d-lg-block">
+                <input type="text" class="form-control" placeholder="Search navigation..." id="topNavSearch">
+            </div>
+            
+            <!-- Mobile toggle button -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topNavCollapse">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <!-- Navigation Items -->
+            <div class="collapse navbar-collapse" id="topNavCollapse">
+                <ul class="navbar-nav ms-auto">
+                    <!-- Dashboard -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="bi bi-house"></i>
+                            Home
+                        </a>
+                    </li>
+                    
+                    <!-- Monitoring Dashboard -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('monitoring_dashboard') }}">
+                            <i class="bi bi-speedometer2"></i>
+                            Monitoring
+                        </a>
+                    </li>
+                    
+                    <!-- Store Management -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-box-seam"></i>
+                            Store Management
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('stock_inventory') }}">
+                                    <i class="bi bi-stack"></i>
+                                    <div class="dropdown-item-content">
+                                        Stock Inventory
+                                        <small>Current stock levels and items</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('purchase_orders') }}">
+                                    <i class="bi bi-cart-plus"></i>
+                                    <div class="dropdown-item-content">
+                                        Purchase Orders
+                                        <small>PO management and tracking</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('purchase_requests') }}">
+                                    <i class="bi bi-clipboard-check"></i>
+                                    <div class="dropdown-item-content">
+                                        Purchase Requests
+                                        <small>PR creation and approval</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('spare_parts_inventory') }}">
+                                    <i class="bi bi-gear"></i>
+                                    <div class="dropdown-item-content">
+                                        Spare Parts
+                                        <small>Spare parts catalog and planning</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('stock_analysis') }}">
+                                    <i class="bi bi-graph-up"></i>
+                                    <div class="dropdown-item-content">
+                                        Stock Analysis
+                                        <small>Comprehensive stock analysis</small>
+                                    </div>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    
+                    <!-- Currency Settings -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-currency-exchange"></i>
+                            Currency
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <div class="dropdown-item currency-status">
+                                    <i class="bi bi-info-circle"></i>
+                                    <div class="dropdown-item-content">
+                                        <span>CFA → EUR</span>
+                                        <small id="currencyRate">Loading...</small>
+                                    </div>
+                                </div>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="#" onclick="updateExchangeRate()">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                    <div class="dropdown-item-content">
+                                        Update Exchange Rate
+                                        <small>Fetch latest CFA/EUR rates</small>
+                                    </div>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    
+                    <!-- Work Order Management -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-tools"></i>
+                            Work Orders
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('work_orders_list') }}">
+                                    <i class="bi bi-list-check"></i>
+                                    <div class="dropdown-item-content">
+                                        All Work Orders
+                                        <small>Complete work orders management</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('work_orders_analysis') }}">
+                                    <i class="bi bi-graph-up-arrow"></i>
+                                    <div class="dropdown-item-content">
+                                        WO Analysis
+                                        <small>Comprehensive work order analysis</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('enhanced_work_orders_analysis') }}">
+                                    <i class="bi bi-funnel-fill"></i>
+                                    <div class="dropdown-item-content">
+                                        Enhanced WO Analysis
+                                        <small>Advanced filters & category analysis</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('work_orders_powerbi') }}">
+                                    <i class="bi bi-bar-chart-line"></i>
+                                    <div class="dropdown-item-content">
+                                        PowerBI Analysis
+                                        <small>Advanced PowerBI-style insights</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('ai_work_order_analysis') }}">
+                                    <i class="bi bi-robot"></i>
+                                    <div class="dropdown-item-content">
+                                        AI Analysis
+                                        <small>AI-powered pattern recognition & insights</small>
+                                    </div>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    
+                    <!-- AI Intelligence Hub -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-brain"></i>
+                            AI Intelligence
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('ai_dashboard') }}">
+                                    <i class="bi bi-speedometer"></i>
+                                    <div class="dropdown-item-content">
+                                        AI Dashboard
+                                        <small>Unified AI insights & predictions</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('ai_work_order_analysis') }}">
+                                    <i class="bi bi-robot"></i>
+                                    <div class="dropdown-item-content">
+                                        Work Order AI
+                                        <small>AI-powered pattern recognition</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="/api/ai-dashboard/predictions" target="_blank">
+                                    <i class="bi bi-crystal-ball"></i>
+                                    <div class="dropdown-item-content">
+                                        Predictions API
+                                        <small>Real-time maintenance predictions</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="/api/ai-dashboard/health-scores" target="_blank">
+                                    <i class="bi bi-heart-pulse"></i>
+                                    <div class="dropdown-item-content">
+                                        Health Scores API
+                                        <small>Equipment health monitoring</small>
+                                    </div>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    
+                    <!-- Data Management -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-database"></i>
+                            Data Management
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('upload') }}">
+                                    <i class="bi bi-cloud-upload"></i>
+                                    <div class="dropdown-item-content">
+                                        Universal Upload
+                                        <small>Excel, CSV, TXT, PDF files</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('enhanced_upload') }}">
+                                    <i class="bi bi-gear"></i>
+                                    <div class="dropdown-item-content">
+                                        Enhanced Upload
+                                        <small>Advanced processing features</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('interactive_upload') }}">
+                                    <i class="bi bi-sliders"></i>
+                                    <div class="dropdown-item-content">
+                                        Interactive Upload
+                                        <small>Sheet selection and mapping</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('memory_upload') }}">
+                                    <i class="bi bi-memory"></i>
+                                    <div class="dropdown-item-content">
+                                        Memory Upload
+                                        <small>Fast in-memory processing</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('tables') }}">
+                                    <i class="bi bi-table"></i>
+                                    <div class="dropdown-item-content">
+                                        View All Tables
+                                        <small>Browse all database tables</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('data_grid') }}">
+                                    <i class="bi bi-grid"></i>
+                                    <div class="dropdown-item-content">
+                                        Data Grid
+                                        <small>Interactive data exploration</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('database_management') }}">
+                                    <i class="bi bi-server"></i>
+                                    <div class="dropdown-item-content">
+                                        Database Management
+                                        <small>Database administration</small>
+                                    </div>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    
+                    <!-- Analytics & Reports -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-graph-up"></i>
+                            Analytics
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('data_analysis') }}">
+                                    <i class="bi bi-bar-chart"></i>
+                                    <div class="dropdown-item-content">
+                                        Data Analysis
+                                        <small>Statistical analysis tools</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('graphs_analysis') }}">
+                                    <i class="bi bi-graph-up-arrow"></i>
+                                    <div class="dropdown-item-content">
+                                        Charts & Graphs
+                                        <small>Standard visualizations</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('advanced_charts') }}">
+                                    <i class="bi bi-diagram-2"></i>
+                                    <div class="dropdown-item-content">
+                                        Power BI Analytics
+                                        <small>Advanced visualizations</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('calculated_fields') }}">
+                                    <i class="bi bi-calculator"></i>
+                                    <div class="dropdown-item-content">
+                                        Calculated Fields
+                                        <small>Custom field calculations</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('relationships_new') }}">
+                                    <i class="bi bi-diagram-3"></i>
+                                    <div class="dropdown-item-content">
+                                        Relationships
+                                        <small>Data relationships and joins</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('report_builder') }}">
+                                    <i class="bi bi-file-plus"></i>
+                                    <div class="dropdown-item-content">
+                                        Report Builder
+                                        <small>Custom report generation</small>
+                                    </div>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    
+                    <!-- Mobile Search -->
+                    <li class="nav-item d-lg-none">
+                        <div class="nav-search">
+                            <input type="text" class="form-control" placeholder="Search navigation..." id="mobileNavSearch">
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content flex-grow-1">
+        <!-- Enhanced Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="container-fluid mt-3">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show animate-fadeInUp" role="alert">
+                            <div class="d-flex align-items-center">
+                                {% if category == 'success' %}
+                                    <i class="bi bi-check-circle-fill me-2"></i>
+                                {% elif category == 'error' or category == 'danger' %}
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                {% elif category == 'warning' %}
+                                    <i class="bi bi-exclamation-circle-fill me-2"></i>
+                                {% else %}
+                                    <i class="bi bi-info-circle-fill me-2"></i>
+                                {% endif %}
+                                <span>{{ message }}</span>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Page Content -->
+        <div class="container-fluid px-3 px-md-4">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Enhanced Footer -->
+    <footer class="bg-secondary text-center text-light py-4 mt-auto">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-8">
+                    <p class="mb-1">&copy; 2025 Local Database Administration (LDA). All rights reserved.</p>
+                    <p class="mb-0">
+                        <small>
+                            Developed with <i class="bi bi-heart-fill text-danger"></i> by 
+                            <strong class="text-warning">Mohsen Youssef</strong>
+                        </small>
+                    </p>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted">
+                        Version 2.0 | <a href="#" class="text-light">Documentation</a> | 
+                        <a href="#" class="text-light">Support</a>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/top-nav.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/universal-menu.js') }}"></script>
+    
+    <!-- Currency Management JavaScript -->
+    <script>
+        // Currency management functions
+        function loadCurrencyInfo() {
+            fetch('/api/currency/info')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const rateElement = document.getElementById('currencyRate');
+                        if (rateElement && data.currency_info) {
+                            const rate = data.currency_info.exchange_rate;
+                            const lastUpdate = data.currency_info.last_update;
+                            if (rate) {
+                                rateElement.innerHTML = `1 CFA = €${rate.toFixed(6)}<br><small>Updated: ${new Date(lastUpdate).toLocaleDateString()}</small>`;
+                            } else {
+                                rateElement.innerHTML = 'Rate unavailable';
+                            }
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading currency info:', error);
+                    const rateElement = document.getElementById('currencyRate');
+                    if (rateElement) {
+                        rateElement.innerHTML = 'Error loading rate';
+                    }
+                });
+        }
+        
+        function updateExchangeRate() {
+            // Show loading
+            const rateElement = document.getElementById('currencyRate');
+            if (rateElement) {
+                rateElement.innerHTML = 'Updating...';
+            }
+            
+            fetch('/api/currency/convert', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    amount: 1,
+                    from: 'XOF',
+                    to: 'EUR',
+                    force_update: true
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload currency info
+                    loadCurrencyInfo();
+                    // Show success message
+                    showAlert('success', 'Exchange rate updated successfully!');
+                } else {
+                    showAlert('danger', 'Failed to update exchange rate: ' + data.error);
+                    loadCurrencyInfo(); // Restore previous display
+                }
+            })
+            .catch(error => {
+                console.error('Error updating exchange rate:', error);
+                showAlert('danger', 'Error updating exchange rate');
+                loadCurrencyInfo(); // Restore previous display
+            });
+        }
+        
+        function showAlert(type, message) {
+            // Create and show a temporary alert
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alert.style.cssText = 'top: 80px; right: 20px; z-index: 1060; min-width: 300px;';
+            alert.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alert);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.parentNode.removeChild(alert);
+                }
+            }, 5000);
+        }
+        
+        // Load currency info when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCurrencyInfo();
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

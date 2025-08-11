@@ -1,0 +1,862 @@
+{% extends "base.html" %}
+
+{% block title %}Database Management{% endblock %}
+
+{% block head %}
+<style>
+.database-card {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: var(--background-color);
+}
+
+.database-card.current {
+    border-color: var(--primary-color);
+    background: var(--primary-color-light, rgba(0, 123, 255, 0.1));
+}
+
+.table-management {
+    margin-top: 2rem;
+}
+
+.table-item {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--background-color);
+    transition: box-shadow 0.2s ease;
+}
+
+.table-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.table-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.progress-container {
+    margin-top: 1rem;
+    display: none;
+}
+
+.progress {
+    height: 25px;
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #007bff, #0056b3);
+    transition: width 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 500;
+    position: relative;
+}
+
+.progress-text {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    color: #495057;
+    font-weight: 500;
+    z-index: 1;
+}
+
+.progress-stage {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #6c757d;
+    text-align: center;
+}
+
+.progress-spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 0.5rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    background-color: var(--input-background, #fff);
+    color: var(--text-color);
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: auto;
+}
+
+.database-stats {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+}
+
+.current-badge {
+    background-color: var(--success-color, #28a745);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.table-info {
+    flex-grow: 1;
+    margin-right: 1rem;
+}
+
+.table-info h5 {
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.table-meta {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.table-meta i {
+    margin-right: 0.25rem;
+    width: 12px;
+    text-align: center;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Information Banner -->
+    <div class="alert alert-info" role="alert">
+        <div class="d-flex align-items-start">
+            <i class="fas fa-info-circle me-2 mt-1"></i>
+            <div>
+                <strong>Multi-Database Access:</strong> 
+                For analyzing data across different databases, use the 
+                <a href="/data-analysis" class="alert-link"><strong>Data Analysis</strong></a> feature 
+                which supports selecting and analyzing data from any available database.
+                <br>
+                <small class="text-muted">Database switching in this management interface has limitations for technical reasons.</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2>Database Management</h2>
+                    <p class="text-muted mb-0">Manage databases and tables</p>
+                    {% for db in databases %}
+                        {% if db.is_current %}
+                        <div class="mt-2">
+                            <span class="text-primary fw-bold">Current Database: {{ db.display_name }}</span>
+                            <span class="badge bg-primary ms-2">Active</span>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <div>
+                    <button class="btn btn-primary" onclick="showCreateDatabaseModal()">
+                        <i class="fas fa-plus"></i> Create New Database
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database List -->
+    <div class="row">
+        <div class="col-12">
+            <h4>Available Databases</h4>
+            <div id="database-list">
+                {% for db in databases %}
+                <div class="database-card {% if db.is_current %}current{% endif %}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h5 class="mb-1">
+                                {{ db.display_name }}
+                                {% if db.is_current %}
+                                <span class="current-badge">Current</span>
+                                {% endif %}
+                            </h5>
+                            <div class="database-stats">
+                                <span><i class="fas fa-table"></i> {{ db.table_count }} tables</span> |
+                                <span><i class="fas fa-hdd"></i> {{ db.size_formatted }}</span> |
+                                <span><i class="fas fa-clock"></i> Modified {{ db.modified.strftime('%Y-%m-%d %H:%M') }}</span>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            {% if not db.is_current %}
+                            <button class="btn btn-sm btn-outline-secondary" 
+                                    onclick="switchDatabase('{{ db.name }}')"
+                                    title="Switch to this database as the active database">
+                                <i class="fas fa-exchange-alt"></i> Switch
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="showDeleteDatabaseModal('{{ db.name }}')">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                            {% else %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check"></i> Current Database
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Management -->
+    <div class="table-management">
+        <div class="row">
+            <div class="col-12">
+                <h4>Tables in Current Database</h4>
+                {% if tables %}
+                <div id="table-list">
+                    {% for table in tables %}
+                    <div class="table-item">
+                        <div class="table-info">
+                            <h5 class="mb-1">{{ table.table_name }}</h5>
+                            <div class="table-meta">
+                                <span><i class="fas fa-table"></i> {{ table.row_count }} rows</span> |
+                                <span><i class="fas fa-columns"></i> {{ table.column_count }} columns</span>
+                                {% if table.original_filename %}
+                                | <span><i class="fas fa-file"></i> From: {{ table.original_filename }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="table-actions">
+                            <a href="{{ url_for('view_table', table_name=table.table_name) }}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-eye"></i> View Data
+                            </a>
+                            <button class="btn btn-sm btn-outline-primary" onclick="showRenameTableModal('{{ table.table_name }}')">
+                                <i class="fas fa-edit"></i> Rename
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="showDuplicateTableModal('{{ table.table_name }}')">
+                                <i class="fas fa-copy"></i> Duplicate
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="showMoveTableModal('{{ table.table_name }}')">
+                                <i class="fas fa-exchange-alt"></i> Move
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="showDeleteTableModal('{{ table.table_name }}')">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No tables found in the current database. 
+                    <a href="{{ url_for('upload') }}" class="alert-link">Upload a file</a> to create your first table.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Database Modal -->
+<div class="modal fade" id="createDatabaseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Database</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createDatabaseForm">
+                    <div class="form-group">
+                        <label for="databaseName">Database Name</label>
+                        <input type="text" class="form-control" id="databaseName" required>
+                        <small class="form-text text-muted">Enter a name for the new database (extension .db will be added automatically)</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createDatabase()">Create Database</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Database Modal -->
+<div class="modal fade" id="deleteDatabaseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Database</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the database <strong id="deleteDbName"></strong>?</p>
+                <p class="text-danger"><strong>Warning:</strong> This action cannot be undone. A backup will be created before deletion.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="deleteDatabase()">Delete Database</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rename Table Modal -->
+<div class="modal fade" id="renameTableModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Rename Table</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="renameTableForm">
+                    <div class="form-group">
+                        <label for="currentTableName">Current Name</label>
+                        <input type="text" class="form-control" id="currentTableName" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="newTableName">New Name</label>
+                        <input type="text" class="form-control" id="newTableName" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="renameTable()">Rename Table</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Duplicate Table Modal -->
+<div class="modal fade" id="duplicateTableModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Duplicate Table</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="duplicateTableForm">
+                    <div class="form-group">
+                        <label for="sourceTableName">Source Table</label>
+                        <input type="text" class="form-control" id="sourceTableName" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="targetTableName">Target Table Name</label>
+                        <input type="text" class="form-control" id="targetTableName" required>
+                    </div>
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="copyData" checked>
+                            <label for="copyData">Copy data (uncheck to copy structure only)</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="duplicateTable()">Duplicate Table</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Table Modal -->
+<div class="modal fade" id="deleteTableModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Table</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the table <strong id="deleteTableName"></strong>?</p>
+                <p class="text-danger"><strong>Warning:</strong> This action cannot be undone. All data will be permanently lost.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="deleteTable()">Delete Table</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Move Table Modal -->
+<div class="modal fade" id="moveTableModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Move Table to Database</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="moveTableName">Table to Move:</label>
+                    <input type="text" class="form-control" id="moveTableName" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="targetDatabase">Target Database:</label>
+                    <select class="form-control" id="targetDatabase">
+                        <option value="">Select target database...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="moveAction" id="moveTable" value="move" checked>
+                        <label class="form-check-label" for="moveTable">
+                            <strong>Move Table</strong> (remove from current database)
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="moveAction" id="copyTable" value="copy">
+                        <label class="form-check-label" for="copyTable">
+                            <strong>Copy Table</strong> (keep in current database)
+                        </label>
+                    </div>
+                </div>
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> Make sure the target database doesn't already contain a table with the same name.
+                </div>
+                
+                <!-- Progress Container -->
+                <div class="progress-container" id="moveProgressContainer">
+                    <div class="progress">
+                        <div class="progress-text" id="moveProgressText">0%</div>
+                        <div class="progress-bar" id="moveProgressBar" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-stage" id="moveProgressStage">Preparing...</div>
+                </div>
+            </div>
+            <div class="modal-footer" id="moveModalFooter">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="moveTable()" id="moveTableBtn">Proceed</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentDatabaseToDelete = '';
+let currentTableToDelete = '';
+
+function showCreateDatabaseModal() {
+    document.getElementById('databaseName').value = '';
+    new bootstrap.Modal(document.getElementById('createDatabaseModal')).show();
+}
+
+function showDeleteDatabaseModal(dbName) {
+    currentDatabaseToDelete = dbName;
+    document.getElementById('deleteDbName').textContent = dbName;
+    new bootstrap.Modal(document.getElementById('deleteDatabaseModal')).show();
+}
+
+function showRenameTableModal(tableName) {
+    document.getElementById('currentTableName').value = tableName;
+    document.getElementById('newTableName').value = '';
+    new bootstrap.Modal(document.getElementById('renameTableModal')).show();
+}
+
+function showDuplicateTableModal(tableName) {
+    document.getElementById('sourceTableName').value = tableName;
+    document.getElementById('targetTableName').value = tableName + '_copy';
+    document.getElementById('copyData').checked = true;
+    new bootstrap.Modal(document.getElementById('duplicateTableModal')).show();
+}
+
+function showDeleteTableModal(tableName) {
+    currentTableToDelete = tableName;
+    document.getElementById('deleteTableName').textContent = tableName;
+    new bootstrap.Modal(document.getElementById('deleteTableModal')).show();
+}
+
+async function createDatabase() {
+    const name = document.getElementById('databaseName').value.trim();
+    if (!name) {
+        alert('Please enter a database name');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/database/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert(result.message);
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error creating database: ' + error.message);
+    }
+}
+
+async function switchDatabase(dbName) {
+    if (!confirm(`Switch to database "${dbName}"? This will reload the page.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/database/switch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: dbName })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert(result.message);
+            // Force a full page reload to apply database changes
+            window.location.href = '/database-management';
+        } else {
+            alert('Error switching database: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error switching database:', error);
+        alert('Error switching database: ' + error.message);
+    }
+}
+
+async function deleteDatabase() {
+    try {
+        const response = await fetch('/api/database/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: currentDatabaseToDelete, confirm: true })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert(result.message);
+            bootstrap.Modal.getInstance(document.getElementById('deleteDatabaseModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error deleting database: ' + error.message);
+    }
+}
+
+async function renameTable() {
+    const oldName = document.getElementById('currentTableName').value;
+    const newName = document.getElementById('newTableName').value.trim();
+    
+    if (!newName) {
+        alert('Please enter a new table name');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/table/rename', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ old_name: oldName, new_name: newName })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert(result.message);
+            bootstrap.Modal.getInstance(document.getElementById('renameTableModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error renaming table: ' + error.message);
+    }
+}
+
+async function duplicateTable() {
+    const sourceName = document.getElementById('sourceTableName').value;
+    const targetName = document.getElementById('targetTableName').value.trim();
+    const copyData = document.getElementById('copyData').checked;
+    
+    if (!targetName) {
+        alert('Please enter a target table name');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/table/duplicate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                source_name: sourceName, 
+                target_name: targetName, 
+                copy_data: copyData 
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert(result.message);
+            bootstrap.Modal.getInstance(document.getElementById('duplicateTableModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error duplicating table: ' + error.message);
+    }
+}
+
+async function deleteTable() {
+    if (!currentTableToDelete) {
+        alert('No table selected for deletion');
+        return;
+    }
+    
+    try {
+        console.log('Deleting table:', currentTableToDelete);
+        
+        const response = await fetch('/api/table/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                table_name: currentTableToDelete, 
+                confirm: true 
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('Delete result:', result);
+        
+        if (result.success) {
+            alert(result.message || 'Table deleted successfully');
+            bootstrap.Modal.getInstance(document.getElementById('deleteTableModal')).hide();
+            location.reload();
+        } else {
+            alert('Error deleting table: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error deleting table:', error);
+        alert('Error deleting table: ' + error.message);
+    }
+}
+
+function showMoveTableModal(tableName) {
+    document.getElementById('moveTableName').value = tableName;
+    document.getElementById('moveTable').checked = true;
+    
+    // Load available databases
+    loadDatabasesForMove();
+    
+    new bootstrap.Modal(document.getElementById('moveTableModal')).show();
+}
+
+async function loadDatabasesForMove() {
+    try {
+        const response = await fetch('/api/database/list');
+        const result = await response.json();
+        
+        if (result.success) {
+            const select = document.getElementById('targetDatabase');
+            select.innerHTML = '<option value="">Select target database...</option>';
+            
+            result.databases.forEach(db => {
+                const dbName = db.name.replace('.db', '');
+                // Don't include current database in the list
+                if (!db.current) {
+                    const option = document.createElement('option');
+                    option.value = dbName;
+                    option.textContent = `${dbName} (${db.table_count} tables, ${db.size})`;
+                    select.appendChild(option);
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error loading databases:', error);
+        alert('Error loading databases: ' + error.message);
+    }
+}
+
+async function moveTable() {
+    const tableName = document.getElementById('moveTableName').value;
+    const targetDatabase = document.getElementById('targetDatabase').value;
+    const action = document.querySelector('input[name="moveAction"]:checked').value;
+    
+    if (!tableName || !targetDatabase) {
+        alert('Please select a target database');
+        return;
+    }
+    
+    if (!confirm(`${action === 'move' ? 'Move' : 'Copy'} table "${tableName}" to database "${targetDatabase}"?`)) {
+        return;
+    }
+
+    // Show progress container and disable buttons
+    const progressContainer = document.getElementById('moveProgressContainer');
+    const progressBar = document.getElementById('moveProgressBar');
+    const progressText = document.getElementById('moveProgressText');
+    const progressStage = document.getElementById('moveProgressStage');
+    const moveButton = document.getElementById('moveTableBtn');
+    
+    progressContainer.style.display = 'block';
+    moveButton.disabled = true;
+    moveButton.innerHTML = '<span class="progress-spinner"></span>Processing...';
+    
+    try {
+        // Start the move operation
+        const response = await fetch('/api/table/move', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                table_name: tableName,
+                target_database: targetDatabase,
+                action: action
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.operation_id) {
+            // Start polling for progress updates
+            const operationId = result.operation_id;
+            const pollInterval = setInterval(async () => {
+                try {
+                    const progressResponse = await fetch(`/api/progress/${operationId}`);
+                    const progressResult = await progressResponse.json();
+                    
+                    if (progressResult.success && progressResult.progress) {
+                        const progress = progressResult.progress;
+                        
+                        // Update progress bar
+                        progressBar.style.width = `${progress.percent}%`;
+                        progressText.textContent = `${progress.percent}%`;
+                        progressStage.textContent = progress.message || progress.stage;
+                        
+                        // Check if operation is complete
+                        if (progress.stage === 'complete') {
+                            clearInterval(pollInterval);
+                            setTimeout(() => {
+                                alert(`Success: ${progress.message}`);
+                                bootstrap.Modal.getInstance(document.getElementById('moveTableModal')).hide();
+                                location.reload();
+                            }, 1000);
+                        } else if (progress.stage === 'error') {
+                            clearInterval(pollInterval);
+                            progressBar.style.background = 'linear-gradient(90deg, #dc3545, #b02a37)';
+                            setTimeout(() => {
+                                alert(`Error: ${progress.message}`);
+                                resetMoveModal();
+                            }, 1000);
+                        }
+                    } else {
+                        // Operation not found or completed
+                        clearInterval(pollInterval);
+                        alert('Operation completed or not found');
+                        resetMoveModal();
+                    }
+                } catch (error) {
+                    console.error('Error polling progress:', error);
+                    clearInterval(pollInterval);
+                    resetMoveModal();
+                }
+            }, 1000); // Poll every second
+            
+        } else {
+            alert('Error starting operation: ' + (result.error || 'Unknown error'));
+            resetMoveModal();
+        }
+    } catch (error) {
+        alert('Error starting table move operation: ' + error.message);
+        resetMoveModal();
+    }
+}
+
+function resetMoveModal() {
+    const progressContainer = document.getElementById('moveProgressContainer');
+    const progressBar = document.getElementById('moveProgressBar');
+    const progressText = document.getElementById('moveProgressText');
+    const progressStage = document.getElementById('moveProgressStage');
+    const moveButton = document.getElementById('moveTableBtn');
+    
+    progressContainer.style.display = 'none';
+    progressBar.style.width = '0%';
+    progressBar.style.background = 'linear-gradient(90deg, #007bff, #0056b3)';
+    progressText.textContent = '0%';
+    progressStage.textContent = 'Preparing...';
+    moveButton.disabled = false;
+    moveButton.innerHTML = 'Proceed';
+}
+
+// Reset modal when it's closed
+document.getElementById('moveTableModal').addEventListener('hidden.bs.modal', function () {
+    resetMoveModal();
+});
+
+</script>
+{% endblock %}

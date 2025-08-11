@@ -1,0 +1,1034 @@
+{% extends "base.html" %}
+
+{% block title %}Data Grid - LDA{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Enhanced Data Grid Styling */
+.grid-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-radius: 15px;
+}
+
+.spreadsheet-container {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.formula-bar {
+    background: #f8f9fa;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.name-box {
+    width: 80px;
+    font-family: monospace;
+    font-weight: bold;
+    background: white;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 0.375rem 0.5rem;
+    text-align: center;
+}
+
+.formula-input {
+    flex: 1;
+    font-family: monospace;
+    background: white;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 0.375rem 0.75rem;
+}
+
+.grid-toolbar {
+    background: #f8f9fa;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-right: 1rem;
+    padding-right: 1rem;
+    border-right: 1px solid #dee2e6;
+}
+
+.toolbar-button {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 0.375rem 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+}
+
+.toolbar-button:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.toolbar-button.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.data-grid {
+    overflow: auto;
+    max-height: 600px;
+    background: white;
+}
+
+.grid-table {
+    width: 100%;
+    margin: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.grid-table th,
+.grid-table td {
+    border: 1px solid #e1e5e9;
+    padding: 0;
+    margin: 0;
+    position: relative;
+    min-width: 80px;
+    height: 25px;
+}
+
+.grid-table th {
+    background: #f8f9fa;
+    color: #495057;
+    font-weight: 600;
+    text-align: center;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-bottom: 2px solid #dee2e6;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.row-header {
+    background: #f8f9fa !important;
+    color: #495057;
+    font-weight: 600;
+    text-align: center;
+    font-size: 0.75rem;
+    width: 50px;
+    min-width: 50px;
+    max-width: 50px;
+    position: sticky;
+    left: 0;
+    z-index: 5;
+}
+
+.grid-cell {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    outline: none;
+    resize: none;
+}
+
+.grid-cell:focus {
+    background: #fff3cd;
+    border: 2px solid #007bff;
+    z-index: 1;
+}
+
+.selected-cell {
+    background: #e3f2fd !important;
+    border: 2px solid #007bff !important;
+}
+
+.column-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 4px;
+    height: 100%;
+    background: transparent;
+    cursor: col-resize;
+    z-index: 2;
+}
+
+.column-resize-handle:hover {
+    background: #007bff;
+}
+
+.context-menu {
+    position: fixed;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    min-width: 150px;
+    display: none;
+}
+
+.context-menu-item {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.context-menu-item:hover {
+    background: #f8f9fa;
+}
+
+.context-menu-item:last-child {
+    border-bottom: none;
+}
+
+.grid-status {
+    background: #f8f9fa;
+    padding: 0.5rem 1rem;
+    border-top: 1px solid #dee2e6;
+    font-size: 0.75rem;
+    color: #6c757d;
+    display: flex;
+    justify-content: between;
+    align-items: center;
+}
+
+.formula-suggestions {
+    position: absolute;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+}
+
+.formula-suggestion {
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+.formula-suggestion:hover {
+    background: #f8f9fa;
+}
+
+.data-type-indicator {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.type-number { background: #007bff; }
+.type-text { background: #28a745; }
+.type-date { background: #ffc107; }
+.type-boolean { background: #6f42c1; }
+.type-formula { background: #dc3545; }
+
+@media (max-width: 768px) {
+    .grid-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .toolbar-group {
+        border-right: none;
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="grid-header text-center">
+    <div class="container">
+        <h1 class="display-4 mb-3">
+            <i class="bi bi-grid me-3"></i>
+            Excel-Style Data Grid
+        </h1>
+        <p class="lead">Edit data with familiar spreadsheet functionality</p>
+    </div>
+</div>
+
+<!-- Data Source Selection -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <label for="databaseSelect" class="form-label fw-bold">
+            <i class="bi bi-database"></i> Database:
+        </label>
+        <select id="databaseSelect" class="form-select" onchange="loadTables()">
+            {% if databases %}
+                {% for db in databases %}
+                    <option value="{{ db }}" {% if loop.first %}selected{% endif %}>{{ db }}</option>
+                {% endfor %}
+            {% else %}
+                <option value="excel_data" selected>excel_data</option>
+            {% endif %}
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label for="tableSelect" class="form-label fw-bold">
+            <i class="bi bi-table"></i> Table:
+        </label>
+        <select id="tableSelect" class="form-select" onchange="loadTableData()">
+            <option value="">Select table...</option>
+            {% if tables %}
+                {% for table in tables %}
+                    <option value="{{ table.table_name or table.name or table }}">
+                        {{ table.table_name or table.name or table }} 
+                        {% if table.row_count %}({{ "{:,}".format(table.row_count) }} rows){% endif %}
+                    </option>
+                {% endfor %}
+            {% endif %}
+        </select>
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <button class="btn btn-primary" onclick="refreshData()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+        <button class="btn btn-success ms-2" onclick="saveChanges()">
+            <i class="bi bi-save"></i> Save
+        </button>
+    </div>
+</div>
+
+<!-- Spreadsheet Container -->
+<div class="spreadsheet-container">
+    <!-- Formula Bar -->
+    <div class="formula-bar">
+        <input type="text" class="name-box" id="nameBox" value="A1" readonly>
+        <div style="position: relative; flex: 1;">
+            <input type="text" class="formula-input" id="formulaInput" placeholder="Enter data or formula..." 
+                   onkeydown="handleFormulaInput(event)" oninput="showFormulaSuggestions(this.value)">
+            <div class="formula-suggestions" id="formulaSuggestions"></div>
+        </div>
+        <button class="btn btn-outline-primary btn-sm" onclick="insertFunction()">
+            <i class="bi bi-calculator"></i> fx
+        </button>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="grid-toolbar">
+        <div class="toolbar-group">
+            <button class="toolbar-button" onclick="formatBold()" title="Bold">
+                <i class="bi bi-type-bold"></i>
+            </button>
+            <button class="toolbar-button" onclick="formatItalic()" title="Italic">
+                <i class="bi bi-type-italic"></i>
+            </button>
+            <button class="toolbar-button" onclick="formatUnderline()" title="Underline">
+                <i class="bi bi-type-underline"></i>
+            </button>
+        </div>
+        <div class="toolbar-group">
+            <button class="toolbar-button" onclick="alignLeft()" title="Align Left">
+                <i class="bi bi-text-left"></i>
+            </button>
+            <button class="toolbar-button" onclick="alignCenter()" title="Align Center">
+                <i class="bi bi-text-center"></i>
+            </button>
+            <button class="toolbar-button" onclick="alignRight()" title="Align Right">
+                <i class="bi bi-text-right"></i>
+            </button>
+        </div>
+        <div class="toolbar-group">
+            <select class="form-select form-select-sm" onchange="changeDataType(this.value)" style="width: auto;">
+                <option value="auto">Auto</option>
+                <option value="text">Text</option>
+                <option value="number">Number</option>
+                <option value="date">Date</option>
+                <option value="formula">Formula</option>
+            </select>
+        </div>
+        <div class="toolbar-group">
+            <button class="toolbar-button" onclick="insertRow()" title="Insert Row">
+                <i class="bi bi-plus-square"></i> Row
+            </button>
+            <button class="toolbar-button" onclick="insertColumn()" title="Insert Column">
+                <i class="bi bi-plus-square"></i> Column
+            </button>
+        </div>
+        <div class="toolbar-group">
+            <button class="toolbar-button" onclick="deleteRow()" title="Delete Row">
+                <i class="bi bi-dash-square"></i> Row
+            </button>
+            <button class="toolbar-button" onclick="deleteColumn()" title="Delete Column">
+                <i class="bi bi-dash-square"></i> Column
+            </button>
+        </div>
+    </div>
+
+    <!-- Data Grid -->
+    <div class="data-grid" id="dataGrid">
+        <table class="grid-table" id="gridTable">
+            <thead>
+                <tr id="headerRow">
+                    <th class="row-header"></th>
+                    <!-- Column headers will be generated dynamically -->
+                </tr>
+            </thead>
+            <tbody id="gridBody">
+                <!-- Data rows will be generated dynamically -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="grid-status">
+        <div>
+            <span id="cellInfo">Ready</span>
+        </div>
+        <div>
+            <span id="rowCount">Rows: 0</span> |
+            <span id="colCount">Columns: 0</span> |
+            <span id="selectedRange">Selected: A1</span>
+        </div>
+    </div>
+</div>
+
+<!-- Context Menu -->
+<div class="context-menu" id="contextMenu">
+    <div class="context-menu-item" onclick="cutCell()">
+        <i class="bi bi-scissors"></i> Cut
+    </div>
+    <div class="context-menu-item" onclick="copyCell()">
+        <i class="bi bi-files"></i> Copy
+    </div>
+    <div class="context-menu-item" onclick="pasteCell()">
+        <i class="bi bi-clipboard"></i> Paste
+    </div>
+    <div class="context-menu-item" onclick="clearCell()">
+        <i class="bi bi-eraser"></i> Clear
+    </div>
+    <hr style="margin: 0.25rem 0;">
+    <div class="context-menu-item" onclick="insertRowAbove()">
+        <i class="bi bi-plus"></i> Insert Row Above
+    </div>
+    <div class="context-menu-item" onclick="insertRowBelow()">
+        <i class="bi bi-plus"></i> Insert Row Below
+    </div>
+    <div class="context-menu-item" onclick="insertColumnLeft()">
+        <i class="bi bi-plus"></i> Insert Column Left
+    </div>
+    <div class="context-menu-item" onclick="insertColumnRight()">
+        <i class="bi bi-plus"></i> Insert Column Right
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Initialize server data in a separate script block -->
+<script type="application/json" id="serverData">
+{
+    "databases": {{ (databases|tojson) if databases else '["excel_data"]'|safe }},
+    "tables": {{ (tables|tojson) if tables else '[]'|safe }}
+}
+</script>
+
+<script>
+// Initialize server data from JSON
+window.serverData = JSON.parse(document.getElementById('serverData').textContent);
+
+let currentDatabase = null;
+let currentTable = null;
+let gridData = [];
+let columns = [];
+let selectedCell = null;
+let clipboard = null;
+let isEditing = false;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Set the current database from server-side data
+    currentDatabase = window.serverData.databases[0] || 'excel_data';
+    
+    setupEventListeners();
+    
+    // If we have tables from server, don't create empty grid
+    if (window.serverData.tables && window.serverData.tables.length > 0) {
+        console.log('Tables available:', window.serverData.tables);
+        // Tables are already populated in the dropdown
+    } else {
+        createEmptyGrid();
+    }
+});
+
+function setupEventListeners() {
+    // Hide context menu on click outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.context-menu')) {
+            hideContextMenu();
+        }
+    });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey) {
+            switch(e.key) {
+                case 'c':
+                    e.preventDefault();
+                    copyCell();
+                    break;
+                case 'v':
+                    e.preventDefault();
+                    pasteCell();
+                    break;
+                case 'x':
+                    e.preventDefault();
+                    cutCell();
+                    break;
+                case 's':
+                    e.preventDefault();
+                    saveChanges();
+                    break;
+            }
+        }
+    });
+}
+
+async function loadDatabases() {
+    try {
+        // Set your main database directly
+        const select = document.getElementById('databaseSelect');
+        select.innerHTML = '<option value="excel_data" selected>excel_data</option>';
+        
+        // Set current database and load tables immediately
+        currentDatabase = 'excel_data';
+        loadTables();
+        
+    } catch (error) {
+        console.error('Error loading databases:', error);
+        // Fallback
+        const select = document.getElementById('databaseSelect');
+        select.innerHTML = '<option value="excel_data" selected>excel_data</option>';
+        currentDatabase = 'excel_data';
+        loadTables();
+    }
+}
+
+async function loadTables() {
+    const databaseSelect = document.getElementById('databaseSelect');
+    currentDatabase = databaseSelect.value;
+    
+    if (!currentDatabase) return;
+    
+    try {
+        // Use your existing API endpoint to get tables
+        const response = await fetch('/api/tables/existing');
+        const data = await response.json();
+        
+        if (data.success) {
+            const select = document.getElementById('tableSelect');
+            select.innerHTML = '<option value="">Select table...</option>';
+            
+            data.tables.forEach(table => {
+                const tableName = table.table_name || table.name || table;
+                const rowCount = table.row_count || 0;
+                select.innerHTML += `<option value="${tableName}">${tableName} (${rowCount} rows)</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('Error loading tables:', error);
+        // Try fallback for static table list
+        const select = document.getElementById('tableSelect');
+        select.innerHTML = '<option value="">Select table...</option>';
+        
+        // Add your known tables
+        const knownTables = [
+            {name: 'po', rows: '5,185'}, 
+            {name: 'PR', rows: '904'}, 
+            {name: 'Stock', rows: '15,730'}, 
+            {name: 'Annual', rows: '5,868'}, 
+            {name: 'summary', rows: '0'}
+        ];
+        knownTables.forEach(table => {
+            select.innerHTML += `<option value="${table.name}">${table.name} (${table.rows} rows)</option>`;
+        });
+    }
+}
+
+async function loadTableData() {
+    const tableSelect = document.getElementById('tableSelect');
+    currentTable = tableSelect.value;
+    
+    if (!currentTable || !currentDatabase) return;
+    
+    try {
+        // Use your existing API endpoint to get table data
+        const response = await fetch(`/api/tables/${currentTable}/data?page=1&per_page=100`);
+        const tableData = await response.json();
+        
+        if (tableData.success && tableData.data) {
+            gridData = tableData.data;
+            
+            // Extract columns from first row if available
+            if (gridData.length > 0) {
+                columns = Object.keys(gridData[0]).map(key => ({
+                    name: key,
+                    type: 'TEXT'
+                }));
+            }
+            
+            renderGrid();
+            updateStatusBar();
+            showMessage(`Loaded ${gridData.length} rows from ${currentTable}`, 'success');
+        } else {
+            showMessage('No data found in table: ' + currentTable, 'warning');
+            createEmptyGrid();
+        }
+    } catch (error) {
+        console.error('Error loading table data:', error);
+        showMessage('Error loading table data: ' + error.message, 'error');
+        
+        // Fallback - create empty grid
+        createEmptyGrid();
+    }
+}
+
+function createEmptyGrid() {
+    // Create a basic empty grid for demo
+    columns = Array.from({length: 10}, (_, i) => ({
+        name: String.fromCharCode(65 + i),
+        type: 'TEXT'
+    }));
+    
+    gridData = Array.from({length: 20}, () => 
+        columns.reduce((row, col) => ({ ...row, [col.name]: '' }), {})
+    );
+    
+    renderGrid();
+    updateStatusBar();
+}
+
+function renderGrid() {
+    const headerRow = document.getElementById('headerRow');
+    const gridBody = document.getElementById('gridBody');
+    
+    // Clear existing content
+    headerRow.innerHTML = '<th class="row-header"></th>';
+    gridBody.innerHTML = '';
+    
+    // Create column headers
+    columns.forEach((col, index) => {
+        const th = document.createElement('th');
+        th.textContent = col.name;
+        th.onclick = () => selectColumn(index);
+        
+        // Add resize handle
+        const resizeHandle = document.createElement('div');
+        resizeHandle.className = 'column-resize-handle';
+        th.appendChild(resizeHandle);
+        
+        headerRow.appendChild(th);
+    });
+    
+    // Create data rows
+    gridData.forEach((row, rowIndex) => {
+        const tr = document.createElement('tr');
+        
+        // Row header
+        const rowHeader = document.createElement('td');
+        rowHeader.className = 'row-header';
+        rowHeader.textContent = rowIndex + 1;
+        rowHeader.onclick = () => selectRow(rowIndex);
+        tr.appendChild(rowHeader);
+        
+        // Data cells
+        columns.forEach((col, colIndex) => {
+            const td = document.createElement('td');
+            td.style.position = 'relative';
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'grid-cell';
+            input.value = row[col.name] || '';
+            input.dataset.row = rowIndex;
+            input.dataset.col = colIndex;
+            input.oncontextmenu = (e) => showContextMenu(e, rowIndex, colIndex);
+            input.onfocus = () => selectCell(rowIndex, colIndex);
+            input.oninput = (e) => updateCellValue(rowIndex, colIndex, e.target.value);
+            input.onkeydown = (e) => handleCellKeyDown(e, rowIndex, colIndex);
+            
+            // Add data type indicator
+            const typeIndicator = document.createElement('div');
+            typeIndicator.className = `data-type-indicator type-${detectDataType(input.value)}`;
+            td.appendChild(typeIndicator);
+            
+            td.appendChild(input);
+            tr.appendChild(td);
+        });
+        
+        gridBody.appendChild(tr);
+    });
+}
+
+function selectCell(row, col) {
+    // Clear previous selection
+    document.querySelectorAll('.selected-cell').forEach(cell => {
+        cell.classList.remove('selected-cell');
+    });
+    
+    // Select new cell
+    const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+    if (cell) {
+        cell.classList.add('selected-cell');
+        selectedCell = { row, col };
+        
+        // Update name box and formula input
+        const cellAddress = getCellAddress(row, col);
+        document.getElementById('nameBox').value = cellAddress;
+        document.getElementById('formulaInput').value = cell.value;
+        
+        updateStatusBar();
+    }
+}
+
+function getCellAddress(row, col) {
+    return columns[col]?.name + (row + 1);
+}
+
+function detectDataType(value) {
+    if (value === '') return 'text';
+    if (value.startsWith('=')) return 'formula';
+    if (!isNaN(value) && !isNaN(parseFloat(value))) return 'number';
+    if (Date.parse(value)) return 'date';
+    return 'text';
+}
+
+function updateCellValue(row, col, value) {
+    if (gridData[row] && columns[col]) {
+        gridData[row][columns[col].name] = value;
+        
+        // Update type indicator
+        const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+        const typeIndicator = cell.parentNode.querySelector('.data-type-indicator');
+        typeIndicator.className = `data-type-indicator type-${detectDataType(value)}`;
+    }
+}
+
+function handleCellKeyDown(e, row, col) {
+    switch(e.key) {
+        case 'Enter':
+            e.preventDefault();
+            selectCell(row + 1 < gridData.length ? row + 1 : row, col);
+            break;
+        case 'Tab':
+            e.preventDefault();
+            selectCell(row, col + 1 < columns.length ? col + 1 : col);
+            break;
+        case 'ArrowUp':
+            if (!isEditing) {
+                e.preventDefault();
+                selectCell(row - 1 >= 0 ? row - 1 : row, col);
+            }
+            break;
+        case 'ArrowDown':
+            if (!isEditing) {
+                e.preventDefault();
+                selectCell(row + 1 < gridData.length ? row + 1 : row, col);
+            }
+            break;
+        case 'ArrowLeft':
+            if (!isEditing) {
+                e.preventDefault();
+                selectCell(row, col - 1 >= 0 ? col - 1 : col);
+            }
+            break;
+        case 'ArrowRight':
+            if (!isEditing) {
+                e.preventDefault();
+                selectCell(row, col + 1 < columns.length ? col + 1 : col);
+            }
+            break;
+        case 'Delete':
+            updateCellValue(row, col, '');
+            e.target.value = '';
+            break;
+    }
+}
+
+function handleFormulaInput(e) {
+    if (e.key === 'Enter' && selectedCell) {
+        const value = e.target.value;
+        const cell = document.querySelector(`[data-row="${selectedCell.row}"][data-col="${selectedCell.col}"]`);
+        if (cell) {
+            cell.value = value;
+            updateCellValue(selectedCell.row, selectedCell.col, value);
+        }
+    }
+}
+
+function showFormulaSuggestions(value) {
+    const suggestions = document.getElementById('formulaSuggestions');
+    
+    if (value.startsWith('=')) {
+        const functions = ['SUM', 'AVERAGE', 'COUNT', 'MAX', 'MIN', 'IF', 'VLOOKUP', 'CONCATENATE'];
+        const filtered = functions.filter(fn => fn.toLowerCase().includes(value.substring(1).toLowerCase()));
+        
+        if (filtered.length > 0) {
+            suggestions.innerHTML = filtered.map(fn => 
+                `<div class="formula-suggestion" onclick="insertFormula('${fn}')">=` + fn + `()</div>`
+            ).join('');
+            suggestions.style.display = 'block';
+        } else {
+            suggestions.style.display = 'none';
+        }
+    } else {
+        suggestions.style.display = 'none';
+    }
+}
+
+function insertFormula(functionName) {
+    const formulaInput = document.getElementById('formulaInput');
+    formulaInput.value = `=${functionName}()`;
+    formulaInput.focus();
+    document.getElementById('formulaSuggestions').style.display = 'none';
+}
+
+function showContextMenu(e, row, col) {
+    e.preventDefault();
+    const contextMenu = document.getElementById('contextMenu');
+    contextMenu.style.display = 'block';
+    contextMenu.style.left = e.pageX + 'px';
+    contextMenu.style.top = e.pageY + 'px';
+    
+    selectedCell = { row, col };
+}
+
+function hideContextMenu() {
+    document.getElementById('contextMenu').style.display = 'none';
+}
+
+function copyCell() {
+    if (selectedCell) {
+        const value = gridData[selectedCell.row][columns[selectedCell.col].name];
+        clipboard = { value, type: 'copy' };
+        showMessage('Cell copied', 'success');
+    }
+    hideContextMenu();
+}
+
+function cutCell() {
+    if (selectedCell) {
+        const value = gridData[selectedCell.row][columns[selectedCell.col].name];
+        clipboard = { value, type: 'cut' };
+        updateCellValue(selectedCell.row, selectedCell.col, '');
+        const cell = document.querySelector(`[data-row="${selectedCell.row}"][data-col="${selectedCell.col}"]`);
+        if (cell) cell.value = '';
+        showMessage('Cell cut', 'success');
+    }
+    hideContextMenu();
+}
+
+function pasteCell() {
+    if (selectedCell && clipboard) {
+        updateCellValue(selectedCell.row, selectedCell.col, clipboard.value);
+        const cell = document.querySelector(`[data-row="${selectedCell.row}"][data-col="${selectedCell.col}"]`);
+        if (cell) cell.value = clipboard.value;
+        showMessage('Cell pasted', 'success');
+    }
+    hideContextMenu();
+}
+
+function clearCell() {
+    if (selectedCell) {
+        updateCellValue(selectedCell.row, selectedCell.col, '');
+        const cell = document.querySelector(`[data-row="${selectedCell.row}"][data-col="${selectedCell.col}"]`);
+        if (cell) cell.value = '';
+    }
+    hideContextMenu();
+}
+
+function insertRow() {
+    const newRow = columns.reduce((row, col) => ({ ...row, [col.name]: '' }), {});
+    gridData.push(newRow);
+    renderGrid();
+    updateStatusBar();
+    showMessage('Row inserted', 'success');
+}
+
+function insertColumn() {
+    const newColName = String.fromCharCode(65 + columns.length);
+    columns.push({ name: newColName, type: 'TEXT' });
+    gridData.forEach(row => row[newColName] = '');
+    renderGrid();
+    updateStatusBar();
+    showMessage('Column inserted', 'success');
+}
+
+function deleteRow() {
+    if (selectedCell && gridData.length > 1) {
+        gridData.splice(selectedCell.row, 1);
+        renderGrid();
+        updateStatusBar();
+        showMessage('Row deleted', 'success');
+    }
+}
+
+function deleteColumn() {
+    if (selectedCell && columns.length > 1) {
+        const colName = columns[selectedCell.col].name;
+        columns.splice(selectedCell.col, 1);
+        gridData.forEach(row => delete row[colName]);
+        renderGrid();
+        updateStatusBar();
+        showMessage('Column deleted', 'success');
+    }
+}
+
+function updateStatusBar() {
+    document.getElementById('rowCount').textContent = `Rows: ${gridData.length}`;
+    document.getElementById('colCount').textContent = `Columns: ${columns.length}`;
+    
+    if (selectedCell) {
+        document.getElementById('selectedRange').textContent = `Selected: ${getCellAddress(selectedCell.row, selectedCell.col)}`;
+        document.getElementById('cellInfo').textContent = `${getCellAddress(selectedCell.row, selectedCell.col)}: ${gridData[selectedCell.row][columns[selectedCell.col].name] || 'Empty'}`;
+    }
+}
+
+function refreshData() {
+    if (currentTable && currentDatabase) {
+        loadTableData();
+        showMessage('Data refreshed', 'success');
+    } else {
+        showMessage('Please select a database and table first', 'warning');
+    }
+}
+
+function saveChanges() {
+    // For now, just show a message
+    showMessage('Save functionality coming soon! Changes are stored in memory.', 'info');
+}
+
+function showMessage(message, type) {
+    // Create a toast notification
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+// Toolbar functions
+function formatBold() {
+    // Format functionality would be implemented here
+    showMessage('Bold formatting applied (demo)', 'info');
+}
+
+function formatItalic() {
+    showMessage('Italic formatting applied (demo)', 'info');
+}
+
+function formatUnderline() {
+    showMessage('Underline formatting applied (demo)', 'info');
+}
+
+function alignLeft() {
+    showMessage('Left alignment applied (demo)', 'info');
+}
+
+function alignCenter() {
+    showMessage('Center alignment applied (demo)', 'info');
+}
+
+function alignRight() {
+    showMessage('Right alignment applied (demo)', 'info');
+}
+
+function changeDataType(type) {
+    showMessage(`Data type changed to ${type} (demo)`, 'info');
+}
+
+function insertFunction() {
+    document.getElementById('formulaInput').focus();
+    showFormulaSuggestions('=');
+}
+
+// Context menu functions
+function insertRowAbove() {
+    if (selectedCell) {
+        const newRow = columns.reduce((row, col) => ({ ...row, [col.name]: '' }), {});
+        gridData.splice(selectedCell.row, 0, newRow);
+        renderGrid();
+        updateStatusBar();
+        showMessage('Row inserted above', 'success');
+    }
+    hideContextMenu();
+}
+
+function insertRowBelow() {
+    if (selectedCell) {
+        const newRow = columns.reduce((row, col) => ({ ...row, [col.name]: '' }), {});
+        gridData.splice(selectedCell.row + 1, 0, newRow);
+        renderGrid();
+        updateStatusBar();
+        showMessage('Row inserted below', 'success');
+    }
+    hideContextMenu();
+}
+
+function insertColumnLeft() {
+    if (selectedCell) {
+        const newColName = String.fromCharCode(65 + columns.length);
+        columns.splice(selectedCell.col, 0, { name: newColName, type: 'TEXT' });
+        gridData.forEach(row => row[newColName] = '');
+        renderGrid();
+        updateStatusBar();
+        showMessage('Column inserted left', 'success');
+    }
+    hideContextMenu();
+}
+
+function insertColumnRight() {
+    if (selectedCell) {
+        const newColName = String.fromCharCode(65 + columns.length);
+        columns.splice(selectedCell.col + 1, 0, { name: newColName, type: 'TEXT' });
+        gridData.forEach(row => row[newColName] = '');
+        renderGrid();
+        updateStatusBar();
+        showMessage('Column inserted right', 'success');
+    }
+    hideContextMenu();
+}
+</script>
+{% endblock %}

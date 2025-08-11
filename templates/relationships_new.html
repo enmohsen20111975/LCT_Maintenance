@@ -1,0 +1,2814 @@
+{% extends "base.html" %}
+
+{% block title %}Table Relationships - LDA{% endblock %}
+
+{% block extra_css %}
+<style>
+.visual-canvas {
+    background: #a4c2e0;
+    border: 1px solid #840707;
+    border-radius: 12px;
+    position: relative;
+    height: 80vh;
+    width: 100%;
+    overflow: auto;
+    cursor: grab;
+    background-image: 
+        linear-gradient(rgba(1, 8, 16, 0.5) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(2, 41, 81, 0.5) 1px, transparent 1px);
+    background-size: 25px 25px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.5);
+    scroll-behavior: smooth;
+    will-change: scroll-position;
+    transform: translateZ(0);
+}
+
+.visual-canvas::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.visual-canvas::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.05);
+    border-radius: 4px;
+}
+
+.visual-canvas::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.2);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.visual-canvas::-webkit-scrollbar-thumb:hover {
+    background: rgba(0,0,0,0.3);
+}
+
+.visual-canvas.dragging {
+    cursor: grabbing;
+}
+
+.table-node {
+    position: absolute;
+    background: linear-gradient(145deg, #ffffff, #f8f9fa);
+    border: 1px solid #e1e5e9;
+    border-radius: 10px;
+    min-width: 220px;
+    max-width: 300px;
+    box-shadow: 
+        0 2px 8px rgba(0,0,0,0.08),
+        0 1px 3px rgba(0,0,0,0.12);
+    cursor: move;
+    z-index: 100;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+    user-select: none;
+}
+
+.table-node:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        0 4px 15px rgba(0,0,0,0.12),
+        0 2px 6px rgba(0,0,0,0.16);
+    border-color: #007bff;
+}
+
+.table-node.selected {
+    border-color: #28a745;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.25);
+}
+
+.table-header {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    padding: 12px 15px;
+    border-radius: 10px 10px 0 0;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.table-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.table-stats {
+    font-size: 11px;
+    opacity: 0.9;
+    background: rgba(255,255,255,0.2);
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 8px;
+}
+
+.table-delete-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+}
+
+.table-delete-btn:hover {
+    background: rgba(255,255,255,0.2);
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.table-columns {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 0;
+    margin: 0;
+}
+
+.column-item {
+    padding: 8px 15px;
+    border-bottom: 1px solid #f1f3f4;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    background: white;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.column-item:hover {
+    background: #f8f9fa;
+    border-left: 2px solid #007bff;
+}
+
+.column-item:active {
+    background: #e3f2fd;
+}
+
+.column-item:last-child {
+    border-bottom: none;
+}
+
+.column-name {
+    font-weight: 500;
+    flex: 1;
+}
+
+.column-type {
+    font-size: 0.75em;
+    color: #6c757d;
+    background: #e9ecef;
+    padding: 2px 6px;
+    border-radius: 12px;
+}
+
+.column-item.selected {
+    background: #fff3cd;
+    border-left: 3px solid #ffc107;
+}
+
+.column-item.multi-selected {
+    background: #d1ecf1;
+    border-left: 3px solid #17a2b8;
+}
+
+.column-item.source {
+    background: #d4edda;
+    border-left: 3px solid #28a745;
+}
+
+.column-item.target {
+    background: #f8d7da;
+    border-left: 3px solid #dc3545;
+}
+
+.column-connector {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    position: absolute;
+    right: -5px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 200;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.column-connector:hover {
+    transform: translateY(-50%) scale(1.4);
+    background: linear-gradient(135deg, #28a745, #1e7e34);
+    box-shadow: 0 0 12px rgba(40, 167, 69, 0.6);
+    border-color: #28a745;
+}
+
+.connection-line {
+    stroke: #007bff;
+    stroke-width: 2.5;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    marker-end: url(#arrowhead);
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+    transition: all 0.2s ease;
+}
+
+.connection-line.selected {
+    stroke: #28a745;
+    stroke-width: 3;
+    filter: drop-shadow(0 0 4px rgba(40, 167, 69, 0.5));
+}
+
+.connection-line:hover {
+    stroke: #ff6b35;
+    stroke-width: 3;
+}
+
+.join-label {
+    position: absolute;
+    background: #007bff;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: bold;
+    z-index: 70;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+}
+
+.join-label:hover {
+    background: #0056b3;
+    transform: scale(1.05);
+}
+
+.join-label.selected {
+    background: #28a745;
+}
+
+.canvas-controls {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    display: flex;
+    gap: 8px;
+    z-index: 200;
+}
+
+.canvas-btn {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    backdrop-filter: blur(10px);
+    color: #495057;
+    font-size: 14px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.canvas-btn:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    color: #007bff;
+    border-color: #007bff;
+}
+
+.sidebar-panel {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.sql-display {
+    background: #f8f9fa;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    max-height: 300px;
+    overflow-y: auto;
+    border-radius: 0 0 8px 8px;
+}
+
+.sql-content {
+    padding: 20px;
+    background: #2d3748;
+    color: #e2e8f0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin: 0;
+}
+
+.modal-xl {
+    max-width: 90%;
+}
+
+.sql-preview {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 15px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.9em;
+    white-space: pre-wrap;
+    max-height: 300px;
+    overflow-y: auto;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-diagram-3"></i> Visual Relationship Designer</h2>
+        <div>
+            <button class="btn btn-outline-primary btn-sm" onclick="showSQLPreview()">
+                <i class="bi bi-code-slash"></i> View SQL
+            </button>
+            <button class="btn btn-outline-success btn-sm" onclick="showDataPreview()">
+                <i class="bi bi-table"></i> Preview Data
+            </button>
+            <button class="btn btn-outline-info btn-sm" onclick="showPerformanceAnalysis()">
+                <i class="bi bi-speedometer2"></i> Performance
+            </button>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-3">
+            <!-- Database Selection Panel -->
+            <div class="sidebar-panel">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6><i class="bi bi-database"></i> Database</h6>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadDatabases()" title="Refresh database list">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                <select class="form-select form-select-sm mb-2" id="databaseSelect" onchange="onDatabaseChange()">
+                    <option value="">Loading databases...</option>
+                </select>
+                <div id="databaseInfo" class="small text-muted" style="display: none;">
+                    <i class="bi bi-info-circle"></i> <span id="databaseDetails">Database info</span>
+                </div>
+            </div>
+            
+            <!-- Table List Panel -->
+            <div class="sidebar-panel">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5><i class="bi bi-table"></i> Available Tables</h5>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadTables()" title="Refresh table list">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                <div id="tableList">Select a database first...</div>
+            </div>
+
+            <div class="sidebar-panel">
+                <h6><i class="bi bi-gear"></i> Canvas Tools</h6>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success btn-sm w-100 mb-2" onclick="createSimpleDemo()">
+                        <i class="bi bi-play-circle"></i> Create Demo
+                    </button>
+                    <button class="btn btn-info btn-sm w-100 mb-2" onclick="toggleMultiSelectMode()">
+                        <i class="bi bi-check2-square"></i> Multi-Select Mode
+                    </button>
+                    <button class="btn btn-warning btn-sm w-100 mb-2" onclick="connectSelected()" id="connectBtn" style="display:none;">
+                        <i class="bi bi-link-45deg"></i> Connect Selected
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm w-100 mb-2" onclick="autoLayout()">
+                        <i class="bi bi-diagram-2"></i> Auto Layout
+                    </button>
+                    <button class="btn btn-outline-info btn-sm w-100 mb-2" onclick="fitToScreen()">
+                        <i class="bi bi-arrows-fullscreen"></i> Fit to Screen
+                    </button>
+                    <button class="btn btn-secondary btn-sm w-100 mb-2" onclick="clearSelection()">
+                        <i class="bi bi-x-circle"></i> Clear Selection
+                    </button>
+                    <button class="btn btn-outline-warning btn-sm w-100 mb-2" onclick="clearConnections()">
+                        <i class="bi bi-scissors"></i> Clear Connections
+                    </button>
+                    <button class="btn btn-danger btn-sm w-100" onclick="clearAll()">
+                        <i class="bi bi-trash"></i> Clear All
+                    </button>
+                </div>
+                <hr>
+                <div id="selectionInfo" class="small text-muted">
+                    <strong>Mode:</strong> <span id="modeDisplay">Single Select</span><br>
+                    <strong>Selected:</strong> <span id="selectedCount">0</span> fields<br>
+                    <strong>Connections:</strong> <span id="connectionCount">0</span>
+                </div>
+            </div>
+
+            <!-- Connection Properties Panel -->
+            <div class="sidebar-panel" id="connectionPanel" style="display: none;">
+                <h6><i class="bi bi-link-45deg"></i> Connection Properties</h6>
+                <div id="connectionDetails">
+                    <!-- Connection details will be shown here -->
+                </div>
+            </div>
+
+            <!-- Table Properties Panel -->
+            <div class="sidebar-panel" id="tablePanel" style="display: none;">
+                <h6><i class="bi bi-table"></i> Table Properties</h6>
+                <div id="tableDetails">
+                    <!-- Table details will be shown here -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <div class="visual-canvas" id="canvas">
+                <!-- Canvas workspace for table nodes -->
+                <div id="canvasWorkspace" style="position: relative; width: 100%; height: 100%; min-height: 80vh;">
+                    <!-- SVG overlay for connections -->
+                    <svg id="connectionsSvg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;">
+                        <!-- Enhanced arrow marker definitions -->
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="8" 
+                                    refX="9" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+                                <polygon points="0,0 10,4 0,8 2,4" fill="#007bff" stroke="#007bff" stroke-width="1" />
+                            </marker>
+                            <marker id="arrowhead-selected" markerWidth="10" markerHeight="8" 
+                                    refX="9" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+                                <polygon points="0,0 10,4 0,8 2,4" fill="#28a745" stroke="#28a745" stroke-width="1" />
+                            </marker>
+                            <marker id="arrowhead-hover" markerWidth="12" markerHeight="10" 
+                                    refX="11" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+                                <polygon points="0,0 12,5 0,10 3,5" fill="#ff6b35" stroke="#ff6b35" stroke-width="1" />
+                            </marker>
+                            <!-- Connection line filters for better visual effect -->
+                            <filter id="glow">
+                                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                                <feMerge> 
+                                    <feMergeNode in="coloredBlur"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
+                        </defs>
+                    </svg>
+                </div>
+                
+                <!-- Canvas controls -->
+                <div class="canvas-controls">
+                    <button class="canvas-btn" onclick="autoLayout()" title="Auto Layout">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                    </button>
+                    <button class="canvas-btn" onclick="fitToScreen()" title="Fit to Screen">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                    </button>
+                    <button class="canvas-btn" onclick="zoomIn()" title="Zoom In">
+                        <i class="bi bi-zoom-in"></i>
+                    </button>
+                    <button class="canvas-btn" onclick="zoomOut()" title="Zoom Out">
+                        <i class="bi bi-zoom-out"></i>
+                    </button>
+                    <button class="canvas-btn" onclick="resetZoom()" title="Reset Zoom">
+                        <i class="bi bi-aspect-ratio"></i>
+                    </button>
+                    <button class="canvas-btn" onclick="clearConnections()" title="Clear Connections">
+                        <i class="bi bi-scissors"></i>
+                    </button>
+                    <button class="canvas-btn" onclick="clearAll()" title="Reset Canvas">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                    <button class="canvas-btn" onclick="openDataAnalysis()" title="Data Analysis">
+                        <i class="bi bi-graph-up"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- SQL Statement Display -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="bi bi-code-slash"></i> Generated SQL Query</h5>
+                    <div>
+                        <button class="btn btn-outline-primary btn-sm" onclick="copySQLToClipboard()">
+                            <i class="bi bi-clipboard"></i> Copy
+                        </button>
+                        <button class="btn btn-outline-success btn-sm" onclick="executeQuery()">
+                            <i class="bi bi-play-circle"></i> Execute
+                        </button>
+                        <button class="btn btn-outline-warning btn-sm" onclick="showExecuteAsTableModal()">
+                            <i class="bi bi-table"></i> Execute as Table
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="sqlDisplay" class="sql-preview">
+                        <code>-- No tables connected yet. Add tables and create connections to generate SQL.</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Data Preview Section -->
+    <div class="row mt-4" id="dataPreviewSection" style="display: none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="bi bi-table"></i> Data Preview</h5>
+                    <div>
+                        <button class="btn btn-outline-info btn-sm" onclick="refreshPreview()">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                        <button class="btn btn-outline-success btn-sm" onclick="exportToExcel()">
+                            <i class="bi bi-file-earmark-excel"></i> Export
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="previewContent">
+                        <!-- Preview data will be shown here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Modals -->
+<!-- SQL Preview Modal -->
+<div class="modal fade" id="sqlPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-code-slash"></i> SQL Query Editor</h5>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="sqlEditMode" onchange="toggleSQLEditMode()">
+                    <label class="form-check-label" for="sqlEditMode">Edit Mode</label>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="sql-preview">
+                    <pre id="sqlPreviewContent" style="background: #f8f9fa; padding: 1rem; border-radius: 0.375rem; font-family: 'Monaco', 'Menlo', monospace; font-size: 0.9em; max-height: 400px; overflow-y: auto; display: block;">
+                    </pre>
+                </div>
+                <textarea class="form-control" id="sqlEditContent" style="display: none; font-family: 'Monaco', 'Menlo', monospace; font-size: 0.9em; min-height: 300px;" placeholder="Enter your custom SQL query here..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-warning" id="resetSQLBtn" onclick="resetSQLToGenerated()" style="display: none;">
+                    <i class="bi bi-arrow-clockwise"></i> Reset to Generated
+                </button>
+                <button type="button" class="btn btn-outline-success" id="testSQLBtn" onclick="testCustomSQL()" style="display: none;">
+                    <i class="bi bi-play-circle"></i> Test Query
+                </button>
+                <button type="button" class="btn btn-outline-primary" onclick="copySQLToClipboard()">
+                    <i class="bi bi-clipboard"></i> Copy SQL
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Preview Modal -->
+<div class="modal fade" id="dataPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-table"></i> Enhanced Data Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs" id="previewTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="data-tab" data-bs-toggle="tab" data-bs-target="#data-pane" type="button" role="tab">
+                            Data Preview
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="statistics-tab" data-bs-toggle="tab" data-bs-target="#statistics-pane" type="button" role="tab">
+                            Statistics
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="joins-tab" data-bs-toggle="tab" data-bs-target="#joins-pane" type="button" role="tab">
+                            Join Analysis
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content mt-3" id="previewTabContent">
+                    <div class="tab-pane fade show active" id="data-pane" role="tabpanel">
+                        <div id="dataPreviewContent">Loading...</div>
+                    </div>
+                    <div class="tab-pane fade" id="statistics-pane" role="tabpanel">
+                        <div id="statisticsContent">Loading statistics...</div>
+                    </div>
+                    <div class="tab-pane fade" id="joins-pane" role="tabpanel">
+                        <div id="joinsContent">Loading join analysis...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-info" onclick="refreshPreview()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+                <button type="button" class="btn btn-outline-success" onclick="exportToExcel()">
+                    <i class="bi bi-file-earmark-excel"></i> Export to Excel
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Analysis Modal -->
+<div class="modal fade" id="performanceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-speedometer2"></i> Performance Analysis</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="performanceContent">
+                    <!-- Performance analysis will be shown here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary" onclick="runPerformanceTest()">
+                    <i class="bi bi-play"></i> Run Test Again
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Execute as Table Modal -->
+<div class="modal fade" id="executeAsTableModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-table"></i> Execute Query as New Table</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Create New Table:</strong> This will execute your SQL query and save the results as a new table in the database.
+                </div>
+                
+                <div class="mb-3">
+                    <label for="newTableName" class="form-label">
+                        <i class="bi bi-tag"></i> New Table Name
+                    </label>
+                    <input type="text" class="form-control" id="newTableName" 
+                           placeholder="Enter table name (e.g., joined_data_2025)" 
+                           pattern="[a-zA-Z][a-zA-Z0-9_]*" 
+                           title="Table name must start with a letter and contain only letters, numbers, and underscores">
+                    <div class="form-text">Use only letters, numbers, and underscores. Must start with a letter.</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="bi bi-code-slash"></i> SQL Query to Execute
+                    </label>
+                    <pre id="executeTableSqlPreview" class="bg-light p-3 border rounded" style="font-size: 0.9em; max-height: 200px; overflow-y: auto;"></pre>
+                </div>
+                
+                <div id="executeTableResult" style="display: none;">
+                    <!-- Results will be shown here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" onclick="executeQueryAsTable()" id="executeTableBtn">
+                    <i class="bi bi-play-circle"></i> Create Table
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Analysis Modal -->
+<div class="modal fade" id="dataAnalysisModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-graph-up"></i> Data Analysis Dashboard</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Table Selection -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label for="analysisTableSelect" class="form-label">
+                            <i class="bi bi-table"></i> Select Table for Analysis
+                        </label>
+                        <select class="form-select" id="analysisTableSelect" onchange="loadTableAnalysis()">
+                            <option value="">Choose a table...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="analysisColumnSelect" class="form-label">
+                            <i class="bi bi-list-columns"></i> Focus Column (Optional)
+                        </label>
+                        <select class="form-select" id="analysisColumnSelect" onchange="runColumnAnalysis()">
+                            <option value="">All columns</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Analysis Tabs -->
+                <ul class="nav nav-tabs" id="analysisTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+                            <i class="bi bi-info-circle"></i> Overview
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="statistics-tab" data-bs-toggle="tab" data-bs-target="#statistics" type="button" role="tab">
+                            <i class="bi bi-calculator"></i> Statistics
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="distributions-tab" data-bs-toggle="tab" data-bs-target="#distributions" type="button" role="tab">
+                            <i class="bi bi-bar-chart"></i> Distributions
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="quality-tab" data-bs-toggle="tab" data-bs-target="#quality" type="button" role="tab">
+                            <i class="bi bi-shield-check"></i> Data Quality
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="patterns-tab" data-bs-toggle="tab" data-bs-target="#patterns" type="button" role="tab">
+                            <i class="bi bi-search"></i> Patterns
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="correlations-tab" data-bs-toggle="tab" data-bs-target="#correlations" type="button" role="tab">
+                            <i class="bi bi-diagram-3"></i> Correlations
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content mt-3" id="analysisTabContent">
+                    <!-- Overview Tab -->
+                    <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-info-circle"></i> Table Summary</h6>
+                                    </div>
+                                    <div class="card-body" id="tableSummary">
+                                        <p class="text-muted">Select a table to view summary</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-list-columns"></i> Column Types</h6>
+                                    </div>
+                                    <div class="card-body" id="columnTypes">
+                                        <p class="text-muted">Column type distribution will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-table"></i> Sample Data Preview</h6>
+                                    </div>
+                                    <div class="card-body" id="sampleDataPreview">
+                                        <p class="text-muted">Sample data will be shown here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Statistics Tab -->
+                    <div class="tab-pane fade" id="statistics" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-123"></i> Numeric Statistics</h6>
+                                    </div>
+                                    <div class="card-body" id="numericStats">
+                                        <p class="text-muted">Numeric column statistics will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-fonts"></i> Text Statistics</h6>
+                                    </div>
+                                    <div class="card-body" id="textStats">
+                                        <p class="text-muted">Text column statistics will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-calendar"></i> Date/Time Statistics</h6>
+                                    </div>
+                                    <div class="card-body" id="dateStats">
+                                        <p class="text-muted">Date/time statistics will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Distributions Tab -->
+                    <div class="tab-pane fade" id="distributions" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-bar-chart"></i> Value Frequencies</h6>
+                                    </div>
+                                    <div class="card-body" id="valueFrequencies">
+                                        <p class="text-muted">Value frequency analysis will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-pie-chart"></i> Unique Values</h6>
+                                    </div>
+                                    <div class="card-body" id="uniqueValues">
+                                        <p class="text-muted">Unique value analysis will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-graph-up"></i> Numeric Distributions</h6>
+                                    </div>
+                                    <div class="card-body" id="numericDistributions">
+                                        <p class="text-muted">Numeric distribution analysis will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data Quality Tab -->
+                    <div class="tab-pane fade" id="quality" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-exclamation-triangle"></i> Missing Data</h6>
+                                    </div>
+                                    <div class="card-body" id="missingData">
+                                        <p class="text-muted">Missing data analysis will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-files"></i> Duplicates</h6>
+                                    </div>
+                                    <div class="card-body" id="duplicateData">
+                                        <p class="text-muted">Duplicate analysis will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-bug"></i> Data Issues</h6>
+                                    </div>
+                                    <div class="card-body" id="dataIssues">
+                                        <p class="text-muted">Data quality issues will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-shield-check"></i> Quality Score</h6>
+                                    </div>
+                                    <div class="card-body" id="qualityScore">
+                                        <p class="text-muted">Overall quality score will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Patterns Tab -->
+                    <div class="tab-pane fade" id="patterns" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-regex"></i> Text Patterns</h6>
+                                    </div>
+                                    <div class="card-body" id="textPatterns">
+                                        <p class="text-muted">Text pattern analysis will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-arrow-up-right"></i> Trends</h6>
+                                    </div>
+                                    <div class="card-body" id="dataTrends">
+                                        <p class="text-muted">Data trend analysis will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-search"></i> Anomaly Detection</h6>
+                                    </div>
+                                    <div class="card-body" id="anomalyDetection">
+                                        <p class="text-muted">Anomaly detection results will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Correlations Tab -->
+                    <div class="tab-pane fade" id="correlations" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-diagram-3"></i> Column Correlations</h6>
+                                    </div>
+                                    <div class="card-body" id="columnCorrelations">
+                                        <p class="text-muted">Column correlation analysis will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-link-45deg"></i> Relationships</h6>
+                                    </div>
+                                    <div class="card-body" id="dataRelationships">
+                                        <p class="text-muted">Data relationship suggestions will appear here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6><i class="bi bi-heatmap"></i> Correlation Matrix</h6>
+                                    </div>
+                                    <div class="card-body" id="correlationMatrix">
+                                        <p class="text-muted">Correlation matrix will be displayed here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary" onclick="exportAnalysisReport()">
+                    <i class="bi bi-download"></i> Export Report
+                </button>
+                <button type="button" class="btn btn-outline-success" onclick="refreshAnalysis()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Enhanced visual relationship designer with all features
+var myTables = {};
+var myConnections = [];
+var selectedCol = null;
+var isMultiSelectMode = false;
+var selectedFields = [];
+var canvasScale = 1;
+var canvasOffset = { x: 0, y: 0 };
+var selectedNode = null;
+var selectedConnection = null;
+var generatedSQL = '';
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Enhanced relationship designer loaded');
+    loadDatabases(); // Load databases first
+    initializeCanvas();
+    updateSelectionDisplay();
+});
+
+function initializeCanvas() {
+    const canvas = document.getElementById('canvas');
+    
+    // Canvas drag and zoom functionality
+    canvas.addEventListener('mousedown', handleCanvasMouseDown);
+    canvas.addEventListener('mousemove', handleCanvasMouseMove);
+    canvas.addEventListener('mouseup', handleCanvasMouseUp);
+    canvas.addEventListener('wheel', handleCanvasWheel);
+    
+    // Prevent context menu
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+// Global variable to track selected database
+var selectedDatabase = null;
+
+function loadDatabases() {
+    console.log('Loading databases...');
+    fetch('/api/databases/available')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Databases response:', data);
+            const select = document.getElementById('databaseSelect');
+            select.innerHTML = '<option value="">Choose a database...</option>';
+            
+            if (data.success && data.databases) {
+                data.databases.forEach(database => {
+                    const option = document.createElement('option');
+                    option.value = database.name;
+                    option.textContent = `${database.name} (${database.size_mb} MB)`;
+                    select.appendChild(option);
+                });
+                
+                // Auto-select excel_data if available
+                const defaultOption = data.databases.find(db => db.name === 'excel_data');
+                if (defaultOption) {
+                    select.value = 'excel_data';
+                    onDatabaseChange();
+                }
+            } else {
+                select.innerHTML = '<option value="">No databases found</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading databases:', error);
+            const select = document.getElementById('databaseSelect');
+            select.innerHTML = '<option value="">Error loading databases</option>';
+        });
+}
+
+function onDatabaseChange() {
+    const databaseName = document.getElementById('databaseSelect').value;
+    const databaseInfo = document.getElementById('databaseInfo');
+    const databaseDetails = document.getElementById('databaseDetails');
+    
+    if (!databaseName) {
+        selectedDatabase = null;
+        databaseInfo.style.display = 'none';
+        document.getElementById('tableList').innerHTML = 'Select a database first...';
+        return;
+    }
+    
+    selectedDatabase = databaseName;
+    
+    // Show database info
+    fetch('/api/databases/available')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.databases) {
+                const dbInfo = data.databases.find(db => db.name === databaseName);
+                if (dbInfo) {
+                    databaseDetails.textContent = `${dbInfo.size_mb} MB, ${dbInfo.filename}`;
+                    databaseInfo.style.display = 'block';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading database info:', error);
+        });
+    
+    // Load tables for the selected database
+    loadTables();
+}
+
+function loadTables() {
+    console.log('Loading tables for database:', selectedDatabase);
+    
+    if (!selectedDatabase) {
+        document.getElementById('tableList').innerHTML = 'Select a database first...';
+        return;
+    }
+    
+    document.getElementById('tableList').innerHTML = 'Loading tables...';
+    
+    const apiUrl = `/api/tables/existing?database=${selectedDatabase}`;
+    fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+            console.log('Tables response:', data);
+            const tableList = document.getElementById('tableList');
+            if (data.success && data.tables) {
+                tableList.innerHTML = '';
+                data.tables.forEach(table => {
+                    // Handle both string format (for other databases) and object format (for excel_data)
+                    const tableName = typeof table === 'string' ? table : table.name;
+                    const div = document.createElement('div');
+                    div.innerHTML = `
+                        <button class="btn btn-outline-primary btn-sm mb-1 w-100" 
+                                onclick="addTable('${tableName}')">
+                            ${tableName}
+                        </button>
+                    `;
+                    tableList.appendChild(div);
+                });
+                
+                if (data.tables.length === 0) {
+                    tableList.innerHTML = '<p class="text-muted small">No tables found in this database</p>';
+                }
+            } else {
+                tableList.innerHTML = '<p class="text-danger small">No tables found</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('tableList').innerHTML = '<p class="text-danger small">Error loading tables</p>';
+        });
+}
+
+function addTable(tableName) {
+    console.log('Adding table:', tableName, 'from database:', selectedDatabase);
+    
+    if (myTables[tableName]) {
+        alert('Table already added');
+        return;
+    }
+    
+    if (!selectedDatabase) {
+        alert('Please select a database first');
+        return;
+    }
+    
+    const apiUrl = `/api/relationships/columns/${tableName}?database=${selectedDatabase}`;
+    fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+            console.log('Columns response:', data);
+            if (data.success) {
+                createTableElement(tableName, data.columns);
+            } else {
+                alert('Error loading columns for ' + tableName);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading columns:', error);
+            alert('Error loading columns for ' + tableName);
+        });
+}
+
+function createTableElement(tableName, columns) {
+    console.log('Creating enhanced table element:', tableName, columns);
+    
+    const canvas = document.getElementById('canvasWorkspace') || document.getElementById('canvas');
+    const tableCount = Object.keys(myTables).length;
+    
+    // Calculate position (improved grid layout)
+    const startX = 50 + (tableCount % 3) * 300;
+    const startY = 50 + Math.floor(tableCount / 3) * 300;
+    
+    const tableDiv = document.createElement('div');
+    tableDiv.className = 'table-node';
+    tableDiv.style.left = startX + 'px';
+    tableDiv.style.top = startY + 'px';
+    tableDiv.id = `table-${tableName}`;
+    
+    // Enhanced table header
+    const tableHeader = document.createElement('div');
+    tableHeader.className = 'table-header';
+    tableHeader.innerHTML = `
+        <div class="table-title">
+            <span>${tableName}</span>
+            <span class="table-stats">${columns.length} cols</span>
+        </div>
+        <button class="table-delete-btn" onclick="removeTableFromCanvas('${tableName}')" title="Remove table">
+            <i class="bi bi-x"></i>
+        </button>
+    `;
+    
+    // Enhanced table columns
+    const tableColumnsDiv = document.createElement('div');
+    tableColumnsDiv.className = 'table-columns';
+    
+    columns.forEach((column, index) => {
+        const columnItem = document.createElement('div');
+        columnItem.className = 'column-item';
+        columnItem.dataset.columnName = column.name;
+        columnItem.dataset.tableName = tableName;
+        
+        columnItem.innerHTML = `
+            <span class="column-name">${column.name}</span>
+            <span class="column-type">${column.type || 'TEXT'}</span>
+            <div class="column-connector" 
+                 ondblclick="startConnection(event, '${tableName}', '${column.name}')"
+                 title="Double-click to create connection"></div>
+        `;
+        
+        // Enhanced click handler
+        columnItem.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            selectColumn(tableName, column.name, columnItem);
+        });
+        
+        // Double-click handler for connections
+        columnItem.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            startConnection(e, tableName, column.name);
+        });
+        
+        tableColumnsDiv.appendChild(columnItem);
+    });
+    
+    tableDiv.appendChild(tableHeader);
+    tableDiv.appendChild(tableColumnsDiv);
+    
+    // Make table draggable
+    makeTableDraggable(tableDiv);
+    
+    // Add click handler for table selection
+    tableDiv.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectNode(tableDiv);
+    });
+    
+    canvas.appendChild(tableDiv);
+    
+    myTables[tableName] = {
+        element: tableDiv,
+        columns: columns,
+        position: { x: startX, y: startY }
+    };
+    
+    // Update displays
+    updateSelectionDisplay();
+    updateSQLDisplay();
+    
+    console.log('Enhanced table added successfully');
+}
+
+function selectColumn(tableName, columnName, element) {
+    console.log('Column selected:', tableName, columnName);
+    
+    if (isMultiSelectMode) {
+        // Multi-select mode
+        const fieldId = `${tableName}.${columnName}`;
+        const existingIndex = selectedFields.findIndex(f => f.id === fieldId);
+        
+        if (existingIndex >= 0) {
+            // Deselect if already selected
+            selectedFields.splice(existingIndex, 1);
+            element.classList.remove('multi-selected');
+        } else {
+            // Add to selection
+            selectedFields.push({
+                id: fieldId,
+                table: tableName,
+                column: columnName,
+                element: element
+            });
+            element.classList.add('multi-selected');
+        }
+        
+        updateSelectionDisplay();
+        
+    } else {
+        // Single select mode (original behavior)
+        document.querySelectorAll('.column-item.selected').forEach(el => {
+            el.classList.remove('selected');
+        });
+        
+        if (!selectedCol) {
+            selectedCol = { table: tableName, column: columnName, element: element };
+            element.classList.add('selected');
+            alert(`Selected ${tableName}.${columnName}. Now click another column to connect.`);
+        } else {
+            if (selectedCol.table === tableName) {
+                alert('Cannot connect to same table!');
+                selectedCol = null;
+                return;
+            }
+            
+            createConnection(selectedCol.table, selectedCol.column, tableName, columnName);
+            selectedCol = null;
+        }
+    }
+}
+
+function createConnection(table1, col1, table2, col2) {
+    console.log('Creating connection:', table1, col1, '->', table2, col2);
+    
+    const svg = document.getElementById('connectionsSvg');
+    
+    const elem1 = document.querySelector(`#table-${table1} .column-item`);
+    const elem2 = document.querySelector(`#table-${table2} .column-item`);
+    
+    if (!elem1 || !elem2) {
+        alert('Error: Could not find table elements');
+        return;
+    }
+    
+    const rect1 = elem1.getBoundingClientRect();
+    const rect2 = elem2.getBoundingClientRect();
+    const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+    
+    const x1 = rect1.right - canvasRect.left;
+    const y1 = rect1.top + rect1.height/2 - canvasRect.top;
+    const x2 = rect2.left - canvasRect.left;
+    const y2 = rect2.top + rect2.height/2 - canvasRect.top;
+    
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
+    path.setAttribute('class', 'connection-line');
+    
+    svg.appendChild(path);
+    
+    myConnections.push({ table1, col1, table2, col2, element: path });
+    
+    alert(`✅ Connected ${table1}.${col1} → ${table2}.${col2}`);
+    console.log('Connection created successfully');
+}
+
+function createSimpleDemo() {
+    console.log('Creating demo...');
+    clearAll();
+    
+    const demoColumns = [
+        { name: 'id', type: 'INTEGER' },
+        { name: 'name', type: 'TEXT' }
+    ];
+    
+    createTableElement('Table1', demoColumns);
+    setTimeout(() => {
+        createTableElement('Table2', demoColumns);
+        setTimeout(() => {
+            createConnection('Table1', 'id', 'Table2', 'id');
+        }, 500);
+    }, 500);
+}
+
+function clearAll() {
+    console.log('Clearing all...');
+    
+    Object.values(myTables).forEach(table => {
+        if (table.element && table.element.parentNode) {
+            table.element.remove();
+        }
+    });
+    myTables = {};
+    
+    myConnections.forEach(conn => {
+        if (conn.element && conn.element.parentNode) {
+            conn.element.remove();
+        }
+    });
+    myConnections = [];
+    
+    selectedCol = null;
+    selectedFields = [];
+    document.querySelectorAll('.column-item.selected, .column-item.multi-selected').forEach(el => {
+        el.classList.remove('selected', 'multi-selected');
+    });
+    updateSelectionDisplay();
+}
+
+function toggleMultiSelectMode() {
+    isMultiSelectMode = !isMultiSelectMode;
+    
+    // Clear all selections when switching modes
+    clearSelection();
+    
+    const btn = event.target.closest('button');
+    if (isMultiSelectMode) {
+        btn.innerHTML = '<i class="bi bi-check2-square"></i> Exit Multi-Select';
+        btn.className = 'btn btn-warning btn-sm w-100 mb-2';
+        alert('Multi-Select Mode ON: Click multiple fields, then use "Connect Selected" button');
+    } else {
+        btn.innerHTML = '<i class="bi bi-check2-square"></i> Multi-Select Mode';
+        btn.className = 'btn btn-info btn-sm w-100 mb-2';
+        alert('Single Select Mode: Click one field, then another to connect');
+    }
+    
+    updateSelectionDisplay();
+}
+
+function updateSelectionDisplay() {
+    const modeDisplay = document.getElementById('modeDisplay');
+    const selectedCount = document.getElementById('selectedCount');
+    const connectBtn = document.getElementById('connectBtn');
+    
+    modeDisplay.textContent = isMultiSelectMode ? 'Multi-Select' : 'Single Select';
+    selectedCount.textContent = selectedFields.length;
+    
+    // Show connect button only in multi-select mode with selections from different tables
+    if (isMultiSelectMode && selectedFields.length >= 2) {
+        const tables = new Set(selectedFields.map(f => f.table));
+        connectBtn.style.display = tables.size >= 2 ? 'block' : 'none';
+    } else {
+        connectBtn.style.display = 'none';
+    }
+}
+
+function clearSelection() {
+    selectedCol = null;
+    selectedFields = [];
+    document.querySelectorAll('.column-item.selected, .column-item.multi-selected, .column-item.source, .column-item.target').forEach(el => {
+        el.classList.remove('selected', 'multi-selected', 'source', 'target');
+    });
+    updateSelectionDisplay();
+}
+
+function connectSelected() {
+    if (selectedFields.length < 2) {
+        alert('Please select at least 2 fields from different tables');
+        return;
+    }
+    
+    // Group fields by table
+    const tableGroups = {};
+    selectedFields.forEach(field => {
+        if (!tableGroups[field.table]) {
+            tableGroups[field.table] = [];
+        }
+        tableGroups[field.table].push(field);
+    });
+    
+    const tables = Object.keys(tableGroups);
+    if (tables.length < 2) {
+        alert('Please select fields from at least 2 different tables');
+        return;
+    }
+    
+    // Create connections between first table and all others
+    const sourceTable = tables[0];
+    const sourceFields = tableGroups[sourceTable];
+    
+    let connectionCount = 0;
+    
+    // Mark source fields
+    sourceFields.forEach(field => {
+        field.element.classList.add('source');
+    });
+    
+    for (let i = 1; i < tables.length; i++) {
+        const targetTable = tables[i];
+        const targetFields = tableGroups[targetTable];
+        
+        // Mark target fields
+        targetFields.forEach(field => {
+            field.element.classList.add('target');
+        });
+        
+        // Connect first field from source to first field from each target table
+        if (sourceFields.length > 0 && targetFields.length > 0) {
+            createConnection(
+                sourceFields[0].table, 
+                sourceFields[0].column, 
+                targetFields[0].table, 
+                targetFields[0].column
+            );
+            connectionCount++;
+        }
+        
+        // If there are multiple fields, create additional connections
+        const maxConnections = Math.min(sourceFields.length, targetFields.length);
+        for (let j = 1; j < maxConnections; j++) {
+            createConnection(
+                sourceFields[j].table, 
+                sourceFields[j].column, 
+                targetFields[j].table, 
+                targetFields[j].column
+            );
+            connectionCount++;
+        }
+    }
+    
+    alert(`✅ Created ${connectionCount} connections!`);
+    
+    // Clear selection after connecting
+    setTimeout(() => {
+        clearSelection();
+    }, 2000);
+}
+
+// Enhanced connection drawing with smooth curves
+function createConnection(table1, col1, table2, col2) {
+    console.log('Creating enhanced connection:', table1, col1, '->', table2, col2);
+    
+    const svg = document.getElementById('connectionsSvg');
+    
+    // Find column elements for positioning
+    const elem1 = document.querySelector(`#table-${table1} [data-column-name="${col1}"]`);
+    const elem2 = document.querySelector(`#table-${table2} [data-column-name="${col2}"]`);
+    
+    if (!elem1 || !elem2) {
+        alert('Error: Could not find table elements');
+        return;
+    }
+    
+    const connectionId = `${table1}.${col1}_${table2}.${col2}`;
+    
+    // Check for existing connection
+    if (myConnections.find(c => c.id === connectionId)) {
+        alert('Connection already exists!');
+        return;
+    }
+    
+    // Create connection object
+    const connection = {
+        id: connectionId,
+        sourceTable: table1,
+        sourceColumn: col1,
+        targetTable: table2,
+        targetColumn: col2,
+        joinType: 'INNER',
+        condition: '='
+    };
+    
+    myConnections.push(connection);
+    drawEnhancedConnection(connection);
+    updateSelectionDisplay();
+    updateSQLDisplay();
+    
+    alert(`✅ Connected ${table1}.${col1} → ${table2}.${col2}`);
+    console.log('Enhanced connection created successfully');
+}
+
+function drawEnhancedConnection(connection) {
+    const svg = document.getElementById('connectionsSvg');
+    const sourceElement = document.querySelector(`#table-${connection.sourceTable} [data-column-name="${connection.sourceColumn}"]`);
+    const targetElement = document.querySelector(`#table-${connection.targetTable} [data-column-name="${connection.targetColumn}"]`);
+    
+    if (!sourceElement || !targetElement) return;
+    
+    const canvas = document.getElementById('canvas');
+    const canvasRect = canvas.getBoundingClientRect();
+    const sourceRect = sourceElement.getBoundingClientRect();
+    const targetRect = targetElement.getBoundingClientRect();
+    
+    // Calculate coordinates
+    const startX = sourceRect.right - canvasRect.left;
+    const startY = sourceRect.top + sourceRect.height / 2 - canvasRect.top;
+    const endX = targetRect.left - canvasRect.left;
+    const endY = targetRect.top + targetRect.height / 2 - canvasRect.top;
+    
+    // Create smooth curved path
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', createSmoothPath(startX, startY, endX, endY));
+    path.setAttribute('class', 'connection-line');
+    path.dataset.connectionId = connection.id;
+    
+    // Add click handler for connection selection
+    path.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectConnection(connection);
+    });
+    
+    svg.appendChild(path);
+    
+    // Add join label
+    const labelX = (startX + endX) / 2;
+    const labelY = (startY + endY) / 2 - 12;
+    
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', labelX);
+    label.setAttribute('y', labelY);
+    label.setAttribute('text-anchor', 'middle');
+    label.classList.add('join-label');
+    label.textContent = connection.joinType || 'INNER';
+    label.style.fontSize = '10px';
+    label.style.fontWeight = '600';
+    label.style.fill = '#495057';
+    
+    svg.appendChild(label);
+    
+    connection.pathElement = path;
+    connection.labelElement = label;
+}
+
+function createSmoothPath(startX, startY, endX, endY) {
+    const distance = Math.abs(endX - startX);
+    const controlOffset = Math.min(distance / 2, 150);
+    
+    const cp1X = startX + controlOffset;
+    const cp1Y = startY;
+    const cp2X = endX - controlOffset;
+    const cp2Y = endY;
+    
+    return `M ${startX} ${startY} C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${endX} ${endY}`;
+}
+
+// Enhanced table dragging
+function makeTableDraggable(tableNode) {
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+    let nodeStart = { x: 0, y: 0 };
+    
+    tableNode.addEventListener('mousedown', (e) => {
+        if (e.target.classList.contains('column-connector') || 
+            e.target.classList.contains('table-delete-btn') ||
+            e.target.closest('.table-delete-btn')) return;
+        
+        isDragging = true;
+        dragStart.x = e.clientX;
+        dragStart.y = e.clientY;
+        
+        const currentLeft = parseInt(tableNode.style.left) || 0;
+        const currentTop = parseInt(tableNode.style.top) || 0;
+        nodeStart.x = currentLeft;
+        nodeStart.y = currentTop;
+        
+        tableNode.style.zIndex = '200';
+        e.preventDefault();
+        e.stopPropagation();
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        
+        const deltaX = e.clientX - dragStart.x;
+        const deltaY = e.clientY - dragStart.y;
+        
+        const newX = Math.max(10, nodeStart.x + deltaX);
+        const newY = Math.max(10, nodeStart.y + deltaY);
+        
+        tableNode.style.left = newX + 'px';
+        tableNode.style.top = newY + 'px';
+        
+        // Update stored position
+        const tableName = tableNode.id.replace('table-', '');
+        if (myTables[tableName]) {
+            myTables[tableName].position = { x: newX, y: newY };
+        }
+        
+        // Redraw connections
+        redrawConnections();
+    });
+    
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            tableNode.style.zIndex = '100';
+            redrawConnections();
+        }
+    });
+}
+
+function redrawConnections() {
+    // Clear existing connection visuals
+    const svg = document.getElementById('connectionsSvg');
+    svg.querySelectorAll('path').forEach(p => p.remove());
+    svg.querySelectorAll('text').forEach(t => t.remove());
+    
+    // Redraw all connections
+    myConnections.forEach(connection => {
+        drawEnhancedConnection(connection);
+    });
+}
+
+// Canvas interaction handlers
+function handleCanvasMouseDown(event) {
+    if (event.target === event.currentTarget) {
+        clearSelections();
+    }
+}
+
+function handleCanvasMouseMove(event) {
+    // Handle canvas panning if needed
+}
+
+function handleCanvasMouseUp(event) {
+    // Handle canvas interactions
+}
+
+function handleCanvasWheel(event) {
+    event.preventDefault();
+    
+    const delta = event.deltaY > 0 ? 0.9 : 1.1;
+    canvasScale = Math.max(0.1, Math.min(3, canvasScale * delta));
+    
+    const canvas = document.getElementById('canvas');
+    canvas.style.transform = `scale(${canvasScale})`;
+}
+
+// Selection functions
+function selectNode(node) {
+    clearSelections();
+    selectedNode = node;
+    node.classList.add('selected');
+    
+    const tableName = node.id.replace('table-', '');
+    showTableProperties(tableName);
+}
+
+function selectConnection(connection) {
+    clearSelections();
+    selectedConnection = connection;
+    
+    if (connection.pathElement) {
+        connection.pathElement.classList.add('selected');
+    }
+    
+    showConnectionProperties(connection);
+}
+
+function clearSelections() {
+    selectedNode = null;
+    selectedConnection = null;
+    
+    document.querySelectorAll('.table-node.selected').forEach(n => n.classList.remove('selected'));
+    document.querySelectorAll('.connection-line.selected').forEach(c => c.classList.remove('selected'));
+    
+    document.getElementById('connectionPanel').style.display = 'none';
+    document.getElementById('tablePanel').style.display = 'none';
+}
+
+// Connection mode for double-click functionality
+var connectionMode = null;
+
+function startConnection(event, tableName, columnName) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    console.log('Starting connection from:', tableName, columnName);
+    
+    if (!connectionMode) {
+        connectionMode = {
+            sourceTable: tableName,
+            sourceColumn: columnName
+        };
+        
+        const columnItem = event.target.closest('.column-item');
+        if (columnItem) {
+            columnItem.style.backgroundColor = '#fff3cd';
+            columnItem.style.borderLeft = '3px solid #ffc107';
+        }
+        
+        alert(`🔗 Connection started from ${tableName}.${columnName}. Double-click another column in a different table to connect!`);
+        return;
+    }
+    
+    if (connectionMode.sourceTable !== tableName) {
+        createConnection(
+            connectionMode.sourceTable,
+            connectionMode.sourceColumn,
+            tableName,
+            columnName
+        );
+        clearConnectionMode();
+    } else {
+        clearConnectionMode();
+        alert('❌ Cannot connect column to same table.');
+    }
+}
+
+function clearConnectionMode() {
+    if (connectionMode) {
+        document.querySelectorAll('.column-item').forEach(item => {
+            item.style.backgroundColor = '';
+            item.style.borderLeft = '';
+        });
+        connectionMode = null;
+    }
+}
+
+// Enhanced utility functions
+function autoLayout() {
+    const tables = Object.keys(myTables);
+    const cols = Math.ceil(Math.sqrt(tables.length));
+    
+    tables.forEach((tableName, index) => {
+        const col = index % cols;
+        const row = Math.floor(index / cols);
+        
+        const x = 50 + col * 300;
+        const y = 50 + row * 300;
+        
+        const node = myTables[tableName];
+        node.element.style.left = x + 'px';
+        node.element.style.top = y + 'px';
+        node.position = { x, y };
+    });
+    
+    redrawConnections();
+    showAlert('Tables arranged automatically', 'success');
+}
+
+function fitToScreen() {
+    const canvas = document.getElementById('canvas');
+    const nodes = Object.values(myTables);
+    
+    if (nodes.length === 0) return;
+    
+    let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
+    
+    nodes.forEach(node => {
+        const rect = node.element.getBoundingClientRect();
+        minX = Math.min(minX, node.position.x);
+        minY = Math.min(minY, node.position.y);
+        maxX = Math.max(maxX, node.position.x + rect.width);
+        maxY = Math.max(maxY, node.position.y + rect.height);
+    });
+    
+    const padding = 50;
+    const canvasRect = canvas.getBoundingClientRect();
+    const scaleX = (canvasRect.width - padding * 2) / (maxX - minX);
+    const scaleY = (canvasRect.height - padding * 2) / (maxY - minY);
+    
+    canvasScale = Math.min(scaleX, scaleY, 1);
+    canvas.style.transform = `scale(${canvasScale})`;
+    showAlert('View fitted to screen', 'info');
+}
+
+function zoomIn() {
+    canvasScale = Math.min(3, canvasScale * 1.2);
+    document.getElementById('canvas').style.transform = `scale(${canvasScale})`;
+}
+
+function zoomOut() {
+    canvasScale = Math.max(0.1, canvasScale / 1.2);
+    document.getElementById('canvas').style.transform = `scale(${canvasScale})`;
+}
+
+function resetZoom() {
+    canvasScale = 1;
+    document.getElementById('canvas').style.transform = `scale(${canvasScale})`;
+}
+
+function clearConnections() {
+    if (confirm('Clear all connections?')) {
+        myConnections.forEach(conn => {
+            if (conn.pathElement && conn.pathElement.parentNode) {
+                conn.pathElement.remove();
+            }
+            if (conn.labelElement && conn.labelElement.parentNode) {
+                conn.labelElement.remove();
+            }
+        });
+        myConnections = [];
+        updateSelectionDisplay();
+        updateSQLDisplay();
+        showAlert('All connections cleared', 'success');
+    }
+}
+
+function removeTableFromCanvas(tableName) {
+    if (confirm(`Remove ${tableName} from canvas?`)) {
+        // Remove table element
+        if (myTables[tableName] && myTables[tableName].element) {
+            myTables[tableName].element.remove();
+        }
+        delete myTables[tableName];
+        
+        // Remove related connections
+        myConnections = myConnections.filter(conn => {
+            if (conn.sourceTable === tableName || conn.targetTable === tableName) {
+                if (conn.pathElement && conn.pathElement.parentNode) {
+                    conn.pathElement.remove();
+                }
+                if (conn.labelElement && conn.labelElement.parentNode) {
+                    conn.labelElement.remove();
+                }
+                return false;
+            }
+            return true;
+        });
+        
+        updateSelectionDisplay();
+        updateSQLDisplay();
+        showAlert(`Table ${tableName} removed`, 'success');
+    }
+}
+
+// SQL Generation and Display
+function updateSQLDisplay() {
+    const sqlDisplay = document.getElementById('sqlDisplay');
+    if (!sqlDisplay) return;
+    
+    if (myConnections.length === 0) {
+        sqlDisplay.innerHTML = '<code>-- No tables connected yet. Add tables and create connections to generate SQL.</code>';
+        generatedSQL = '';
+        return;
+    }
+    
+    // Generate SQL based on connections
+    const tables = new Set();
+    const joins = [];
+    
+    myConnections.forEach(conn => {
+        tables.add(conn.sourceTable);
+        tables.add(conn.targetTable);
+        joins.push(`${conn.sourceTable}.${conn.sourceColumn} = ${conn.targetTable}.${conn.targetColumn}`);
+    });
+    
+    const tableList = Array.from(tables);
+    let sql = `SELECT *\nFROM ${tableList[0]}`;
+    
+    for (let i = 1; i < tableList.length; i++) {
+        sql += `\nINNER JOIN ${tableList[i]} ON `;
+        const relevantJoins = joins.filter(join => 
+            join.includes(tableList[0]) && join.includes(tableList[i])
+        );
+        sql += relevantJoins[0] || `${tableList[0]}.id = ${tableList[i]}.id`;
+    }
+    
+    generatedSQL = sql;
+    sqlDisplay.innerHTML = `<code>${sql}</code>`;
+    
+    document.getElementById('connectionCount').textContent = myConnections.length;
+}
+
+// Property panels
+function showTableProperties(tableName) {
+    const panel = document.getElementById('tablePanel');
+    const details = document.getElementById('tableDetails');
+    
+    const table = myTables[tableName];
+    if (!table) return;
+    
+    details.innerHTML = `
+        <p><strong>Table:</strong> ${tableName}</p>
+        <p><strong>Columns:</strong> ${table.columns.length}</p>
+        <p><strong>Position:</strong> ${table.position.x}, ${table.position.y}</p>
+        <hr>
+        <h6>Columns:</h6>
+        <ul class="list-unstyled">
+            ${table.columns.map(col => `<li><code>${col.name}</code> <small>(${col.type})</small></li>`).join('')}
+        </ul>
+    `;
+    
+    panel.style.display = 'block';
+}
+
+function showConnectionProperties(connection) {
+    const panel = document.getElementById('connectionPanel');
+    const details = document.getElementById('connectionDetails');
+    
+    details.innerHTML = `
+        <p><strong>Connection:</strong></p>
+        <p><code>${connection.sourceTable}.${connection.sourceColumn}</code><br>
+        ↓<br>
+        <code>${connection.targetTable}.${connection.targetColumn}</code></p>
+        <hr>
+        <p><strong>Join Type:</strong> ${connection.joinType}</p>
+        <p><strong>Condition:</strong> ${connection.condition}</p>
+        <button class="btn btn-danger btn-sm" onclick="removeConnection('${connection.id}')">
+            <i class="bi bi-trash"></i> Remove Connection
+        </button>
+    `;
+    
+    panel.style.display = 'block';
+}
+
+function removeConnection(connectionId) {
+    if (confirm('Remove this connection?')) {
+        const connIndex = myConnections.findIndex(c => c.id === connectionId);
+        if (connIndex >= 0) {
+            const conn = myConnections[connIndex];
+            if (conn.pathElement && conn.pathElement.parentNode) {
+                conn.pathElement.remove();
+            }
+            if (conn.labelElement && conn.labelElement.parentNode) {
+                conn.labelElement.remove();
+            }
+            myConnections.splice(connIndex, 1);
+            updateSelectionDisplay();
+            updateSQLDisplay();
+            clearSelections();
+            showAlert('Connection removed', 'success');
+        }
+    }
+}
+
+// Modal functions
+function showSQLPreview() {
+    const modal = new bootstrap.Modal(document.getElementById('sqlPreviewModal'));
+    document.getElementById('sqlPreviewContent').textContent = generatedSQL || 'No SQL generated yet';
+    modal.show();
+}
+
+function showDataPreview() {
+    if (myConnections.length === 0) {
+        alert('Please create some connections first');
+        return;
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('dataPreviewModal'));
+    document.getElementById('dataPreviewContent').innerHTML = '<div class="text-center"><i class="bi bi-hourglass-split"></i> Loading preview...</div>';
+    modal.show();
+    
+    // Simulate data loading
+    setTimeout(() => {
+        document.getElementById('dataPreviewContent').innerHTML = `
+            <div class="alert alert-info">
+                <strong>SQL Query:</strong><br>
+                <code>${generatedSQL}</code>
+            </div>
+            <p>Data preview would appear here...</p>
+        `;
+    }, 1000);
+}
+
+function showPerformanceAnalysis() {
+    const modal = new bootstrap.Modal(document.getElementById('performanceModal'));
+    document.getElementById('performanceContent').innerHTML = `
+        <div class="alert alert-info">
+            <h6>Performance Analysis</h6>
+            <p><strong>Tables:</strong> ${Object.keys(myTables).length}</p>
+            <p><strong>Connections:</strong> ${myConnections.length}</p>
+            <p><strong>Query Complexity:</strong> ${myConnections.length > 3 ? 'High' : 'Low'}</p>
+        </div>
+    `;
+    modal.show();
+}
+
+function copySQLToClipboard() {
+    if (!generatedSQL) {
+        alert('No SQL to copy');
+        return;
+    }
+    
+    navigator.clipboard.writeText(generatedSQL).then(() => {
+        showAlert('SQL copied to clipboard!', 'success');
+    }).catch(() => {
+        alert('Failed to copy SQL');
+    });
+}
+
+function executeQuery() {
+    if (!generatedSQL) {
+        alert('No SQL to execute');
+        return;
+    }
+    
+    // Execute query for preview
+    fetch('/api/relationships/test-sql', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            query: generatedSQL,
+            database: selectedDatabase || 'excel_data'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayQueryResults(data);
+            showAlert(`Query executed successfully! ${data.row_count} rows returned.`, 'success');
+        } else {
+            showAlert(`Query failed: ${data.error}`, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert(`Error executing query: ${error.message}`, 'danger');
+    });
+}
+
+function showExecuteAsTableModal() {
+    if (!generatedSQL) {
+        alert('No SQL query available to execute');
+        return;
+    }
+    
+    document.getElementById('executeTableSqlPreview').textContent = generatedSQL;
+    document.getElementById('newTableName').value = '';
+    document.getElementById('executeTableResult').style.display = 'none';
+    
+    const modal = new bootstrap.Modal(document.getElementById('executeAsTableModal'));
+    modal.show();
+}
+
+function executeQueryAsTable() {
+    const tableName = document.getElementById('newTableName').value.trim();
+    
+    if (!tableName) {
+        showAlert('Please enter a table name', 'warning');
+        return;
+    }
+    
+    if (!generatedSQL) {
+        showAlert('No SQL query available', 'warning');
+        return;
+    }
+    
+    // Validate table name format
+    const tableNameRegex = /^[a-zA-Z][a-zA-Z0-9_]*$/;
+    if (!tableNameRegex.test(tableName)) {
+        showAlert('Invalid table name. Use only letters, numbers, and underscores. Must start with a letter.', 'warning');
+        return;
+    }
+    
+    const executeBtn = document.getElementById('executeTableBtn');
+    executeBtn.disabled = true;
+    executeBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating Table...';
+    
+    fetch('/api/relationships/execute-as-table', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            query: generatedSQL,
+            table_name: tableName,
+            database: selectedDatabase || 'excel_data'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        executeBtn.disabled = false;
+        executeBtn.innerHTML = '<i class="bi bi-play-circle"></i> Create Table';
+        
+        if (data.success) {
+            displayExecuteTableResult(data);
+            showAlert(`Table "${tableName}" created successfully with ${data.row_count} rows!`, 'success');
+        } else {
+            showAlert(`Failed to create table: ${data.error}`, 'danger');
+        }
+    })
+    .catch(error => {
+        executeBtn.disabled = false;
+        executeBtn.innerHTML = '<i class="bi bi-play-circle"></i> Create Table';
+        showAlert(`Error creating table: ${error.message}`, 'danger');
+    });
+}
+
+function displayExecuteTableResult(data) {
+    const resultDiv = document.getElementById('executeTableResult');
+    
+    let sampleDataHtml = '';
+    if (data.sample_data && data.sample_data.length > 0) {
+        const columns = Object.keys(data.sample_data[0]);
+        sampleDataHtml = `
+            <h6><i class="bi bi-table"></i> Sample Data (First 5 rows):</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            ${columns.map(col => `<th>${col}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.sample_data.map(row => `
+                            <tr>
+                                ${columns.map(col => `<td>${row[col] || ''}</td>`).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    resultDiv.innerHTML = `
+        <div class="alert alert-success">
+            <h5><i class="bi bi-check-circle"></i> Table Created Successfully!</h5>
+            <p><strong>Table Name:</strong> ${data.table_name}</p>
+            <p><strong>Row Count:</strong> ${data.row_count}</p>
+            <p><strong>Columns:</strong> ${data.columns.length}</p>
+        </div>
+        
+        <h6><i class="bi bi-list-columns"></i> Column Information:</h6>
+        <div class="row">
+            ${data.columns.map(col => `
+                <div class="col-md-6 mb-2">
+                    <div class="badge bg-secondary">${col.name}</div>
+                    <small class="text-muted ms-1">${col.type}</small>
+                </div>
+            `).join('')}
+        </div>
+        
+        ${sampleDataHtml}
+        
+        <div class="mt-3">
+            <a href="/tables" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-table"></i> View in Tables Page
+            </a>
+        </div>
+    `;
+    
+    resultDiv.style.display = 'block';
+}
+
+function displayQueryResults(data) {
+    // This function can be enhanced to show query results in a modal or section
+    console.log('Query results:', data);
+}
+
+function refreshPreview() {
+    showAlert('Preview refreshed', 'info');
+}
+
+function exportToExcel() {
+    showAlert('Excel export not implemented yet', 'warning');
+}
+
+// Alert function
+function showAlert(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Data Analysis Functions
+var currentAnalysisData = null;
+
+function openDataAnalysis() {
+    // Load available tables
+    loadAnalysisTableOptions();
+    const modal = new bootstrap.Modal(document.getElementById('dataAnalysisModal'));
+    modal.show();
+}
+
+function loadAnalysisTableOptions() {
+    fetch('/api/tables/existing')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('analysisTableSelect');
+            select.innerHTML = '<option value="">Choose a table...</option>';
+            
+            if (data.success && data.tables) {
+                data.tables.forEach(table => {
+                    select.innerHTML += `<option value="${table}">${table}</option>`;
+                });
+            }
+        })
+        .catch(error => {
+            showAlert(`Error loading tables: ${error.message}`, 'danger');
+        });
+}
+
+function loadTableAnalysis() {
+    const tableName = document.getElementById('analysisTableSelect').value;
+    if (!tableName) {
+        clearAnalysisData();
+        return;
+    }
+    
+    showAlert('Loading table analysis...', 'info');
+    
+    // Load table analysis data with database parameter
+    const database = selectedDatabase || 'excel_data';
+    fetch(`/api/relationships/analyze-table/${tableName}?database=${database}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                currentAnalysisData = data;
+                loadColumnOptions(data.columns);
+                displayTableOverview(data);
+                displayStatistics(data);
+                displayDistributions(data);
+                displayDataQuality(data);
+                displayPatterns(data);
+                displayCorrelations(data);
+                showAlert('Analysis completed successfully!', 'success');
+            } else {
+                showAlert(`Analysis failed: ${data.error}`, 'danger');
+            }
+        })
+        .catch(error => {
+            showAlert(`Error analyzing table: ${error.message}`, 'danger');
+        });
+}
+
+function loadColumnOptions(columns) {
+    const select = document.getElementById('analysisColumnSelect');
+    select.innerHTML = '<option value="">All columns</option>';
+    
+    columns.forEach(column => {
+        select.innerHTML += `<option value="${column.name}">${column.name} (${column.type})</option>`;
+    });
+}
+
+function runColumnAnalysis() {
+    const columnName = document.getElementById('analysisColumnSelect').value;
+    if (!columnName || !currentAnalysisData) return;
+    
+    // Focus analysis on specific column
+    showAlert(`Analyzing column: ${columnName}`, 'info');
+    // Implementation for column-specific analysis
+}
+
+function displayTableOverview(data) {
+    const tableSummary = document.getElementById('tableSummary');
+    const columnTypes = document.getElementById('columnTypes');
+    const sampleDataPreview = document.getElementById('sampleDataPreview');
+    
+    // Table Summary
+    tableSummary.innerHTML = `
+        <div class="row text-center">
+            <div class="col-6">
+                <h4 class="text-primary">${data.row_count || 0}</h4>
+                <small class="text-muted">Total Rows</small>
+            </div>
+            <div class="col-6">
+                <h4 class="text-success">${data.columns ? data.columns.length : 0}</h4>
+                <small class="text-muted">Columns</small>
+            </div>
+        </div>
+        <hr>
+        <div class="row text-center">
+            <div class="col-6">
+                <h5 class="text-info">${data.null_count || 0}</h5>
+                <small class="text-muted">Null Values</small>
+            </div>
+            <div class="col-6">
+                <h5 class="text-warning">${data.duplicate_count || 0}</h5>
+                <small class="text-muted">Duplicates</small>
+            </div>
+        </div>
+    `;
+    
+    // Column Types Distribution
+    if (data.column_types) {
+        const typeEntries = Object.entries(data.column_types);
+        columnTypes.innerHTML = typeEntries.map(([type, count]) => `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="badge bg-secondary">${type}</span>
+                <span class="fw-bold">${count}</span>
+            </div>
+        `).join('');
+    }
+    
+    // Sample Data Preview
+    if (data.sample_data && data.sample_data.length > 0) {
+        const columns = Object.keys(data.sample_data[0]);
+        sampleDataPreview.innerHTML = `
+            <div class="table-responsive" style="max-height: 300px;">
+                <table class="table table-sm table-striped">
+                    <thead class="table-dark sticky-top">
+                        <tr>
+                            ${columns.map(col => `<th>${col}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.sample_data.slice(0, 10).map(row => `
+                            <tr>
+                                ${columns.map(col => `<td title="${row[col]}">${String(row[col] || '').substring(0, 50)}${String(row[col] || '').length > 50 ? '...' : ''}</td>`).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+}
+
+function displayStatistics(data) {
+    const numericStats = document.getElementById('numericStats');
+    const textStats = document.getElementById('textStats');
+    const dateStats = document.getElementById('dateStats');
+    
+    // Numeric Statistics
+    if (data.numeric_stats) {
+        numericStats.innerHTML = Object.entries(data.numeric_stats).map(([column, stats]) => `
+            <div class="card mb-2">
+                <div class="card-header py-1">
+                    <strong>${column}</strong>
+                </div>
+                <div class="card-body py-2">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <small class="text-muted d-block">Mean</small>
+                            <strong>${stats.mean ? Number(stats.mean).toFixed(2) : 'N/A'}</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">Median</small>
+                            <strong>${stats.median ? Number(stats.median).toFixed(2) : 'N/A'}</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">Std Dev</small>
+                            <strong>${stats.std ? Number(stats.std).toFixed(2) : 'N/A'}</strong>
+                        </div>
+                    </div>
+                    <div class="row text-center mt-2">
+                        <div class="col-6">
+                            <small class="text-muted d-block">Min / Max</small>
+                            <strong>${stats.min || 'N/A'} / ${stats.max || 'N/A'}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block">Range</small>
+                            <strong>${stats.range ? Number(stats.range).toFixed(2) : 'N/A'}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        numericStats.innerHTML = '<p class="text-muted">No numeric columns found</p>';
+    }
+    
+    // Text Statistics
+    if (data.text_stats) {
+        textStats.innerHTML = Object.entries(data.text_stats).map(([column, stats]) => `
+            <div class="card mb-2">
+                <div class="card-header py-1">
+                    <strong>${column}</strong>
+                </div>
+                <div class="card-body py-2">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <small class="text-muted d-block">Avg Length</small>
+                            <strong>${stats.avg_length ? Number(stats.avg_length).toFixed(1) : 'N/A'}</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">Unique Values</small>
+                            <strong>${stats.unique_count || 'N/A'}</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">Empty Values</small>
+                            <strong>${stats.empty_count || 0}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        textStats.innerHTML = '<p class="text-muted">No text columns found</p>';
+    }
+    
+    // Date Statistics
+    if (data.date_stats) {
+        dateStats.innerHTML = Object.entries(data.date_stats).map(([column, stats]) => `
+            <div class="card mb-2">
+                <div class="card-header py-1">
+                    <strong>${column}</strong>
+                </div>
+                <div class="card-body py-2">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <small class="text-muted d-block">Earliest</small>
+                            <strong>${stats.min_date || 'N/A'}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block">Latest</small>
+                            <strong>${stats.max_date || 'N/A'}</strong>
+                        </div>
+                    </div>
+                    <div class="row text-center mt-2">
+                        <div class="col-12">
+                            <small class="text-muted d-block">Date Range</small>
+                            <strong>${stats.date_range || 'N/A'}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        dateStats.innerHTML = '<p class="text-muted">No date columns found</p>';
+    }
+}
+
+function displayDistributions(data) {
+    const valueFrequencies = document.getElementById('valueFrequencies');
+    const uniqueValues = document.getElementById('uniqueValues');
+    const numericDistributions = document.getElementById('numericDistributions');
+    
+    // Value Frequencies
+    if (data.value_frequencies) {
+        valueFrequencies.innerHTML = Object.entries(data.value_frequencies).map(([column, frequencies]) => `
+            <div class="card mb-2">
+                <div class="card-header py-1">
+                    <strong>${column}</strong>
+                </div>
+                <div class="card-body py-2">
+                    ${Object.entries(frequencies).slice(0, 5).map(([value, count]) => `
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-truncate" style="max-width: 60%;" title="${value}">${value}</span>
+                            <div>
+                                <span class="badge bg-primary">${count}</span>
+                                <small class="text-muted">(${((count / data.row_count) * 100).toFixed(1)}%)</small>
+                            </div>
+                        </div>
+                    `).join('')}
+                    ${Object.keys(frequencies).length > 5 ? '<small class="text-muted">... and more</small>' : ''}
+                </div>
+            </div>
+        `).join('');
+    } else {
+        valueFrequencies.innerHTML = '<p class="text-muted">Loading frequency analysis...</p>';
+    }
+    
+    // Unique Values
+    if (data.unique_analysis) {
+        uniqueValues.innerHTML = Object.entries(data.unique_analysis).map(([column, analysis]) => `
+            <div class="card mb-2">
+                <div class="card-header py-1">
+                    <strong>${column}</strong>
+                </div>
+                <div class="card-body py-2">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <small class="text-muted d-block">Unique</small>
+                            <strong>${analysis.unique_count}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block">Uniqueness</small>
+                            <strong>${analysis.uniqueness_ratio ? (analysis.uniqueness_ratio * 100).toFixed(1) : 'N/A'}%</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // Numeric Distributions
+    if (data.numeric_distributions) {
+        numericDistributions.innerHTML = Object.entries(data.numeric_distributions).map(([column, dist]) => `
+            <div class="card mb-2">
+                <div class="card-header py-1">
+                    <strong>${column}</strong>
+                </div>
+                <div class="card-body py-2">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <small class="text-muted d-block">Skewness</small>
+                            <strong>${dist.skewness ? Number(dist.skewness).toFixed(3) : 'N/A'}</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">Kurtosis</small>
+                            <strong>${dist.kurtosis ? Number(dist.kurtosis).toFixed(3) : 'N/A'}</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">Zeros</small>
+                            <strong>${dist.zero_count || 0}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
+function displayDataQuality(data) {
+    const missingData = document.getElementById('missingData');
+    const duplicateData = document.getElementById('duplicateData');
+    const dataIssues = document.getElementById('dataIssues');
+    const qualityScore = document.getElementById('qualityScore');
+    
+    // Missing Data
+    if (data.missing_analysis) {
+        missingData.innerHTML = Object.entries(data.missing_analysis).map(([column, missing]) => `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span>${column}</span>
+                <div>
+                    <span class="badge ${missing.count > 0 ? 'bg-warning' : 'bg-success'}">${missing.count}</span>
+                    <small class="text-muted">(${missing.percentage.toFixed(1)}%)</small>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // Duplicate Data
+    if (data.duplicate_analysis) {
+        duplicateData.innerHTML = `
+            <div class="text-center">
+                <h4 class="text-${data.duplicate_analysis.duplicate_rows > 0 ? 'warning' : 'success'}">
+                    ${data.duplicate_analysis.duplicate_rows}
+                </h4>
+                <p class="text-muted">Duplicate Rows</p>
+            </div>
+            <div class="text-center">
+                <h5 class="text-info">${data.duplicate_analysis.duplicate_percentage.toFixed(1)}%</h5>
+                <p class="text-muted">of Total Data</p>
+            </div>
+        `;
+    }
+    
+    // Data Issues
+    if (data.data_issues) {
+        dataIssues.innerHTML = data.data_issues.map(issue => `
+            <div class="alert alert-${issue.severity === 'high' ? 'danger' : issue.severity === 'medium' ? 'warning' : 'info'} py-2">
+                <strong>${issue.type}:</strong> ${issue.description}
+                ${issue.count ? `<span class="badge bg-secondary ms-2">${issue.count}</span>` : ''}
+            </div>
+        `).join('');
+    }
+    
+    // Quality Score
+    if (data.quality_score) {
+        const score = data.quality_score.overall_score;
+        const scoreColor = score >= 80 ? 'success' : score >= 60 ? 'warning' : 'danger';
+        qualityScore.innerHTML = `
+            <div class="text-center">
+                <h2 class="text-${scoreColor}">${score.toFixed(1)}/100</h2>
+                <p class="text-muted">Overall Quality Score</p>
+            </div>
+            <div class="mt-3">
+                <h6>Score Breakdown:</h6>
+                ${Object.entries(data.quality_score.breakdown).map(([category, value]) => `
+                    <div class="d-flex justify-content-between">
+                        <span>${category.replace('_', ' ').toUpperCase()}</span>
+                        <strong>${value.toFixed(1)}</strong>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+}
+
+function displayPatterns(data) {
+    const textPatterns = document.getElementById('textPatterns');
+    const dataTrends = document.getElementById('dataTrends');
+    const anomalyDetection = document.getElementById('anomalyDetection');
+    
+    // Text Patterns
+    if (data.text_patterns) {
+        textPatterns.innerHTML = Object.entries(data.text_patterns).map(([column, patterns]) => `
+            <div class="card mb-2">
+                <div class="card-header py-1">
+                    <strong>${column}</strong>
+                </div>
+                <div class="card-body py-2">
+                    ${patterns.map(pattern => `
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <code class="small">${pattern.pattern}</code>
+                            <span class="badge bg-info">${pattern.count}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // Data Trends
+    if (data.trends) {
+        dataTrends.innerHTML = data.trends.map(trend => `
+            <div class="alert alert-info py-2">
+                <strong>${trend.column}:</strong> ${trend.description}
+                <span class="badge bg-primary ms-2">${trend.confidence}% confidence</span>
+            </div>
+        `).join('');
+    }
+    
+    // Anomaly Detection
+    if (data.anomalies) {
+        anomalyDetection.innerHTML = data.anomalies.map(anomaly => `
+            <div class="alert alert-warning py-2">
+                <strong>${anomaly.type}:</strong> ${anomaly.description}
+                <br><small class="text-muted">Column: ${anomaly.column}, Count: ${anomaly.count}</small>
+            </div>
+        `).join('');
+    }
+}
+
+function displayCorrelations(data) {
+    const columnCorrelations = document.getElementById('columnCorrelations');
+    const dataRelationships = document.getElementById('dataRelationships');
+    const correlationMatrix = document.getElementById('correlationMatrix');
+    
+    // Column Correlations
+    if (data.correlations) {
+        columnCorrelations.innerHTML = data.correlations.map(corr => `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small">${corr.column1} ↔ ${corr.column2}</span>
+                <span class="badge bg-${Math.abs(corr.value) > 0.7 ? 'danger' : Math.abs(corr.value) > 0.5 ? 'warning' : 'success'}">
+                    ${corr.value.toFixed(3)}
+                </span>
+            </div>
+        `).join('');
+    }
+    
+    // Data Relationships
+    if (data.relationship_suggestions) {
+        dataRelationships.innerHTML = data.relationship_suggestions.map(rel => `
+            <div class="alert alert-info py-2">
+                <strong>${rel.type}:</strong> ${rel.description}
+                <br><small class="text-muted">Confidence: ${rel.confidence}%</small>
+            </div>
+        `).join('');
+    }
+    
+    // Correlation Matrix (simplified representation)
+    if (data.correlation_matrix) {
+        correlationMatrix.innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-sm text-center">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            ${data.correlation_matrix.columns.map(col => `<th class="small">${col}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.correlation_matrix.data.map((row, i) => `
+                            <tr>
+                                <th class="small">${data.correlation_matrix.columns[i]}</th>
+                                ${row.map(value => `
+                                    <td class="small" style="background-color: ${getCorrelationColor(value)}">
+                                        ${value.toFixed(2)}
+                                    </td>
+                                `).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+}
+
+function getCorrelationColor(value) {
+    const intensity = Math.abs(value);
+    if (intensity > 0.8) return value > 0 ? '#d4edda' : '#f8d7da';
+    if (intensity > 0.5) return value > 0 ? '#fff3cd' : '#ffeaa7';
+    return '#f8f9fa';
+}
+
+function clearAnalysisData() {
+    document.getElementById('analysisColumnSelect').innerHTML = '<option value="">All columns</option>';
+    
+    // Clear all analysis sections
+    const sections = [
+        'tableSummary', 'columnTypes', 'sampleDataPreview',
+        'numericStats', 'textStats', 'dateStats',
+        'valueFrequencies', 'uniqueValues', 'numericDistributions',
+        'missingData', 'duplicateData', 'dataIssues', 'qualityScore',
+        'textPatterns', 'dataTrends', 'anomalyDetection',
+        'columnCorrelations', 'dataRelationships', 'correlationMatrix'
+    ];
+    
+    sections.forEach(section => {
+        const element = document.getElementById(section);
+        if (element) {
+            element.innerHTML = '<p class="text-muted">Select a table to view analysis</p>';
+        }
+    });
+}
+
+function refreshAnalysis() {
+    loadTableAnalysis();
+}
+
+function exportAnalysisReport() {
+    if (!currentAnalysisData) {
+        showAlert('No analysis data to export', 'warning');
+        return;
+    }
+    
+    showAlert('Export functionality coming soon!', 'info');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Work Orders Analysis Debug - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1><i class="fas fa-chart-line"></i> Work Orders Analysis Debug</h1>
+            <p class="text-muted">Debug version to identify any issues</p>
+        </div>
+    </div>
+
+    <!-- Debug Info -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Debug Information</h5>
+                </div>
+                <div class="card-body">
+                    <div id="debug-info">
+                        <p>Initializing debug session...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Response -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>API Response</h5>
+                </div>
+                <div class="card-body">
+                    <pre id="api-response" style="max-height: 400px; overflow-y: auto; background: #f8f9fa; padding: 15px;">
+                        Loading...
+                    </pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simple Data Display -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Basic Statistics</h5>
+                </div>
+                <div class="card-body" id="basic-stats">
+                    Loading...
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    debugAnalysis();
+});
+
+function debugAnalysis() {
+    const debugInfo = $('#debug-info');
+    debugInfo.html('<p>Starting debug analysis...</p>');
+    
+    // Add current time
+    debugInfo.append('<p>Current time: ' + new Date().toLocaleString() + '</p>');
+    
+    // Check jQuery
+    debugInfo.append('<p>jQuery version: ' + $.fn.jquery + '</p>');
+    
+    // Test API endpoint
+    debugInfo.append('<p>Testing API endpoint...</p>');
+    
+    $.ajax({
+        url: '/api/work-orders/analysis',
+        method: 'GET',
+        timeout: 60000,
+        beforeSend: function() {
+            debugInfo.append('<p><strong>Sending request to /api/work-orders/analysis</strong></p>');
+        },
+        success: function(response) {
+            debugInfo.append('<p style="color: green;"><strong>✓ API call successful!</strong></p>');
+            debugInfo.append('<p>Response type: ' + typeof response + '</p>');
+            debugInfo.append('<p>Response success field: ' + response.success + '</p>');
+            
+            // Show full response
+            $('#api-response').text(JSON.stringify(response, null, 2));
+            
+            if (response.success && response.analysis) {
+                debugInfo.append('<p>Analysis object keys: ' + Object.keys(response.analysis).join(', ') + '</p>');
+                
+                // Display basic stats
+                const basicStats = response.analysis.basic_stats;
+                if (basicStats) {
+                    $('#basic-stats').html(`
+                        <ul>
+                            <li><strong>Total Records:</strong> ${basicStats.total_records}</li>
+                            <li><strong>Date Range:</strong> ${basicStats.date_range.start} to ${basicStats.date_range.end}</li>
+                            <li><strong>Completion Percentage:</strong> ${basicStats.completed_percentage}%</li>
+                            <li><strong>Status Distribution:</strong> ${JSON.stringify(basicStats.status_distribution)}</li>
+                        </ul>
+                    `);
+                } else {
+                    $('#basic-stats').html('<p style="color: red;">No basic stats found in response</p>');
+                }
+                
+                debugInfo.append('<p style="color: green;"><strong>✓ Analysis data received and parsed successfully!</strong></p>');
+            } else {
+                debugInfo.append('<p style="color: red;"><strong>✗ API returned error or no analysis data</strong></p>');
+                debugInfo.append('<p>Error: ' + (response.error || 'Unknown') + '</p>');
+            }
+        },
+        error: function(xhr, status, error) {
+            debugInfo.append('<p style="color: red;"><strong>✗ API call failed!</strong></p>');
+            debugInfo.append('<p>Status: ' + status + '</p>');
+            debugInfo.append('<p>Error: ' + error + '</p>');
+            debugInfo.append('<p>HTTP Status: ' + xhr.status + '</p>');
+            debugInfo.append('<p>Response Text: ' + xhr.responseText.substring(0, 500) + '</p>');
+            
+            $('#api-response').text('Error: ' + status + ' - ' + error + '\n\nResponse: ' + xhr.responseText);
+        },
+        complete: function() {
+            debugInfo.append('<p>Request completed at: ' + new Date().toLocaleString() + '</p>');
+        }
+    });
+}
+</script>
+{% endblock %}

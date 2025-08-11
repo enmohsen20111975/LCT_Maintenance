@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Work Orders Test</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        pre { background: #f8f9fa; padding: 15px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Work Orders Analysis - Basic Test</h1>
+    
+    <div id="status" class="status info">Initializing...</div>
+    
+    <h2>Test Results</h2>
+    <div id="results"></div>
+    
+    <h2>API Response</h2>
+    <pre id="response">Waiting for response...</pre>
+
+    <script>
+        console.log('Starting basic test...');
+        
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = 'status ' + type;
+            statusDiv.textContent = message;
+        }
+        
+        function addResult(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML += '<p>' + message + '</p>';
+        }
+        
+        // Test 1: Check if we can reach the server
+        updateStatus('Testing server connectivity...');
+        addResult('Test 1: Server connectivity check');
+        
+        fetch('/api/work-orders/analysis', {
+            method: 'GET',
+            timeout: 30000
+        })
+        .then(response => {
+            addResult('✓ Server responded with status: ' + response.status);
+            
+            if (response.ok) {
+                return response.json();
+            } else {
+                throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+            }
+        })
+        .then(data => {
+            updateStatus('API call successful!', 'success');
+            addResult('✓ API returned JSON data');
+            addResult('✓ Success field: ' + data.success);
+            
+            document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+            
+            if (data.success && data.analysis) {
+                addResult('✓ Analysis data present');
+                addResult('✓ Data keys: ' + Object.keys(data.analysis).join(', '));
+                
+                // Show basic stats
+                const basicStats = data.analysis.basic_stats;
+                if (basicStats) {
+                    addResult('✓ Basic stats found:');
+                    addResult('  - Total records: ' + basicStats.total_records);
+                    addResult('  - Completion rate: ' + basicStats.completed_percentage + '%');
+                }
+                
+                updateStatus('All tests passed! Data is available.', 'success');
+            } else {
+                addResult('✗ No analysis data in response');
+                updateStatus('API responded but no data found', 'error');
+            }
+        })
+        .catch(error => {
+            updateStatus('Error: ' + error.message, 'error');
+            addResult('✗ API call failed: ' + error.message);
+            document.getElementById('response').textContent = 'Error: ' + error.message;
+        });
+    </script>
+</body>
+</html>

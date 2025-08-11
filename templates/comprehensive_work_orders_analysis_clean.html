@@ -1,0 +1,1243 @@
+{% extends "base.html" %}
+
+{% block title %}Comprehensive Work Orders Analysis - AllCM Table{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" rel="stylesheet" />
+<style>
+    .analysis-container {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .metric-card.primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .metric-card.success { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+    .metric-card.warning { background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); }
+    .metric-card.danger { background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%); }
+    .metric-card.info { background: linear-gradient(135deg, #17a2b8 0%, #6f42c1 100%); }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    .metric-label {
+        font-size: 1rem;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        height: 450px;
+        border: 1px solid #e9ecef;
+    }
+    
+    .chart-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: #333;
+        text-align: center;
+        border-bottom: 2px solid #f8f9fa;
+        padding-bottom: 0.5rem;
+    }
+    
+    .advanced-filter-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border: 2px solid #e9ecef;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    
+    .filter-row {
+        margin-bottom: 1.5rem;
+    }
+    
+    .filter-row:last-child {
+        margin-bottom: 0;
+    }
+    
+    .data-table-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        max-height: 700px;
+        overflow-y: auto;
+        border: 1px solid #e9ecef;
+    }
+    
+    .status-badge {
+        padding: 0.4rem 0.8rem;
+        border-radius: 25px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-exe { background-color: #ffc107; color: #212529; }
+    .status-ini { background-color: #17a2b8; color: white; }
+    .status-ter { background-color: #28a745; color: white; }
+    .status-prt { background-color: #fd7e14; color: white; }
+    .status-apc { background-color: #dc3545; color: white; }
+    
+    .job-type-badge {
+        padding: 0.3rem 0.6rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .type-c { background-color: #dc3545; color: white; }
+    .type-p { background-color: #28a745; color: white; }
+    .type-i { background-color: #17a2b8; color: white; }
+    .type-o { background-color: #6c757d; color: white; }
+    .type-u { background-color: #fd7e14; color: white; }
+    .type-b { background-color: #6f42c1; color: white; }
+    .type-l { background-color: #20c997; color: white; }
+    
+    .priority-badge {
+        padding: 0.3rem 0.6rem;
+        border-radius: 15px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    
+    .priority-immediate { background-color: #dc3545; color: white; }
+    .priority-high { background-color: #fd7e14; color: white; }
+    .priority-medium { background-color: #ffc107; color: #212529; }
+    .priority-low { background-color: #28a745; color: white; }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+    
+    .loading-content {
+        background: white;
+        padding: 3rem;
+        border-radius: 15px;
+        text-align: center;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .select2-container {
+        width: 100% !important;
+    }
+    
+    .btn-action {
+        margin: 0.25rem;
+        border-radius: 25px;
+        padding: 0.6rem 1.2rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-action:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .category-analysis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .insights-container {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border-left: 5px solid #667eea;
+    }
+    
+    .insight-item {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .insight-warning { border-left-color: #ffc107; }
+    .insight-danger { border-left-color: #dc3545; }
+    .insight-success { border-left-color: #28a745; }
+    .insight-info { border-left-color: #17a2b8; }
+    
+    .table-responsive {
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .table th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .table td {
+        vertical-align: middle;
+        border-color: #f8f9fa;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+        transform: translateX(2px);
+        transition: all 0.2s ease;
+    }
+    
+    .export-options {
+        background: white;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .filter-toggle {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 0.8rem 1.5rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .filter-toggle:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .breadcrumb {
+        background: transparent;
+        padding: 0;
+        margin-bottom: 1rem;
+    }
+    
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: ">";
+        color: #6c757d;
+    }
+
+    /* AI Analysis Styles */
+    .ai-analysis-container {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border-radius: 15px;
+        border: 2px solid #17a2b8;
+        margin-bottom: 2rem;
+    }
+
+    .fault-pattern-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #17a2b8;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .ai-insight-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #28a745;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .critical-equipment-item {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .priority-critical { background-color: #dc3545; color: white; }
+    .priority-high { background-color: #fd7e14; color: white; }
+    .priority-medium { background-color: #ffc107; color: #212529; }
+    .priority-low { background-color: #28a745; color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Work Orders Analysis</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-2">
+                <i class="bi bi-graph-up-arrow text-primary"></i>
+                Comprehensive Work Orders Analysis
+            </h1>
+            <p class="text-muted mb-0">Complete analysis of AllCM table with advanced filtering and insights</p>
+        </div>
+        <div class="export-options">
+            <button class="btn btn-outline-success btn-action" onclick="exportData('excel')">
+                <i class="bi bi-file-earmark-excel"></i> Export Excel
+            </button>
+            <button class="btn btn-outline-info btn-action" onclick="exportData('csv')">
+                <i class="bi bi-file-earmark-text"></i> Export CSV
+            </button>
+            <button class="btn btn-primary btn-action" onclick="refreshAnalysis()">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Filter Toggle -->
+    <button class="filter-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFilters" aria-expanded="false" aria-controls="advancedFilters">
+        <i class="bi bi-funnel"></i> Advanced Filters & Search
+    </button>
+
+    <!-- Advanced Filters -->
+    <div class="collapse" id="advancedFilters">
+        <div class="advanced-filter-section">
+            <h5 class="mb-4">
+                <i class="bi bi-funnel-fill text-primary"></i> Advanced Filtering Options
+            </h5>
+            <form id="filterForm">
+                <!-- Row 1: Status and Job Details -->
+                <div class="row filter-row">
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label fw-bold">Work Order Status (ETATJOB)</label>
+                        <select class="form-select select2" id="etatjobFilter" name="etatjob" multiple>
+                            <option value="">All Statuses</option>
+                        </select>
+                        <small class="text-muted">Select one or more statuses</small>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label fw-bold">Work Supplier</label>
+                        <select class="form-select select2" id="supplierFilter" name="work_supplier_key" multiple>
+                            <option value="">All Suppliers</option>
+                        </select>
+                        <small class="text-muted">Select suppliers to filter</small>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label fw-bold">Job Type</label>
+                        <select class="form-select select2" id="jobTypeFilter" name="job_type" multiple>
+                            <option value="">All Types</option>
+                        </select>
+                        <small class="text-muted">Maintenance type categories</small>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label fw-bold">Priority Level</label>
+                        <select class="form-select select2" id="priorityFilter" name="priority" multiple>
+                            <option value="">All Priorities</option>
+                        </select>
+                        <small class="text-muted">Priority levels</small>
+                    </div>
+                </div>
+                
+                <!-- Row 2: Categories and Organization -->
+                <div class="row filter-row">
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label fw-bold">POS Key</label>
+                        <select class="form-select select2" id="posKeyFilter" name="pos_key" multiple>
+                            <option value="">All POS</option>
+                        </select>
+                        <small class="text-muted">Position/Location keys</small>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label fw-bold">Cost Purpose</label>
+                        <select class="form-select select2" id="costPurposeFilter" name="cost_purpose_key" multiple>
+                            <option value="">All Purposes</option>
+                        </select>
+                        <small class="text-muted">Cost classification</small>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label fw-bold">Inspector</label>
+                        <select class="form-select select2" id="inspectorFilter" name="inspector" multiple>
+                            <option value="">All Inspectors</option>
+                        </select>
+                        <small class="text-muted">Assigned inspectors</small>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label fw-bold">Equipment</label>
+                        <select class="form-select select2" id="equipmentFilter" name="equipment" multiple>
+                            <option value="">All Equipment</option>
+                        </select>
+                        <small class="text-muted">Equipment/Asset IDs</small>
+                    </div>
+                </div>
+                
+                <!-- Row 3: Date Filters and Search -->
+                <div class="row filter-row">
+                    <div class="col-lg-2 col-md-4">
+                        <label class="form-label fw-bold">Date Type</label>
+                        <select class="form-select" id="dateType" name="dateType">
+                            <option value="order_date">Order Date</option>
+                            <option value="execution_date">Execution Date</option>
+                            <option value="created_date">Created Date</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-4">
+                        <label class="form-label fw-bold">Date From</label>
+                        <input type="date" class="form-control" id="dateFrom" name="startDate">
+                    </div>
+                    <div class="col-lg-2 col-md-4">
+                        <label class="form-label fw-bold">Date To</label>
+                        <input type="date" class="form-control" id="dateTo" name="endDate">
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label fw-bold">Search Term</label>
+                        <input type="text" class="form-control" id="searchTerm" name="search" placeholder="Search in description, equipment, WO number...">
+                        <small class="text-muted">Search across multiple fields</small>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label fw-bold">Record Limit</label>
+                        <select class="form-select" id="recordLimit" name="limit">
+                            <option value="500">500 records</option>
+                            <option value="1000" selected>1,000 records</option>
+                            <option value="2000">2,000 records</option>
+                            <option value="5000">5,000 records</option>
+                            <option value="">All records</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Filter Actions -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <button type="button" class="btn btn-primary btn-action" onclick="applyFilters()">
+                            <i class="bi bi-search"></i> Apply Filters
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-action" onclick="clearFilters()">
+                            <i class="bi bi-x-circle"></i> Clear All
+                        </button>
+                        <button type="button" class="btn btn-info btn-action" onclick="saveFilterPreset()">
+                            <i class="bi bi-bookmark"></i> Save Preset
+                        </button>
+                        <button type="button" class="btn btn-outline-info btn-action" onclick="loadFilterPreset()">
+                            <i class="bi bi-bookmark-check"></i> Load Preset
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Key Metrics Dashboard -->
+    <div class="stats-grid" id="keyMetrics">
+        <!-- Metrics will be populated here -->
+    </div>
+
+    <!-- Insights Section -->
+    <div class="insights-container" id="insightsSection" style="display: none;">
+        <h5 class="mb-3">
+            <i class="bi bi-lightbulb text-warning"></i> Maintenance Insights & Recommendations
+        </h5>
+        <div id="insightsList">
+            <!-- Insights will be populated here -->
+        </div>
+    </div>
+
+    <!-- Category Analysis Charts -->
+    <div class="category-analysis" id="categoryCharts">
+        <!-- Category charts will be populated here -->
+    </div>
+
+    <!-- Performance Analysis Charts -->
+    <div class="category-analysis" id="performanceCharts">
+        <!-- Performance charts will be populated here -->
+    </div>
+
+    <!-- AI Fault Analysis Section -->
+    <div class="ai-analysis-container mt-4" id="aiAnalysisSection" style="display: none;">
+        <div class="card">
+            <div class="card-header bg-gradient-info text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-robot"></i> AI Fault Analysis & Predictions
+                    <span class="badge bg-light text-dark ms-2">BETA</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Equipment Selection -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Select Equipment for AI Analysis</label>
+                        <select class="form-select" id="aiEquipmentSelect">
+                            <option value="">Loading equipment...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <button class="btn btn-info me-2" onclick="loadAIAnalysis()">
+                            <i class="bi bi-cpu"></i> Analyze Equipment
+                        </button>
+                        <button class="btn btn-outline-info" onclick="loadComprehensiveAI()">
+                            <i class="bi bi-globe"></i> Global Analysis
+                        </button>
+                    </div>
+                </div>
+
+                <!-- AI Analysis Results -->
+                <div id="aiAnalysisResults" style="display: none;">
+                    <!-- Fault Patterns -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-primary"><i class="bi bi-graph-up"></i> Fault Patterns & Trends</h6>
+                            <div id="faultPatternsContainer" class="row">
+                                <!-- Fault patterns will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Insights -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-success"><i class="bi bi-lightbulb"></i> AI-Generated Insights</h6>
+                            <div id="aiInsightsContainer">
+                                <!-- AI insights will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fault Timeline Chart -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-warning"><i class="bi bi-clock-history"></i> Fault Timeline Analysis</h6>
+                            <canvas id="faultTimelineChart" height="400"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Global AI Results -->
+                <div id="globalAIResults" style="display: none;">
+                    <div class="row">
+                        <!-- Critical Equipment -->
+                        <div class="col-md-6 mb-3">
+                            <h6 class="text-danger"><i class="bi bi-exclamation-triangle"></i> Critical Equipment</h6>
+                            <div id="criticalEquipmentList" class="list-group">
+                                <!-- Critical equipment will be populated here -->
+                            </div>
+                        </div>
+                        
+                        <!-- Common Fault Types -->
+                        <div class="col-md-6 mb-3">
+                            <h6 class="text-info"><i class="bi bi-bar-chart"></i> Most Common Faults</h6>
+                            <canvas id="commonFaultsChart" height="300"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Global Recommendations -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="text-success"><i class="bi bi-check-circle"></i> Global Recommendations</h6>
+                            <div id="globalRecommendations" class="alert alert-info">
+                                <!-- Global recommendations will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="data-table-container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">
+                <i class="bi bi-table"></i> Work Orders Data
+                <span class="badge bg-primary ms-2" id="recordCount">0 records</span>
+            </h5>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" onclick="toggleFullscreen()">
+                    <i class="bi bi-fullscreen"></i> Fullscreen
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="exportTableData()">
+                    <i class="bi bi-download"></i> Export Table
+                </button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="workOrdersTable">
+                <thead>
+                    <tr>
+                        <th>WO Number</th>
+                        <th>Status</th>
+                        <th>Job Type</th>
+                        <th>Priority</th>
+                        <th>Equipment</th>
+                        <th>Supplier</th>
+                        <th>Cost Purpose</th>
+                        <th>Inspector</th>
+                        <th>Order Date</th>
+                        <th>Duration (hrs)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data will be populated here -->
+                </tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        <nav aria-label="Table pagination" class="mt-3">
+            <ul class="pagination justify-content-center" id="tablePagination">
+                <!-- Pagination will be populated here -->
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h5>Loading Work Orders Analysis...</h5>
+        <p class="text-muted">Processing AllCM table data with advanced analytics</p>
+        <div class="progress mt-3" style="width: 300px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 75%"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Work Order Detail Modal -->
+<div class="modal fade" id="workOrderModal" tabindex="-1" aria-labelledby="workOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="workOrderModalLabel">Work Order Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="workOrderDetails">
+                <!-- Work order details will be populated here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="printWorkOrder()">Print</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+
+<script>
+let currentData = [];
+let currentFilters = {};
+let charts = {};
+let currentPage = 1;
+let recordsPerPage = 50;
+let totalRecords = 0;
+
+// Initialize the page
+document.addEventListener('DOMContentLoaded', function() {
+    initializeComponents();
+    loadInitialData();
+});
+
+// Initialize all components
+function initializeComponents() {
+    // Initialize Select2 components
+    $('.select2').select2({
+        placeholder: 'Select options...',
+        allowClear: true
+    });
+    
+    // Set default date range (last 30 days)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    
+    document.getElementById('dateFrom').value = startDate.toISOString().split('T')[0];
+    document.getElementById('dateTo').value = endDate.toISOString().split('T')[0];
+    
+    // Initialize filter options
+    initializeFilters();
+}
+
+// Initialize filter dropdowns
+async function initializeFilters() {
+    console.log('🔍 Initializing filters...');
+    showLoading(true);
+    try {
+        console.log('📡 Fetching filter options from API...');
+        const response = await fetch('/api/work-orders/filter-options');
+        console.log('📊 Response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const options = await response.json();
+        console.log('✅ Filter options received:', options);
+        
+        if (options.success) {
+            console.log('🎯 Populating filter dropdowns...');
+            populateFilterDropdowns(options.data);
+            console.log('✅ Filter dropdowns populated successfully!');
+        } else {
+            console.error('❌ API returned error:', options.error);
+            showError('Failed to load filter options: ' + (options.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('❌ Error loading filter options:', error);
+        showError('Failed to load filter options: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Populate filter dropdowns with data
+function populateFilterDropdowns(options) {
+    // Status (ETATJOB) options
+    const etatjobSelect = document.getElementById('etatjobFilter');
+    etatjobSelect.innerHTML = '<option value="">All Statuses</option>';
+    options.etatjob?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        etatjobSelect.add(optionElement);
+    });
+    
+    // Work Supplier options
+    const supplierSelect = document.getElementById('supplierFilter');
+    supplierSelect.innerHTML = '<option value="">All Suppliers</option>';
+    options.work_supplier_key?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        supplierSelect.add(optionElement);
+    });
+    
+    // Job Type options
+    const jobTypeSelect = document.getElementById('jobTypeFilter');
+    jobTypeSelect.innerHTML = '<option value="">All Types</option>';
+    options.job_type?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        jobTypeSelect.add(optionElement);
+    });
+    
+    // Priority options
+    const prioritySelect = document.getElementById('priorityFilter');
+    prioritySelect.innerHTML = '<option value="">All Priorities</option>';
+    options.priority?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        prioritySelect.add(optionElement);
+    });
+    
+    // POS Key options
+    const posKeySelect = document.getElementById('posKeyFilter');
+    posKeySelect.innerHTML = '<option value="">All POS</option>';
+    options.pos_key?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        posKeySelect.add(optionElement);
+    });
+    
+    // Cost Purpose options
+    const costPurposeSelect = document.getElementById('costPurposeFilter');
+    costPurposeSelect.innerHTML = '<option value="">All Purposes</option>';
+    options.cost_purpose_key?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        costPurposeSelect.add(optionElement);
+    });
+    
+    // Inspector options
+    const inspectorSelect = document.getElementById('inspectorFilter');
+    inspectorSelect.innerHTML = '<option value="">All Inspectors</option>';
+    options.inspector?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        inspectorSelect.add(optionElement);
+    });
+    
+    // Equipment options
+    const equipmentSelect = document.getElementById('equipmentFilter');
+    equipmentSelect.innerHTML = '<option value="">All Equipment</option>';
+    options.equipment?.forEach(option => {
+        const optionElement = new Option(option.label, option.value);
+        equipmentSelect.add(optionElement);
+    });
+    
+    // Refresh Select2 components
+    $('.select2').trigger('change');
+}
+
+// Load initial data
+async function loadInitialData() {
+    showLoading(true);
+    try {
+        const [analysisResponse, dataResponse] = await Promise.all([
+            fetch('/api/work-orders/comprehensive-analysis'),
+            fetch('/api/work-orders/search')
+        ]);
+        
+        const analysisData = await analysisResponse.json();
+        const workOrdersData = await dataResponse.json();
+        
+        if (analysisData.success) {
+            displayAnalysis(analysisData.data);
+        }
+        
+        if (workOrdersData.success) {
+            currentData = workOrdersData.data;
+            totalRecords = currentData.length;
+            displayWorkOrders(currentData);
+            updatePagination();
+        }
+        
+        // Load AI equipment list
+        await loadAIEquipmentList();
+        
+        // Show AI analysis section
+        document.getElementById('aiAnalysisSection').style.display = 'block';
+        
+    } catch (error) {
+        console.error('Error loading initial data:', error);
+        showError('Failed to load data. Please refresh the page.');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// AI Analysis Functions
+async function loadAIEquipmentList() {
+    try {
+        const response = await fetch('/api/ai-analysis/equipment-list');
+        const data = await response.json();
+        
+        if (data.success) {
+            const select = document.getElementById('aiEquipmentSelect');
+            select.innerHTML = '<option value="">Select equipment for analysis...</option>';
+            
+            data.equipment.forEach(equipment => {
+                const option = new Option(equipment.display, equipment.id);
+                select.add(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading AI equipment list:', error);
+    }
+}
+
+async function loadAIAnalysis() {
+    const equipmentId = document.getElementById('aiEquipmentSelect').value;
+    if (!equipmentId) {
+        alert('Please select equipment for analysis');
+        return;
+    }
+    
+    showLoading(true);
+    try {
+        const response = await fetch(`/api/ai-analysis/equipment/${equipmentId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            displayAIAnalysis(data.analysis);
+            document.getElementById('aiAnalysisResults').style.display = 'block';
+            document.getElementById('globalAIResults').style.display = 'none';
+        } else {
+            showError('Failed to load AI analysis: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error loading AI analysis:', error);
+        showError('Failed to load AI analysis');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function loadComprehensiveAI() {
+    showLoading(true);
+    try {
+        const response = await fetch('/api/ai-analysis/comprehensive');
+        const data = await response.json();
+        
+        if (data.success) {
+            displayGlobalAIAnalysis(data.analysis);
+            document.getElementById('globalAIResults').style.display = 'block';
+            document.getElementById('aiAnalysisResults').style.display = 'none';
+        } else {
+            showError('Failed to load comprehensive AI analysis: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error loading comprehensive AI analysis:', error);
+        showError('Failed to load comprehensive AI analysis');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function displayAIAnalysis(analysis) {
+    // Display fault patterns
+    const patternsContainer = document.getElementById('faultPatternsContainer');
+    patternsContainer.innerHTML = '';
+    
+    if (analysis.fault_patterns && analysis.fault_patterns.length > 0) {
+        analysis.fault_patterns.forEach(pattern => {
+            const patternCard = document.createElement('div');
+            patternCard.className = 'col-md-6';
+            patternCard.innerHTML = `
+                <div class="fault-pattern-card">
+                    <h6 class="text-primary">${pattern.fault_type}</h6>
+                    <p><strong>Frequency:</strong> ${pattern.frequency} occurrences</p>
+                    <p><strong>Trend:</strong> <span class="badge badge-${pattern.trend === 'increasing' ? 'danger' : pattern.trend === 'decreasing' ? 'success' : 'warning'}">${pattern.trend}</span></p>
+                    <p><strong>Last Occurrence:</strong> ${pattern.last_occurrence}</p>
+                    <p><strong>Avg Resolution:</strong> ${pattern.avg_resolution_time}h</p>
+                </div>
+            `;
+            patternsContainer.appendChild(patternCard);
+        });
+    }
+    
+    // Display AI insights
+    const insightsContainer = document.getElementById('aiInsightsContainer');
+    insightsContainer.innerHTML = '';
+    
+    if (analysis.ai_insights && analysis.ai_insights.length > 0) {
+        analysis.ai_insights.forEach(insight => {
+            const insightCard = document.createElement('div');
+            insightCard.className = 'ai-insight-card';
+            insightCard.innerHTML = `
+                <h6 class="text-${getPriorityColor(insight.priority)}">${insight.title}</h6>
+                <p>${insight.description}</p>
+                <div class="d-flex justify-content-between">
+                    <span class="badge badge-${getPriorityColor(insight.priority)}">${insight.priority} Priority</span>
+                    <small class="text-muted">Confidence: ${insight.confidence}%</small>
+                </div>
+            `;
+            insightsContainer.appendChild(insightCard);
+        });
+    }
+    
+    // Create fault timeline chart
+    if (analysis.timeline_data) {
+        createFaultTimelineChart(analysis.timeline_data);
+    }
+}
+
+function displayGlobalAIAnalysis(analysis) {
+    // Display critical equipment
+    const criticalList = document.getElementById('criticalEquipmentList');
+    criticalList.innerHTML = '';
+    
+    if (analysis.critical_equipment && analysis.critical_equipment.length > 0) {
+        analysis.critical_equipment.forEach(equipment => {
+            const item = document.createElement('div');
+            item.className = 'critical-equipment-item';
+            item.innerHTML = `
+                <h6>${equipment.equipment_id}</h6>
+                <p><strong>Fault Count:</strong> ${equipment.fault_count}</p>
+                <p><strong>Risk Score:</strong> <span class="badge badge-danger">${equipment.risk_score}/100</span></p>
+                <p><strong>Recommendation:</strong> ${equipment.recommendation}</p>
+            `;
+            criticalList.appendChild(item);
+        });
+    }
+    
+    // Create common faults chart
+    if (analysis.common_faults) {
+        createCommonFaultsChart(analysis.common_faults);
+    }
+    
+    // Display global recommendations
+    const recommendationsDiv = document.getElementById('globalRecommendations');
+    if (analysis.recommendations && analysis.recommendations.length > 0) {
+        recommendationsDiv.innerHTML = analysis.recommendations.map(rec => `
+            <div class="mb-2">
+                <i class="bi bi-check-circle text-success"></i> ${rec}
+            </div>
+        `).join('');
+    }
+}
+
+function createFaultTimelineChart(timelineData) {
+    const ctx = document.getElementById('faultTimelineChart');
+    if (charts.faultTimeline) {
+        charts.faultTimeline.destroy();
+    }
+    
+    charts.faultTimeline = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: timelineData.labels,
+            datasets: [{
+                label: 'Fault Occurrences',
+                data: timelineData.data,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function createCommonFaultsChart(faultsData) {
+    const ctx = document.getElementById('commonFaultsChart');
+    if (charts.commonFaults) {
+        charts.commonFaults.destroy();
+    }
+    
+    charts.commonFaults = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: faultsData.map(f => f.fault_type),
+            datasets: [{
+                label: 'Occurrence Count',
+                data: faultsData.map(f => f.count),
+                backgroundColor: faultsData.map((_, index) => getChartColor(index, 0.8))
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+}
+
+// Display comprehensive analysis data
+function displayAnalysis(data) {
+    displayKeyMetrics(data.basic_stats, data.performance);
+    displayCategoryCharts(data.categories || data);
+    displayPerformanceCharts(data.performance, data.temporal);
+    displayInsights(data.insights);
+}
+
+// Display key metrics cards
+function displayKeyMetrics(stats, performance) {
+    const metricsContainer = document.getElementById('keyMetrics');
+    
+    const metrics = [
+        {
+            value: (stats?.total_records || 0).toLocaleString(),
+            label: 'Total Work Orders',
+            class: 'primary',
+            icon: 'bi-clipboard-data'
+        },
+        {
+            value: (stats?.completed_percentage || 0) + '%',
+            label: 'Completion Rate',
+            class: stats?.completed_percentage > 80 ? 'success' : stats?.completed_percentage > 60 ? 'warning' : 'danger',
+            icon: 'bi-check-circle'
+        },
+        {
+            value: performance?.corrective_preventive_ratio || '0:1',
+            label: 'C:P Ratio',
+            class: 'info',
+            icon: 'bi-gear'
+        },
+        {
+            value: (performance?.urgent_percentage || 0) + '%',
+            label: 'Urgent Orders',
+            class: performance?.urgent_percentage > 30 ? 'danger' : performance?.urgent_percentage > 15 ? 'warning' : 'success',
+            icon: 'bi-exclamation-triangle'
+        },
+        {
+            value: (performance?.avg_completion_time || 0) + 'h',
+            label: 'Avg Resolution',
+            class: 'info',
+            icon: 'bi-clock'
+        },
+        {
+            value: Object.keys(stats?.status_distribution || {}).length,
+            label: 'Status Types',
+            class: 'primary',
+            icon: 'bi-list-check'
+        }
+    ];
+    
+    metricsContainer.innerHTML = metrics.map(metric => `
+        <div class="metric-card ${metric.class}" onclick="focusOnMetric('${metric.label}')">
+            <div class="metric-value">
+                <i class="${metric.icon} me-2"></i>
+                ${metric.value}
+            </div>
+            <div class="metric-label">${metric.label}</div>
+        </div>
+    `).join('');
+}
+
+// Utility Functions
+function showLoading(show) {
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.style.display = show ? 'flex' : 'none';
+}
+
+function showError(message) {
+    alert('Error: ' + message);
+}
+
+function getPriorityColor(priority) {
+    const colors = { 'critical': 'danger', 'high': 'warning', 'medium': 'info', 'low': 'success' };
+    return colors[priority] || 'secondary';
+}
+
+function getChartColor(index, alpha = 1) {
+    const colors = [
+        `rgba(255, 99, 132, ${alpha})`,
+        `rgba(54, 162, 235, ${alpha})`,
+        `rgba(255, 205, 86, ${alpha})`,
+        `rgba(75, 192, 192, ${alpha})`,
+        `rgba(153, 102, 255, ${alpha})`,
+        `rgba(255, 159, 64, ${alpha})`
+    ];
+    return colors[index % colors.length];
+}
+
+// Print function
+function printReport() {
+    window.print();
+}
+
+// Placeholder functions for remaining functionality
+function displayCategoryCharts(categories) {
+    // Implementation for category charts
+    console.log('Displaying category charts:', categories);
+}
+
+function displayPerformanceCharts(performance, temporal) {
+    // Implementation for performance charts
+    console.log('Displaying performance charts:', performance, temporal);
+}
+
+function displayInsights(insights) {
+    // Implementation for insights display
+    console.log('Displaying insights:', insights);
+}
+
+function displayWorkOrders(data) {
+    // Implementation for work orders table
+    console.log('Displaying work orders:', data);
+}
+
+function updatePagination() {
+    // Implementation for pagination
+    console.log('Updating pagination');
+}
+
+function applyFilters() {
+    // Implementation for applying filters
+    console.log('Applying filters');
+}
+
+function clearFilters() {
+    // Implementation for clearing filters
+    console.log('Clearing filters');
+}
+
+function saveFilterPreset() {
+    // Implementation for saving filter presets
+    console.log('Saving filter preset');
+}
+
+function loadFilterPreset() {
+    // Implementation for loading filter presets
+    console.log('Loading filter preset');
+}
+
+function exportData(format) {
+    // Implementation for data export
+    console.log('Exporting data as:', format);
+}
+
+function refreshAnalysis() {
+    // Implementation for refreshing analysis
+    window.location.reload();
+}
+
+function focusOnMetric(metric) {
+    // Implementation for metric focus
+    console.log('Focusing on metric:', metric);
+}
+
+function toggleFullscreen() {
+    // Implementation for fullscreen toggle
+    console.log('Toggling fullscreen');
+}
+
+function exportTableData() {
+    // Implementation for table export
+    console.log('Exporting table data');
+}
+
+function printWorkOrder() {
+    // Implementation for work order printing
+    console.log('Printing work order');
+}
+</script>
+{% endblock %}

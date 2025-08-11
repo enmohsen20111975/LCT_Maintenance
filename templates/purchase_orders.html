@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Orders - LCT STS{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-cart-plus text-primary"></i>
+            Purchase Orders
+        </h1>
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('purchase_orders') }}?status=En cours" class="btn btn-warning btn-sm">
+                <i class="bi bi-clock"></i> In Progress
+            </a>
+            <a href="{{ url_for('purchase_orders') }}?status=Livré" class="btn btn-success btn-sm">
+                <i class="bi bi-check-circle"></i> Delivered
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    {% if stats %}
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total PO Lines</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "{:,}".format(stats.total_pos) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-file-earmark-text fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Unique POs</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "{:,}".format(stats.unique_pos) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-collection fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Value</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">${{ "{:,.2f}".format(stats.total_value) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-currency-dollar fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Suppliers</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "{:,}".format(stats.suppliers_count) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-building fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Search and Filter -->
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="GET" class="row align-items-end">
+                <div class="col-md-4">
+                    <label for="search">Search POs</label>
+                    <input type="text" name="search" id="search" class="form-control" 
+                           placeholder="Search by PO number, article, supplier..." 
+                           value="{{ current_filters.search or '' }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="status">Status</label>
+                    <select name="status" id="status" class="form-control">
+                        <option value="">All Status</option>
+                        {% for status in statuses %}
+                        <option value="{{ status }}" {{ 'selected' if current_filters.status == status }}>{{ status }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="sort">Sort By</label>
+                    <select name="sort" id="sort" class="form-control">
+                        <option value="n_commande" {{ 'selected' if current_filters.sort == 'n_commande' }}>PO Number</option>
+                        <option value="date_commande" {{ 'selected' if current_filters.sort == 'date_commande' }}>Order Date</option>
+                        <option value="montant_ligne" {{ 'selected' if current_filters.sort == 'montant_ligne' }}>Amount</option>
+                        <option value="fournisseur" {{ 'selected' if current_filters.sort == 'fournisseur' }}>Supplier</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary mr-2">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                    <a href="{{ url_for('purchase_orders') }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-clockwise"></i> Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Purchase Orders Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                Purchase Orders
+                {% if current_filters.search %}
+                - Search: "{{ current_filters.search }}"
+                {% endif %}
+                {% if current_filters.status %}
+                - Status: {{ current_filters.status }}
+                {% endif %}
+            </h6>
+        </div>
+        <div class="card-body">
+            {% if purchase_orders %}
+            <div class="table-responsive">
+                <table class="table table-bordered" id="poTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>PO Number</th>
+                            <th>Article Code</th>
+                            <th>Description</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Line Total</th>
+                            <th>Supplier</th>
+                            <th>Status</th>
+                            <th>Order Date</th>
+                            <th>Expected Delivery</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for po in purchase_orders %}
+                        <tr>
+                            <td><strong>{{ po.n_commande }}</strong></td>
+                            <td>{{ po.code_article }}</td>
+                            <td>
+                                <span title="{{ po.designation }}">
+                                    {{ po.designation[:50] if po.designation else 'N/A' }}{% if po.designation and po.designation|length > 50 %}...{% endif %}
+                                </span>
+                            </td>
+                            <td class="text-right">{{ "{:,}".format(po.qte_commandee) if po.qte_commandee else '0' }}</td>
+                            <td class="text-right">${{ "{:.2f}".format(po.prix_unitaire) if po.prix_unitaire else '0.00' }}</td>
+                            <td class="text-right font-weight-bold">${{ "{:.2f}".format(po.montant_ligne) if po.montant_ligne else '0.00' }}</td>
+                            <td>{{ po.fournisseur or 'N/A' }}</td>
+                            <td>
+                                {% if po.statut == 'Livré' %}
+                                    <span class="badge badge-success">{{ po.statut }}</span>
+                                {% elif po.statut == 'En cours' %}
+                                    <span class="badge badge-warning">{{ po.statut }}</span>
+                                {% elif po.statut == 'Annulé' %}
+                                    <span class="badge badge-danger">{{ po.statut }}</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">{{ po.statut or 'Unknown' }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ po.date_commande or 'N/A' }}</td>
+                            <td>{{ po.date_prevue_livraison or 'N/A' }}</td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-sm btn-info" onclick="viewPO({{ po.id }})" title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-primary" onclick="editPO({{ po.id }})" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-cart-plus fa-4x text-gray-300 mb-4"></i>
+                <h4 class="text-gray-500">No Purchase Orders Found</h4>
+                {% if current_filters.search %}
+                <p class="text-gray-400">No purchase orders match your search criteria.</p>
+                {% else %}
+                <p class="text-gray-400">No purchase order data available.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- PO Details Modal -->
+<div class="modal fade" id="poModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Purchase Order Details</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include DataTables -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
+<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('#poTable').DataTable({
+        "pageLength": 25,
+        "order": [[ 0, "desc" ]],
+        "columnDefs": [
+            { "orderable": false, "targets": 10 }
+        ]
+    });
+});
+
+function viewPO(id) {
+    fetch(`/api/purchase-orders/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const po = data.item;
+                document.getElementById('modalBody').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Order Information</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>PO Number:</strong></td><td>${po.n_commande}</td></tr>
+                                <tr><td><strong>Article Code:</strong></td><td>${po.code_article}</td></tr>
+                                <tr><td><strong>Description:</strong></td><td>${po.designation || 'N/A'}</td></tr>
+                                <tr><td><strong>Supplier:</strong></td><td>${po.fournisseur || 'N/A'}</td></tr>
+                                <tr><td><strong>Status:</strong></td><td><span class="badge badge-secondary">${po.statut || 'Unknown'}</span></td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Financial Information</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>Quantity:</strong></td><td class="font-weight-bold">${po.qte_commandee || 0}</td></tr>
+                                <tr><td><strong>Unit Price:</strong></td><td>$${parseFloat(po.prix_unitaire || 0).toFixed(2)}</td></tr>
+                                <tr><td><strong>Line Total:</strong></td><td class="font-weight-bold">$${parseFloat(po.montant_ligne || 0).toFixed(2)}</td></tr>
+                                <tr><td><strong>Currency:</strong></td><td>${po.devise || 'N/A'}</td></tr>
+                                <tr><td><strong>Exchange Rate:</strong></td><td>${po.taux_de_change || 'N/A'}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Dates</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>Order Date:</strong></td><td>${po.date_commande || 'N/A'}</td></tr>
+                                <tr><td><strong>Expected Delivery:</strong></td><td>${po.date_prevue_livraison || 'N/A'}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                $('#poModal').modal('show');
+            } else {
+                alert('Error loading purchase order details: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading purchase order details');
+        });
+}
+
+function editPO(id) {
+    // Redirect to edit page or open edit modal
+    alert('Edit functionality will be implemented soon');
+}
+</script>
+
+{% endblock %}

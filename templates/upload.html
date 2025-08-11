@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Files - LDA{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">
+                    <i class="bi bi-cloud-upload"></i> Upload Data Files
+                </h3>
+            </div>
+            <div class="card-body">
+                <form id="uploadForm" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Select Data File</label>
+                        <input type="file" class="form-control" id="file" name="file" 
+                               accept=".xlsx,.xls,.xlsm,.xlsb,.csv,.txt,.tsv,.pdf" required>
+                        <div id="fileInfo" class="form-text text-muted" style="display: none;">
+                            <i class="bi bi-file-earmark"></i> <span id="fileName"></span> 
+                            (<span id="fileSize"></span>)
+                        </div>
+                        <div class="form-text">
+                            <strong>Supported formats:</strong>
+                            <br>• <strong>Excel:</strong> .xlsx, .xls, .xlsm, .xlsb
+                            <br>• <strong>CSV:</strong> .csv (comma-separated values)
+                            <br>• <strong>Text:</strong> .txt, .tsv (tab-separated values)
+                            <br>• <strong>PDF:</strong> .pdf (tables will be extracted)
+                            <br><em>Maximum size: 512MB</em>
+                            <br><br><strong>🇫🇷 French Format Support:</strong>
+                            <br>• Automatic detection of French date formats (dd/mm/yyyy)
+                            <br>• French number formats (comma as decimal: 1 234,56)
+                            <br>• French CSV semicolon separators
+                            <br>• French text encoding (ISO-8859-1, Windows-1252)
+                            <br>• French locale-aware date parsing
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="skipEmptyRows" name="skip_empty_rows" checked>
+                            <label class="form-check-label" for="skipEmptyRows">
+                                Skip empty rows
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="inferTypes" name="infer_types" checked>
+                            <label class="form-check-label" for="inferTypes">
+                                Automatically detect data types
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary" id="uploadBtn">
+                            <i class="bi bi-cloud-upload"></i> Upload and Process
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Progress Bar -->
+                <div id="progressContainer" class="mt-3" style="display: none;">
+                    <div class="progress">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div id="progressText" class="text-center mt-2">Uploading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <h5><i class="bi bi-info-circle"></i> Upload Instructions</h5>
+            <ul class="mb-0">
+                <li>Select an Excel file (.xlsx, .xls, or .xlsm format)</li>
+                <li>All worksheets in the file will be processed</li>
+                <li>Tables will be created automatically based on sheet names</li>
+                <li>Column headers from the first row will become table columns</li>
+                <li>Data types will be automatically detected (numbers, text, dates)</li>
+                <li>Empty worksheets will be skipped</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+{% if recent_uploads %}
+<div class="row mt-4">
+    <div class="col-12">
+        <h4>Recent Uploads</h4>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>File Name</th>
+                        <th>Upload Date</th>
+                        <th>Status</th>
+                        <th>Sheets</th>
+                        <th>Records</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for upload in recent_uploads %}
+                    <tr>
+                        <td>{{ upload.original_filename }}</td>
+                        <td>{{ upload.upload_date.strftime('%Y-%m-%d %H:%M') if upload.upload_date else 'N/A' }}</td>
+                        <td>
+                            {% if upload.status == 'completed' %}
+                                <span class="badge bg-success">Completed</span>
+                            {% elif upload.status == 'processing' %}
+                                <span class="badge bg-warning">Processing</span>
+                            {% else %}
+                                <span class="badge bg-danger">Failed</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ upload.total_sheets }}</td>
+                        <td>{{ upload.total_records }}</td>
+                        <td>
+                            {% if upload.status == 'completed' %}
+                                <a href="{{ url_for('tables') }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> View Tables
+                                </a>
+                            {% elif upload.error_message %}
+                                <button class="btn btn-sm btn-outline-danger" 
+                                        data-bs-toggle="tooltip" 
+                                        title="{{ upload.error_message }}">
+                                    <i class="bi bi-exclamation-triangle"></i> Error
+                                </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Check file size before upload
+    const fileInput = document.getElementById('file');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Please select a file to upload.');
+        return;
+    }
+    
+    // Check file size (512MB = 512 * 1024 * 1024 bytes)
+    const maxSize = 512 * 1024 * 1024;
+    if (file.size > maxSize) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+        alert(`File too large (${sizeMB}MB). Maximum allowed size is 512MB. Please use a smaller file or split your data into multiple files.`);
+        return;
+    }
+    
+    const formData = new FormData(this);
+    const uploadBtn = document.getElementById('uploadBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
+    // Show progress bar
+    progressContainer.style.display = 'block';
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+    
+    // Simulate progress (since we can't track actual upload progress easily)
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        if (progress < 90) {
+            progress += Math.random() * 20;
+            progressBar.style.width = progress + '%';
+            
+            if (progress < 30) {
+                progressText.textContent = 'Uploading file...';
+            } else if (progress < 60) {
+                progressText.textContent = 'Reading Excel file...';
+            } else {
+                progressText.textContent = 'Creating database tables...';
+            }
+        }
+    }, 500);
+    
+    fetch(this.action, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        clearInterval(progressInterval);
+        progressBar.style.width = '100%';
+        progressText.textContent = 'Complete!';
+        
+        if (data.success) {
+            // Show success message
+            setTimeout(() => {
+                window.location.href = data.redirect || '{{ url_for("tables") }}';
+            }, 1000);
+        } else {
+            // Show error message
+            progressContainer.style.display = 'none';
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="bi bi-cloud-upload"></i> Upload and Process';
+            
+            // Create error alert
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+            alertDiv.innerHTML = `
+                ${data.error || 'Upload failed. Please try again.'}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            this.appendChild(alertDiv);
+        }
+    })
+    .catch(error => {
+        clearInterval(progressInterval);
+        progressContainer.style.display = 'none';
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '<i class="bi bi-cloud-upload"></i> Upload and Process';
+        
+        console.error('Error:', error);
+        alert('Upload failed. Please try again.');
+    });
+});
+
+// Display file information when file is selected
+document.getElementById('file').addEventListener('change', function(e) {
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    
+    if (e.target.files.length > 0) {
+        const file = e.target.files[0];
+        const size = file.size;
+        let sizeText;
+        
+        if (size < 1024) {
+            sizeText = size + ' bytes';
+        } else if (size < 1024 * 1024) {
+            sizeText = (size / 1024).toFixed(1) + ' KB';
+        } else {
+            sizeText = (size / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+        
+        fileName.textContent = file.name;
+        fileSize.textContent = sizeText;
+        
+        // Show warning if file is large
+        if (size > 100 * 1024 * 1024) { // 100MB
+            fileSize.className = 'text-warning fw-bold';
+            if (size > 512 * 1024 * 1024) { // 512MB
+                fileSize.className = 'text-danger fw-bold';
+            }
+        } else {
+            fileSize.className = '';
+        }
+        
+        fileInfo.style.display = 'block';
+    } else {
+        fileInfo.style.display = 'none';
+    }
+});
+
+// Initialize tooltips
+const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+});
+</script>
+{% endblock %}

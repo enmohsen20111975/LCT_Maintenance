@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Inventory - LCT STS{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-stack text-primary"></i>
+            Stock Inventory
+        </h1>
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('stock_inventory') }}?status=critical" class="btn btn-warning btn-sm">
+                <i class="bi bi-exclamation-triangle"></i> Critical Stock
+            </a>
+            <a href="{{ url_for('stock_inventory') }}?status=out_of_stock" class="btn btn-danger btn-sm">
+                <i class="bi bi-x-circle"></i> Out of Stock
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    {% if stats %}
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Items</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "{:,}".format(stats.total_items) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-boxes fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Critical Stock</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "{:,}".format(stats.critical_stock) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Out of Stock</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "{:,}".format(stats.out_of_stock) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-x-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Value</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">${{ "{:,.2f}".format(stats.total_value) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-currency-dollar fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Search and Filter -->
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="GET" class="row align-items-end">
+                <div class="col-md-3">
+                    <label for="search">Search Items</label>
+                    <input type="text" name="search" id="search" class="form-control" 
+                           placeholder="Search by part number, name..." 
+                           value="{{ current_filters.search or '' }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="category">Category</label>
+                    <select name="category" id="category" class="form-control">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {{ 'selected' if current_filters.category == cat }}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="status">Status</label>
+                    <select name="status" id="status" class="form-control">
+                        <option value="">All Status</option>
+                        <option value="critical" {{ 'selected' if current_filters.status == 'critical' }}>Critical</option>
+                        <option value="out_of_stock" {{ 'selected' if current_filters.status == 'out_of_stock' }}>Out of Stock</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="sort">Sort By</label>
+                    <select name="sort" id="sort" class="form-control">
+                        <option value="designation_1" {{ 'selected' if current_filters.sort == 'designation_1' }}>Name</option>
+                        <option value="reference_article" {{ 'selected' if current_filters.sort == 'reference_article' }}>Part Number</option>
+                        <option value="quantite_en_stock" {{ 'selected' if current_filters.sort == 'quantite_en_stock' }}>Quantity</option>
+                        <option value="pmp" {{ 'selected' if current_filters.sort == 'pmp' }}>Price</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary mr-2">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                    <a href="{{ url_for('stock_inventory') }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-clockwise"></i> Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stock Items Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                Stock Items
+                {% if current_filters.search %}
+                - Search: "{{ current_filters.search }}"
+                {% endif %}
+                {% if current_filters.status %}
+                - Status: {{ current_filters.status|title }}
+                {% endif %}
+            </h6>
+        </div>
+        <div class="card-body">
+            {% if stock_items %}
+            <div class="table-responsive">
+                <table class="table table-bordered" id="stockTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Part Number</th>
+                            <th>Item Name</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th>Current Stock</th>
+                            <th>Reorder Level</th>
+                            <th>Unit Price</th>
+                            <th>Total Value</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in stock_items %}
+                        <tr class="{{ 'table-danger' if item.quantite_en_stock == 0 else 'table-warning' if item.quantite_en_stock <= item.seuil_de_reappro_min else '' }}">
+                            <td><strong>{{ item.reference_article }}</strong></td>
+                            <td>{{ item.designation_1 }}</td>
+                            <td>
+                                <span title="{{ item.designation_2 }}">
+                                    {{ item.designation_2[:50] if item.designation_2 else 'N/A' }}{% if item.designation_2 and item.designation_2|length > 50 %}...{% endif %}
+                                </span>
+                            </td>
+                            <td>{{ item.categorie_article or 'N/A' }}</td>
+                            <td>
+                                <span class="font-weight-bold {% if item.quantite_en_stock == 0 %}text-danger{% elif item.quantite_en_stock <= item.seuil_de_reappro_min %}text-warning{% else %}text-success{% endif %}">
+                                    {{ item.quantite_en_stock }}
+                                </span>
+                            </td>
+                            <td>{{ item.seuil_de_reappro_min }}</td>
+                            <td>${{ "{:.2f}".format(item.pmp) if item.pmp else '0.00' }}</td>
+                            <td>${{ "{:.2f}".format((item.quantite_en_stock * item.pmp) if (item.quantite_en_stock and item.pmp) else 0) }}</td>
+                            <td>{{ item.emplacement_de_l_article or 'N/A' }}</td>
+                            <td>
+                                {% if item.quantite_en_stock == 0 %}
+                                    <span class="badge badge-danger">Out of Stock</span>
+                                {% elif item.quantite_en_stock <= item.seuil_de_reappro_min %}
+                                    <span class="badge badge-warning">Low Stock</span>
+                                {% else %}
+                                    <span class="badge badge-success">In Stock</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-sm btn-info" onclick="viewItem({{ item.id }})" title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-primary" onclick="editItem({{ item.id }})" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-boxes fa-4x text-gray-300 mb-4"></i>
+                <h4 class="text-gray-500">No Stock Items Found</h4>
+                {% if current_filters.search %}
+                <p class="text-gray-400">No items match your search criteria.</p>
+                {% else %}
+                <p class="text-gray-400">No stock data available.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Item Details Modal -->
+<div class="modal fade" id="itemModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Stock Item Details</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include DataTables -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
+<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('#stockTable').DataTable({
+        "pageLength": 25,
+        "order": [[ 0, "asc" ]],
+        "columnDefs": [
+            { "orderable": false, "targets": 10 }
+        ]
+    });
+});
+
+function viewItem(id) {
+    fetch(`/api/stock-inventory/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const item = data.item;
+                document.getElementById('modalBody').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Basic Information</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>Part Number:</strong></td><td>${item.reference_article}</td></tr>
+                                <tr><td><strong>Name:</strong></td><td>${item.designation_1}</td></tr>
+                                <tr><td><strong>Description:</strong></td><td>${item.designation_2 || 'N/A'}</td></tr>
+                                <tr><td><strong>Category:</strong></td><td>${item.categorie_article || 'N/A'}</td></tr>
+                                <tr><td><strong>Location:</strong></td><td>${item.emplacement_de_l_article || 'N/A'}</td></tr>
+                                <tr><td><strong>Unit:</strong></td><td>${item.unite_de_stock || 'N/A'}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Stock Information</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>Current Stock:</strong></td><td class="font-weight-bold">${item.quantite_en_stock}</td></tr>
+                                <tr><td><strong>Reorder Level:</strong></td><td>${item.seuil_de_reappro_min}</td></tr>
+                                <tr><td><strong>Maximum Level:</strong></td><td>${item.quantite_maximum_max || 'N/A'}</td></tr>
+                                <tr><td><strong>Safety Stock:</strong></td><td>${item.stock_securite || 'N/A'}</td></tr>
+                                <tr><td><strong>Unit Price:</strong></td><td>$${parseFloat(item.pmp || 0).toFixed(2)}</td></tr>
+                                <tr><td><strong>Total Value:</strong></td><td class="font-weight-bold">$${(item.quantite_en_stock * parseFloat(item.pmp || 0)).toFixed(2)}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Movement History</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>Last Entry:</strong></td><td>${item.date_derniere_entree || 'N/A'}</td></tr>
+                                <tr><td><strong>Last Issue:</strong></td><td>${item.date_derniere_sortie || 'N/A'}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                $('#itemModal').modal('show');
+            } else {
+                alert('Error loading item details: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading item details');
+        });
+}
+
+function editItem(id) {
+    // Redirect to edit page or open edit modal
+    alert('Edit functionality will be implemented soon');
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,1312 @@
+{% extends "base.html" %}
+
+{% block title %}Data Analysis Dashboard - LDA{% endblock %}
+
+{% block extra_css %}
+<style>
+.analysis-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-radius: 15px;
+}
+
+.analysis-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-bottom: 1.5rem;
+}
+
+.analysis-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+.analysis-card .card-header {
+    background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    border-radius: 15px 15px 0 0 !important;
+}
+
+.metric-card {
+    text-align: center;
+    padding: 1.5rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+}
+
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.metric-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.progress-enhanced {
+    height: 8px;
+    border-radius: 4px;
+    background-color: #e9ecef;
+    overflow: hidden;
+}
+
+.progress-bar-enhanced {
+    transition: width 0.6s ease;
+    border-radius: 4px;
+}
+
+.table-analysis {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+.correlation-matrix {
+    max-height: 300px;
+    overflow: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+.pattern-badge {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+    margin: 0.2rem;
+    border-radius: 15px;
+}
+
+.quality-indicator {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    margin: 0 auto 1rem;
+}
+
+.loading-spinner {
+    display: none;
+    text-align: center;
+    padding: 2rem;
+}
+
+.analysis-section {
+    min-height: 300px;
+}
+
+.tab-content {
+    padding: 1.5rem 0;
+}
+
+.nav-tabs .nav-link {
+    border-radius: 10px 10px 0 0;
+    margin-right: 0.25rem;
+    border: none;
+    background: #f8f9fa;
+    color: #495057;
+    font-weight: 500;
+}
+
+.nav-tabs .nav-link.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.analysis-controls {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 15px;
+    margin-bottom: 2rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.database-info {
+    background: linear-gradient(45deg, #e3f2fd, #f3e5f5);
+    border-left: 4px solid #2196f3;
+}
+
+.form-select:disabled {
+    background-color: #f8f9fa;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.database-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #28a745;
+    margin-right: 8px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="analysis-header text-center">
+    <div class="container">
+        <h1><i class="bi bi-graph-up me-3"></i>Data Analysis Dashboard</h1>
+        <p class="lead mb-0">Comprehensive analysis and insights for your database tables</p>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Analysis Controls -->
+    <div class="analysis-controls">
+        <div class="row align-items-center">
+            <div class="col-md-3">
+                <label for="databaseSelect" class="form-label fw-bold">
+                    <i class="bi bi-database me-2"></i>Select Database
+                </label>
+                <select class="form-select form-select-lg" id="databaseSelect" onchange="loadDatabaseTables()">
+                    <option value="">Choose a database...</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="tableSelect" class="form-label fw-bold">
+                    <i class="bi bi-table me-2"></i>Select Table for Analysis
+                </label>
+                <select class="form-select form-select-lg" id="tableSelect" onchange="loadTableAnalysis()" disabled>
+                    <option value="">Choose a table to analyze...</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="columnSelect" class="form-label fw-bold">
+                    <i class="bi bi-list-columns me-2"></i>Focus Column (Optional)
+                </label>
+                <select class="form-select" id="columnSelect" onchange="runColumnAnalysis()">
+                    <option value="">All columns</option>
+                </select>
+            </div>
+            <div class="col-md-4 text-end">
+                <button class="btn btn-outline-primary btn-lg me-2" onclick="refreshAnalysis()">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Refresh Analysis
+                </button>
+                <button class="btn btn-success btn-lg" onclick="exportAnalysisReport()">
+                    <i class="bi bi-download me-2"></i>Export Report
+                </button>
+            </div>
+        </div>
+        
+        <!-- Database Info -->
+        <div class="row mt-3" id="databaseInfo" style="display: none;">
+            <div class="col-12">
+                <div class="alert alert-info py-2 mb-0">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <strong>Database:</strong> <span id="selectedDatabaseName">-</span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Size:</strong> <span id="selectedDatabaseSize">-</span> MB
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Tables:</strong> <span id="selectedDatabaseTables">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div class="loading-spinner" id="loadingSpinner">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3 text-muted">Analyzing table data...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState">
+        <i class="bi bi-graph-up"></i>
+        <h3>Ready for Analysis</h3>
+        <p>Select a database and table from the dropdowns above to begin comprehensive data analysis</p>
+        <small class="text-muted">
+            <span class="database-indicator"></span>
+            Multiple databases are supported for cross-database analysis
+        </small>
+    </div>
+
+    <!-- Analysis Content -->
+    <div id="analysisContent" style="display: none;">
+        <!-- Analysis Navigation Tabs -->
+        <ul class="nav nav-tabs nav-fill mb-4" id="analysisTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+                    <i class="bi bi-info-circle me-2"></i>Overview
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="statistics-tab" data-bs-toggle="tab" data-bs-target="#statistics" type="button" role="tab">
+                    <i class="bi bi-calculator me-2"></i>Statistics
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="distributions-tab" data-bs-toggle="tab" data-bs-target="#distributions" type="button" role="tab">
+                    <i class="bi bi-bar-chart me-2"></i>Distributions
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="quality-tab" data-bs-toggle="tab" data-bs-target="#quality" type="button" role="tab">
+                    <i class="bi bi-shield-check me-2"></i>Data Quality
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="patterns-tab" data-bs-toggle="tab" data-bs-target="#patterns" type="button" role="tab">
+                    <i class="bi bi-search me-2"></i>Patterns
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="correlations-tab" data-bs-toggle="tab" data-bs-target="#correlations" type="button" role="tab">
+                    <i class="bi bi-diagram-3 me-2"></i>Correlations
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="analysisTabContent">
+            <!-- Overview Tab -->
+            <div class="tab-pane fade show active analysis-section" id="overview" role="tabpanel">
+                <div class="row">
+                    <!-- Key Metrics -->
+                    <div class="col-md-3">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Key Metrics</h6>
+                            </div>
+                            <div class="card-body" id="keyMetrics">
+                                <div class="metric-card bg-light">
+                                    <div class="metric-value text-primary">-</div>
+                                    <div class="metric-label">Total Rows</div>
+                                </div>
+                                <div class="metric-card bg-light">
+                                    <div class="metric-value text-success">-</div>
+                                    <div class="metric-label">Columns</div>
+                                </div>
+                                <div class="metric-card bg-light">
+                                    <div class="metric-value text-warning">-</div>
+                                    <div class="metric-label">Null Values</div>
+                                </div>
+                                <div class="metric-card bg-light">
+                                    <div class="metric-value text-danger">-</div>
+                                    <div class="metric-label">Duplicates</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column Types -->
+                    <div class="col-md-4">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-list-columns me-2"></i>Column Types</h6>
+                            </div>
+                            <div class="card-body" id="columnTypesChart">
+                                <p class="text-muted">Column type distribution will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quality Overview -->
+                    <div class="col-md-5">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-shield-check me-2"></i>Data Quality Overview</h6>
+                            </div>
+                            <div class="card-body" id="qualityOverview">
+                                <div class="row text-center">
+                                    <div class="col-4">
+                                        <div class="quality-indicator bg-secondary" id="overallScore">-</div>
+                                        <p class="small text-muted">Overall Score</p>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="quality-indicator bg-info" id="completenessScore">-</div>
+                                        <p class="small text-muted">Completeness</p>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="quality-indicator bg-warning" id="uniquenessScore">-</div>
+                                        <p class="small text-muted">Uniqueness</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sample Data Preview -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-table me-2"></i>Sample Data Preview</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-analysis" id="sampleDataTable">
+                                    <p class="text-muted text-center py-4">Sample data will be shown here</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics Tab -->
+            <div class="tab-pane fade analysis-section" id="statistics" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-123 me-2"></i>Numeric Statistics</h6>
+                            </div>
+                            <div class="card-body" id="numericStatsContent">
+                                <p class="text-muted">Numeric column statistics will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-fonts me-2"></i>Text Statistics</h6>
+                            </div>
+                            <div class="card-body" id="textStatsContent">
+                                <p class="text-muted">Text column statistics will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-calendar me-2"></i>Date/Time Statistics</h6>
+                            </div>
+                            <div class="card-body" id="dateStatsContent">
+                                <p class="text-muted">Date/time statistics will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Distributions Tab -->
+            <div class="tab-pane fade analysis-section" id="distributions" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Value Frequencies</h6>
+                            </div>
+                            <div class="card-body" id="valueFrequenciesContent">
+                                <p class="text-muted">Value frequency analysis will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Unique Values</h6>
+                            </div>
+                            <div class="card-body" id="uniqueValuesContent">
+                                <p class="text-muted">Unique value analysis will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Numeric Distributions</h6>
+                            </div>
+                            <div class="card-body" id="numericDistributionsContent">
+                                <p class="text-muted">Numeric distribution analysis will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Quality Tab -->
+            <div class="tab-pane fade analysis-section" id="quality" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Missing Data</h6>
+                            </div>
+                            <div class="card-body" id="missingDataContent">
+                                <p class="text-muted">Missing data analysis will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-files me-2"></i>Duplicates</h6>
+                            </div>
+                            <div class="card-body" id="duplicateDataContent">
+                                <p class="text-muted">Duplicate analysis will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-bug me-2"></i>Data Issues</h6>
+                            </div>
+                            <div class="card-body" id="dataIssuesContent">
+                                <p class="text-muted">Data quality issues will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-award me-2"></i>Quality Metrics</h6>
+                            </div>
+                            <div class="card-body" id="qualityMetricsContent">
+                                <p class="text-muted">Quality metrics will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Patterns Tab -->
+            <div class="tab-pane fade analysis-section" id="patterns" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-regex me-2"></i>Text Patterns</h6>
+                            </div>
+                            <div class="card-body" id="textPatternsContent">
+                                <p class="text-muted">Text pattern analysis will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-arrow-up-right me-2"></i>Trends</h6>
+                            </div>
+                            <div class="card-body" id="dataTrendsContent">
+                                <p class="text-muted">Data trend analysis will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-search me-2"></i>Anomaly Detection</h6>
+                            </div>
+                            <div class="card-body" id="anomalyDetectionContent">
+                                <p class="text-muted">Anomaly detection results will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Correlations Tab -->
+            <div class="tab-pane fade analysis-section" id="correlations" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Column Correlations</h6>
+                            </div>
+                            <div class="card-body" id="columnCorrelationsContent">
+                                <p class="text-muted">Column correlation analysis will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Relationships</h6>
+                            </div>
+                            <div class="card-body" id="dataRelationshipsContent">
+                                <p class="text-muted">Data relationship suggestions will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="analysis-card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-grid me-2"></i>Correlation Matrix</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="correlation-matrix" id="correlationMatrixContent">
+                                    <p class="text-muted text-center py-4">Correlation matrix will be displayed here</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Data Analysis Dashboard JavaScript
+var currentAnalysisData = null;
+var selectedTable = null;
+var selectedDatabase = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Data Analysis Dashboard loaded');
+    loadDatabaseOptions();
+});
+
+function loadDatabaseOptions() {
+    console.log('Loading database options...');
+    fetch('/api/databases/available')
+        .then(response => {
+            console.log('Database response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Database data received:', data);
+            const select = document.getElementById('databaseSelect');
+            select.innerHTML = '<option value="">Choose a database...</option>';
+            
+            if (data.success && data.databases) {
+                data.databases.forEach(database => {
+                    select.innerHTML += `<option value="${database.name}">${database.name} (${database.size_mb} MB)</option>`;
+                });
+                
+                // Auto-select excel_data if available
+                const defaultOption = data.databases.find(db => db.name === 'excel_data');
+                if (defaultOption) {
+                    console.log('Auto-selecting excel_data database');
+                    select.value = 'excel_data';
+                    loadDatabaseTables();
+                }
+            } else {
+                console.error('Failed to load databases:', data);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading databases:', error);
+            showAlert(`Error loading databases: ${error.message}`, 'danger');
+        });
+}
+
+function loadDatabaseTables() {
+    const databaseName = document.getElementById('databaseSelect').value;
+    const tableSelect = document.getElementById('tableSelect');
+    const databaseInfo = document.getElementById('databaseInfo');
+    
+    console.log('Loading tables for database:', databaseName);
+    
+    if (!databaseName) {
+        tableSelect.innerHTML = '<option value="">Choose a table to analyze...</option>';
+        tableSelect.disabled = true;
+        databaseInfo.style.display = 'none';
+        showEmptyState();
+        return;
+    }
+    
+    selectedDatabase = databaseName;
+    tableSelect.disabled = false;
+    
+    // Show database info
+    showDatabaseInfo(databaseName);
+    
+    // Load tables for selected database
+    const tablesUrl = `/api/database/tables/${databaseName}`;
+    console.log('Fetching tables from:', tablesUrl);
+    
+    fetch(tablesUrl)
+        .then(response => {
+            console.log('Tables response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Tables data received:', data);
+            tableSelect.innerHTML = '<option value="">Choose a table to analyze...</option>';
+            
+            if (data.success && data.tables) {
+                console.log('Found tables:', data.tables);
+                data.tables.forEach(table => {
+                    // Handle both string and object format
+                    const tableName = typeof table === 'string' ? table : table.name;
+                    const rowCount = typeof table === 'object' && table.row_count ? ` (${table.row_count} rows)` : '';
+                    tableSelect.innerHTML += `<option value="${tableName}">${tableName}${rowCount}</option>`;
+                });
+                
+                // Update database info with table count
+                document.getElementById('selectedDatabaseTables').textContent = data.tables.length;
+            } else {
+                console.error('Failed to load tables:', data);
+                showAlert(`Failed to load tables: ${data.error || 'Unknown error'}`, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading tables:', error);
+            showAlert(`Error loading tables: ${error.message}`, 'danger');
+        });
+}
+
+function showDatabaseInfo(databaseName) {
+    fetch('/api/databases/available')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.databases) {
+                const dbInfo = data.databases.find(db => db.name === databaseName);
+                if (dbInfo) {
+                    document.getElementById('selectedDatabaseName').textContent = dbInfo.name;
+                    document.getElementById('selectedDatabaseSize').textContent = dbInfo.size_mb;
+                    document.getElementById('databaseInfo').style.display = 'block';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading database info:', error);
+        });
+}
+
+function loadTableOptions() {
+    // This function is now replaced by loadDatabaseTables
+    loadDatabaseTables();
+}
+
+function loadTableAnalysis() {
+    const tableName = document.getElementById('tableSelect').value;
+    const databaseName = document.getElementById('databaseSelect').value;
+    
+    console.log('loadTableAnalysis called:', { tableName, databaseName });
+    
+    if (!tableName || !databaseName) {
+        console.log('Missing table or database name');
+        showEmptyState();
+        return;
+    }
+    
+    selectedTable = tableName;
+    selectedDatabase = databaseName;
+    showLoading();
+    
+    // Include database parameter in the API call
+    const apiUrl = `/api/relationships/analyze-table/${tableName}?database=${databaseName}`;
+    console.log('Making API call to:', apiUrl);
+    
+    fetch(apiUrl)
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Analysis data received:', data);
+            hideLoading();
+            if (data.success) {
+                currentAnalysisData = data;
+                console.log('Columns found:', data.columns);
+                loadColumnOptions(data.columns);
+                displayAnalysisContent(data);
+                showAlert(`Analysis completed for table "${tableName}" in database "${databaseName}"!`, 'success');
+            } else {
+                console.error('Analysis failed:', data.error);
+                showAlert(`Analysis failed: ${data.error}`, 'danger');
+                showEmptyState();
+            }
+        })
+        .catch(error => {
+            console.error('Error in loadTableAnalysis:', error);
+            hideLoading();
+            showAlert(`Error analyzing table: ${error.message}`, 'danger');
+            showEmptyState();
+        });
+}
+
+function loadColumnOptions(columns) {
+    console.log('Loading column options:', columns);
+    const select = document.getElementById('columnSelect');
+    select.innerHTML = '<option value="">All columns</option>';
+    
+    if (columns && columns.length > 0) {
+        columns.forEach(column => {
+            select.innerHTML += `<option value="${column.name}">${column.name} (${column.type})</option>`;
+        });
+        console.log('Loaded', columns.length, 'columns');
+    } else {
+        console.warn('No columns provided or empty columns array');
+    }
+}
+
+function runColumnAnalysis() {
+    const columnName = document.getElementById('columnSelect').value;
+    if (!columnName || !currentAnalysisData) return;
+    
+    showAlert(`Analyzing column: ${columnName}`, 'info');
+    // Column-specific analysis implementation would go here
+}
+
+function displayAnalysisContent(data) {
+    // Show analysis content and hide empty state
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('analysisContent').style.display = 'block';
+    
+    // Update all analysis sections
+    updateOverviewTab(data);
+    updateStatisticsTab(data);
+    updateDistributionsTab(data);
+    updateQualityTab(data);
+    updatePatternsTab(data);
+    updateCorrelationsTab(data);
+}
+
+function updateOverviewTab(data) {
+    // Update key metrics
+    const keyMetrics = document.getElementById('keyMetrics');
+    keyMetrics.innerHTML = `
+        <div class="metric-card bg-light">
+            <div class="metric-value text-primary">${data.row_count || 0}</div>
+            <div class="metric-label">Total Rows</div>
+        </div>
+        <div class="metric-card bg-light">
+            <div class="metric-value text-success">${data.columns ? data.columns.length : 0}</div>
+            <div class="metric-label">Columns</div>
+        </div>
+        <div class="metric-card bg-light">
+            <div class="metric-value text-warning">${data.null_count || 0}</div>
+            <div class="metric-label">Null Values</div>
+        </div>
+        <div class="metric-card bg-light">
+            <div class="metric-value text-danger">${data.duplicate_analysis ? data.duplicate_analysis.duplicate_rows : 0}</div>
+            <div class="metric-label">Duplicates</div>
+        </div>
+    `;
+    
+    // Update column types
+    if (data.column_types) {
+        const columnTypesChart = document.getElementById('columnTypesChart');
+        const typeEntries = Object.entries(data.column_types);
+        columnTypesChart.innerHTML = typeEntries.map(([type, count]) => `
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="badge bg-secondary">${type}</span>
+                <div class="flex-grow-1 mx-3">
+                    <div class="progress-enhanced">
+                        <div class="progress-bar-enhanced bg-info" style="width: ${(count / data.columns.length) * 100}%"></div>
+                    </div>
+                </div>
+                <span class="fw-bold">${count}</span>
+            </div>
+        `).join('');
+    }
+    
+    // Update quality overview
+    if (data.quality_score) {
+        const score = data.quality_score.overall_score;
+        const completeness = data.quality_score.breakdown.completeness;
+        const uniqueness = data.quality_score.breakdown.uniqueness;
+        
+        const getScoreColor = (score) => {
+            if (score >= 80) return 'bg-success';
+            if (score >= 60) return 'bg-warning';
+            return 'bg-danger';
+        };
+        
+        document.getElementById('overallScore').className = `quality-indicator ${getScoreColor(score)}`;
+        document.getElementById('overallScore').textContent = score.toFixed(0);
+        
+        document.getElementById('completenessScore').className = `quality-indicator ${getScoreColor(completeness)}`;
+        document.getElementById('completenessScore').textContent = completeness.toFixed(0);
+        
+        document.getElementById('uniquenessScore').className = `quality-indicator ${getScoreColor(uniqueness)}`;
+        document.getElementById('uniquenessScore').textContent = uniqueness.toFixed(0);
+    }
+    
+    // Update sample data
+    if (data.sample_data && data.sample_data.length > 0) {
+        const sampleDataTable = document.getElementById('sampleDataTable');
+        const columns = Object.keys(data.sample_data[0]);
+        sampleDataTable.innerHTML = `
+            <div class="table-container">
+                <div class="table-responsive">
+                    <table class="table-enhanced">
+                        <thead>
+                            <tr>
+                                ${columns.map(col => `<th><i class="bi bi-list-ul me-2"></i>${col}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.sample_data.slice(0, 10).map(row => `
+                                <tr>
+                                    ${columns.map(col => `
+                                        <td title="${row[col] || ''}" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            ${String(row[col] || '').substring(0, 50)}${String(row[col] || '').length > 50 ? '...' : ''}
+                                        </td>
+                                    `).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function updateStatisticsTab(data) {
+    // Update numeric statistics
+    if (data.numeric_stats) {
+        const numericStatsContent = document.getElementById('numericStatsContent');
+        numericStatsContent.innerHTML = Object.entries(data.numeric_stats).map(([column, stats]) => `
+            <div class="analysis-card mb-3">
+                <div class="card-header py-2">
+                    <strong>${column}</strong>
+                </div>
+                <div class="card-body py-2">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <small class="text-muted d-block">Mean</small>
+                            <strong>${stats.mean ? Number(stats.mean).toFixed(2) : 'N/A'}</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">Median</small>
+                            <strong>${stats.median ? Number(stats.median).toFixed(2) : 'N/A'}</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">Std Dev</small>
+                            <strong>${stats.std ? Number(stats.std).toFixed(2) : 'N/A'}</strong>
+                        </div>
+                    </div>
+                    <div class="row text-center mt-2">
+                        <div class="col-6">
+                            <small class="text-muted d-block">Min / Max</small>
+                            <strong>${stats.min || 'N/A'} / ${stats.max || 'N/A'}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block">Range</small>
+                            <strong>${stats.range ? Number(stats.range).toFixed(2) : 'N/A'}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        document.getElementById('numericStatsContent').innerHTML = '<p class="text-muted">No numeric columns found</p>';
+    }
+    
+    // Update text statistics
+    if (data.text_stats) {
+        const textStatsContent = document.getElementById('textStatsContent');
+        textStatsContent.innerHTML = Object.entries(data.text_stats).map(([column, stats]) => `
+            <div class="analysis-card mb-3">
+                <div class="card-header py-2">
+                    <strong>${column}</strong>
+                </div>
+                <div class="card-body py-2">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <small class="text-muted d-block">Avg Length</small>
+                            <strong>${stats.avg_length ? Number(stats.avg_length).toFixed(1) : 'N/A'}</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">Unique</small>
+                            <strong>${stats.unique_count || 'N/A'}</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">Empty</small>
+                            <strong>${stats.empty_count || 0}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        document.getElementById('textStatsContent').innerHTML = '<p class="text-muted">No text columns found</p>';
+    }
+    
+    // Update date statistics
+    if (data.date_stats && Object.keys(data.date_stats).length > 0) {
+        const dateStatsContent = document.getElementById('dateStatsContent');
+        dateStatsContent.innerHTML = Object.entries(data.date_stats).map(([column, stats]) => `
+            <div class="analysis-card mb-3">
+                <div class="card-header py-2">
+                    <strong>${column}</strong>
+                </div>
+                <div class="card-body py-2">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <small class="text-muted d-block">Earliest</small>
+                            <strong>${stats.min_date || 'N/A'}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block">Latest</small>
+                            <strong>${stats.max_date || 'N/A'}</strong>
+                        </div>
+                    </div>
+                    <div class="row text-center mt-2">
+                        <div class="col-12">
+                            <small class="text-muted d-block">Date Range</small>
+                            <strong>${stats.date_range || 'N/A'}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        document.getElementById('dateStatsContent').innerHTML = '<p class="text-muted">No date columns found</p>';
+    }
+}
+
+function updateDistributionsTab(data) {
+    // Value frequencies
+    if (data.value_frequencies) {
+        const valueFrequenciesContent = document.getElementById('valueFrequenciesContent');
+        valueFrequenciesContent.innerHTML = Object.entries(data.value_frequencies).map(([column, frequencies]) => `
+            <div class="analysis-card mb-3">
+                <div class="card-header py-2">
+                    <strong>${column}</strong>
+                </div>
+                <div class="card-body py-2">
+                    ${Object.entries(frequencies).slice(0, 5).map(([value, count]) => `
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-truncate" style="max-width: 60%;" title="${value}">${value}</span>
+                            <div>
+                                <span class="badge bg-primary">${count}</span>
+                                <small class="text-muted">(${((count / data.row_count) * 100).toFixed(1)}%)</small>
+                            </div>
+                        </div>
+                    `).join('')}
+                    ${Object.keys(frequencies).length > 5 ? '<small class="text-muted">... and more</small>' : ''}
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // Unique values
+    if (data.unique_analysis) {
+        const uniqueValuesContent = document.getElementById('uniqueValuesContent');
+        uniqueValuesContent.innerHTML = Object.entries(data.unique_analysis).map(([column, analysis]) => `
+            <div class="analysis-card mb-3">
+                <div class="card-header py-2">
+                    <strong>${column}</strong>
+                </div>
+                <div class="card-body py-2">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <small class="text-muted d-block">Unique</small>
+                            <strong>${analysis.unique_count}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block">Uniqueness</small>
+                            <strong>${analysis.uniqueness_ratio ? (analysis.uniqueness_ratio * 100).toFixed(1) : 'N/A'}%</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // Numeric distributions
+    if (data.numeric_distributions) {
+        const numericDistributionsContent = document.getElementById('numericDistributionsContent');
+        numericDistributionsContent.innerHTML = Object.entries(data.numeric_distributions).map(([column, dist]) => `
+            <div class="analysis-card mb-3">
+                <div class="card-header py-2">
+                    <strong>${column}</strong>
+                </div>
+                <div class="card-body py-2">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <small class="text-muted d-block">Skewness</small>
+                            <strong>${dist.skewness ? Number(dist.skewness).toFixed(3) : 'N/A'}</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">Kurtosis</small>
+                            <strong>${dist.kurtosis ? Number(dist.kurtosis).toFixed(3) : 'N/A'}</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block">Zeros</small>
+                            <strong>${dist.zero_count || 0}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
+function updateQualityTab(data) {
+    // Missing data
+    if (data.missing_analysis) {
+        const missingDataContent = document.getElementById('missingDataContent');
+        missingDataContent.innerHTML = Object.entries(data.missing_analysis).map(([column, missing]) => `
+            <div class="d-flex justify-content-between align-items-center mb-3 p-2 border rounded">
+                <span class="fw-bold">${column}</span>
+                <div>
+                    <span class="badge ${missing.count > 0 ? 'bg-warning' : 'bg-success'}">${missing.count}</span>
+                    <small class="text-muted ms-2">(${missing.percentage.toFixed(1)}%)</small>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // Duplicate data
+    if (data.duplicate_analysis) {
+        const duplicateDataContent = document.getElementById('duplicateDataContent');
+        duplicateDataContent.innerHTML = `
+            <div class="text-center">
+                <div class="metric-card bg-light">
+                    <div class="metric-value text-${data.duplicate_analysis.duplicate_rows > 0 ? 'warning' : 'success'}">
+                        ${data.duplicate_analysis.duplicate_rows}
+                    </div>
+                    <div class="metric-label">Duplicate Rows</div>
+                </div>
+                <div class="metric-card bg-light">
+                    <div class="metric-value text-info">${data.duplicate_analysis.duplicate_percentage.toFixed(1)}%</div>
+                    <div class="metric-label">of Total Data</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Data issues
+    if (data.data_issues) {
+        const dataIssuesContent = document.getElementById('dataIssuesContent');
+        dataIssuesContent.innerHTML = data.data_issues.length > 0 ? data.data_issues.map(issue => `
+            <div class="alert alert-${issue.severity === 'high' ? 'danger' : issue.severity === 'medium' ? 'warning' : 'info'} py-2 mb-2">
+                <strong>${issue.type}:</strong> ${issue.description}
+                ${issue.count ? `<span class="badge bg-secondary ms-2">${issue.count}</span>` : ''}
+            </div>
+        `).join('') : '<div class="alert alert-success">No data quality issues detected!</div>';
+    }
+    
+    // Quality metrics
+    if (data.quality_score) {
+        const qualityMetricsContent = document.getElementById('qualityMetricsContent');
+        qualityMetricsContent.innerHTML = `
+            <div class="text-center mb-3">
+                <div class="metric-card bg-light">
+                    <div class="metric-value text-primary">${data.quality_score.overall_score.toFixed(1)}/100</div>
+                    <div class="metric-label">Overall Score</div>
+                </div>
+            </div>
+            <div class="mt-3">
+                <h6>Score Breakdown:</h6>
+                ${Object.entries(data.quality_score.breakdown).map(([category, value]) => `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-capitalize">${category.replace('_', ' ')}</span>
+                        <div>
+                            <span class="fw-bold">${value.toFixed(1)}</span>
+                            <div class="progress-enhanced mt-1" style="width: 100px;">
+                                <div class="progress-bar-enhanced ${value >= 80 ? 'bg-success' : value >= 60 ? 'bg-warning' : 'bg-danger'}" style="width: ${value}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+}
+
+function updatePatternsTab(data) {
+    // Text patterns
+    if (data.text_patterns) {
+        const textPatternsContent = document.getElementById('textPatternsContent');
+        textPatternsContent.innerHTML = Object.entries(data.text_patterns).map(([column, patterns]) => `
+            <div class="analysis-card mb-3">
+                <div class="card-header py-2">
+                    <strong>${column}</strong>
+                </div>
+                <div class="card-body py-2">
+                    ${patterns.map(pattern => `
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <code class="small pattern-badge bg-light">${pattern.pattern}</code>
+                            <span class="badge bg-info">${pattern.count}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // Trends
+    if (data.trends) {
+        const dataTrendsContent = document.getElementById('dataTrendsContent');
+        dataTrendsContent.innerHTML = data.trends.length > 0 ? data.trends.map(trend => `
+            <div class="alert alert-info py-2 mb-2">
+                <strong>${trend.column}:</strong> ${trend.description}
+                <span class="badge bg-primary ms-2">${trend.confidence}% confidence</span>
+            </div>
+        `).join('') : '<p class="text-muted">No significant trends detected</p>';
+    }
+    
+    // Anomalies
+    if (data.anomalies) {
+        const anomalyDetectionContent = document.getElementById('anomalyDetectionContent');
+        anomalyDetectionContent.innerHTML = data.anomalies.length > 0 ? data.anomalies.map(anomaly => `
+            <div class="alert alert-warning py-2 mb-2">
+                <strong>${anomaly.type}:</strong> ${anomaly.description}
+                <br><small class="text-muted">Column: ${anomaly.column}, Count: ${anomaly.count}</small>
+            </div>
+        `).join('') : '<div class="alert alert-success">No anomalies detected!</div>';
+    }
+}
+
+function updateCorrelationsTab(data) {
+    // Column correlations
+    if (data.correlations) {
+        const columnCorrelationsContent = document.getElementById('columnCorrelationsContent');
+        columnCorrelationsContent.innerHTML = data.correlations.length > 0 ? data.correlations.map(corr => `
+            <div class="d-flex justify-content-between align-items-center mb-3 p-2 border rounded">
+                <span class="small">${corr.column1} ↔ ${corr.column2}</span>
+                <span class="badge bg-${Math.abs(corr.value) > 0.7 ? 'danger' : Math.abs(corr.value) > 0.5 ? 'warning' : 'success'}">
+                    ${corr.value.toFixed(3)}
+                </span>
+            </div>
+        `).join('') : '<p class="text-muted">No significant correlations found</p>';
+    }
+    
+    // Relationship suggestions
+    if (data.relationship_suggestions) {
+        const dataRelationshipsContent = document.getElementById('dataRelationshipsContent');
+        dataRelationshipsContent.innerHTML = data.relationship_suggestions.length > 0 ? data.relationship_suggestions.map(rel => `
+            <div class="alert alert-info py-2 mb-2">
+                <strong>${rel.type}:</strong> ${rel.description}
+                <br><small class="text-muted">Confidence: ${rel.confidence}%</small>
+            </div>
+        `).join('') : '<p class="text-muted">No relationship suggestions available</p>';
+    }
+    
+    // Correlation matrix
+    if (data.correlation_matrix) {
+        const correlationMatrixContent = document.getElementById('correlationMatrixContent');
+        correlationMatrixContent.innerHTML = `
+            <div class="table-container">
+                <div class="table-responsive">
+                    <table class="table-enhanced">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                ${data.correlation_matrix.columns.map(col => `<th class="small">${col}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.correlation_matrix.data.map((row, i) => `
+                                <tr>
+                                    <th class="small">${data.correlation_matrix.columns[i]}</th>
+                                    ${row.map(value => `
+                                        <td class="small" style="background-color: ${getCorrelationColor(value)}; color: ${Math.abs(value) > 0.5 ? 'white' : 'black'};">
+                                            ${value.toFixed(2)}
+                                        </td>
+                                    `).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function getCorrelationColor(value) {
+    const intensity = Math.abs(value);
+    if (intensity > 0.8) return value > 0 ? '#28a745' : '#dc3545';
+    if (intensity > 0.5) return value > 0 ? '#ffc107' : '#fd7e14';
+    if (intensity > 0.3) return value > 0 ? '#e9ecef' : '#f8d7da';
+    return '#f8f9fa';
+}
+
+function showLoading() {
+    document.getElementById('loadingSpinner').style.display = 'block';
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('analysisContent').style.display = 'none';
+}
+
+function hideLoading() {
+    document.getElementById('loadingSpinner').style.display = 'none';
+}
+
+function showEmptyState() {
+    document.getElementById('emptyState').style.display = 'block';
+    document.getElementById('analysisContent').style.display = 'none';
+    document.getElementById('loadingSpinner').style.display = 'none';
+}
+
+function refreshAnalysis() {
+    if (selectedTable && selectedDatabase) {
+        loadTableAnalysis();
+    } else {
+        showAlert('Please select a database and table first', 'warning');
+    }
+}
+
+function exportAnalysisReport() {
+    if (!currentAnalysisData) {
+        showAlert('No analysis data to export', 'warning');
+        return;
+    }
+    
+    showAlert('Export functionality coming soon!', 'info');
+}
+
+// Alert function
+function showAlert(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

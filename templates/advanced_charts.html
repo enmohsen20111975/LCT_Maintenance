@@ -1,0 +1,787 @@
+{% extends "base.html" %}
+
+{% block title %}Advanced Charts - LDA{% endblock %}
+
+{% block extra_css %}
+<style>
+.charts-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-radius: 15px;
+}
+
+.chart-type-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    margin-bottom: 1.5rem;
+    height: 400px;
+}
+
+.chart-type-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+.chart-type-card .card-header {
+    background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    border-radius: 15px 15px 0 0 !important;
+}
+
+.chart-container {
+    height: 300px;
+    position: relative;
+}
+
+.chart-selector {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.chart-option {
+    padding: 1rem;
+    border: 2px solid #dee2e6;
+    border-radius: 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.chart-option:hover {
+    border-color: #007bff;
+    background: #f8f9fa;
+}
+
+.chart-option.active {
+    border-color: #007bff;
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    color: white;
+}
+
+.chart-option i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.advanced-controls {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.heatmap-cell {
+    border: 1px solid #ddd;
+    display: inline-block;
+    margin: 1px;
+    text-align: center;
+    font-size: 0.8rem;
+}
+
+.gauge-container {
+    position: relative;
+    width: 200px;
+    height: 100px;
+    margin: 0 auto;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="charts-header text-center">
+    <div class="container">
+        <h1 class="display-4 mb-3">
+            <i class="bi bi-bar-chart me-3"></i>
+            Advanced Charts & Visualizations
+        </h1>
+        <p class="lead">Create Power BI-style advanced visualizations with your data</p>
+    </div>
+</div>
+
+<!-- Chart Configuration -->
+<div class="chart-selector">
+    <div class="row">
+        <div class="col-md-4">
+            <label for="databaseSelect" class="form-label fw-bold">
+                <i class="bi bi-database"></i> Database:
+            </label>
+            <select id="databaseSelect" class="form-select" onchange="loadTables()">
+                {% if databases %}
+                    {% for db in databases %}
+                        <option value="{{ db }}" {% if loop.first %}selected{% endif %}>{{ db }}</option>
+                    {% endfor %}
+                {% else %}
+                    <option value="excel_data" selected>excel_data</option>
+                {% endif %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="tableSelect" class="form-label fw-bold">
+                <i class="bi bi-table"></i> Table:
+            </label>
+            <select id="tableSelect" class="form-select" onchange="loadColumns()">
+                <option value="">Select table...</option>
+                {% if tables %}
+                    {% for table in tables %}
+                        <option value="{{ table.table_name or table.name or table }}">
+                            {{ table.table_name or table.name or table }}
+                            {% if table.row_count %}({{ "{:,}".format(table.row_count) }} rows){% endif %}
+                        </option>
+                    {% endfor %}
+                {% endif %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="chartTypeSelect" class="form-label fw-bold">
+                <i class="bi bi-graph-up"></i> Chart Type:
+            </label>
+            <select id="chartTypeSelect" class="form-select" onchange="updateChartOptions()">
+                <option value="heatmap">Heatmap</option>
+                <option value="treemap">Treemap</option>
+                <option value="gauge">Gauge Chart</option>
+                <option value="waterfall">Waterfall Chart</option>
+                <option value="funnel">Funnel Chart</option>
+                <option value="radar">Radar Chart</option>
+                <option value="sankey">Sankey Diagram</option>
+                <option value="bubble">Bubble Chart</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Chart Type Options -->
+<div class="chart-grid">
+    <div class="chart-option active" data-type="heatmap" onclick="selectChartType('heatmap')">
+        <i class="bi bi-grid-3x3-gap"></i>
+        <h5>Heatmap</h5>
+        <p>Correlation matrix visualization</p>
+    </div>
+    <div class="chart-option" data-type="treemap" onclick="selectChartType('treemap')">
+        <i class="bi bi-diagram-2"></i>
+        <h5>Treemap</h5>
+        <p>Hierarchical data visualization</p>
+    </div>
+    <div class="chart-option" data-type="gauge" onclick="selectChartType('gauge')">
+        <i class="bi bi-speedometer2"></i>
+        <h5>Gauge Chart</h5>
+        <p>KPI and performance metrics</p>
+    </div>
+    <div class="chart-option" data-type="waterfall" onclick="selectChartType('waterfall')">
+        <i class="bi bi-bar-chart-steps"></i>
+        <h5>Waterfall</h5>
+        <p>Sequential data changes</p>
+    </div>
+    <div class="chart-option" data-type="funnel" onclick="selectChartType('funnel')">
+        <i class="bi bi-funnel"></i>
+        <h5>Funnel Chart</h5>
+        <p>Process flow visualization</p>
+    </div>
+    <div class="chart-option" data-type="radar" onclick="selectChartType('radar')">
+        <i class="bi bi-diagram-3"></i>
+        <h5>Radar Chart</h5>
+        <p>Multi-dimensional comparison</p>
+    </div>
+    <div class="chart-option" data-type="sankey" onclick="selectChartType('sankey')">
+        <i class="bi bi-arrow-left-right"></i>
+        <h5>Sankey Diagram</h5>
+        <p>Flow and relationship mapping</p>
+    </div>
+    <div class="chart-option" data-type="bubble" onclick="selectChartType('bubble')">
+        <i class="bi bi-circle"></i>
+        <h5>Bubble Chart</h5>
+        <p>Three-dimensional scatter plot</p>
+    </div>
+</div>
+
+<!-- Advanced Controls -->
+<div class="advanced-controls" id="advancedControls">
+    <h5><i class="bi bi-sliders"></i> Chart Configuration</h5>
+    <div id="chartSpecificControls">
+        <!-- Dynamic controls based on chart type -->
+    </div>
+    <div class="mt-3">
+        <button class="btn btn-primary" onclick="generateAdvancedChart()">
+            <i class="bi bi-play-circle"></i> Generate Chart
+        </button>
+        <button class="btn btn-outline-secondary" onclick="resetChart()">
+            <i class="bi bi-arrow-counterclockwise"></i> Reset
+        </button>
+    </div>
+</div>
+
+<!-- Chart Display Area -->
+<div class="row">
+    <div class="col-12">
+        <div class="chart-type-card">
+            <div class="card-header">
+                <h5 class="mb-0" id="chartTitle">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Advanced Visualization
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="advancedChart"></canvas>
+                    <div id="chartPlaceholder" class="d-flex align-items-center justify-content-center h-100 text-muted">
+                        <div class="text-center">
+                            <i class="bi bi-graph-up" style="font-size: 3rem;"></i>
+                            <p class="mt-2">Select data and chart type to generate visualization</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-treemap"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey"></script>
+
+<!-- Initialize server data in a separate script block -->
+<script type="application/json" id="serverData">
+{
+    "databases": {{ databases|tojson if databases else '["excel_data"]'|safe }},
+    "tables": {{ tables|tojson if tables else '[]'|safe }}
+}
+</script>
+
+<script>
+// Server-side data
+window.serverData = JSON.parse(document.getElementById('serverData').textContent);
+
+let currentChart = null;
+let currentChartType = 'heatmap';
+let currentDatabase = null;
+let currentTable = null;
+let tableData = null;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Set the current database from server-side data  
+    currentDatabase = window.serverData.databases[0] || 'excel_data';
+    
+    updateChartOptions();
+    
+    // If we have tables from server, show them
+    if (window.serverData.tables && window.serverData.tables.length > 0) {
+        console.log('Tables available:', window.serverData.tables);
+    }
+});
+
+async function loadDatabases() {
+    try {
+        // Set your main database directly
+        const select = document.getElementById('databaseSelect');
+        select.innerHTML = '<option value="excel_data" selected>excel_data</option>';
+        
+        // Set current database and load tables immediately
+        currentDatabase = 'excel_data';
+        loadTables();
+        
+    } catch (error) {
+        console.error('Error loading databases:', error);
+        // Fallback
+        const select = document.getElementById('databaseSelect');
+        select.innerHTML = '<option value="excel_data" selected>excel_data</option>';
+        currentDatabase = 'excel_data';
+        loadTables();
+    }
+}
+
+async function loadTables() {
+    const databaseSelect = document.getElementById('databaseSelect');
+    currentDatabase = databaseSelect.value;
+    
+    if (!currentDatabase) return;
+    
+    try {
+        // Use your existing API endpoint to get tables
+        const response = await fetch('/api/tables/existing');
+        const data = await response.json();
+        
+        if (data.success) {
+            const select = document.getElementById('tableSelect');
+            select.innerHTML = '<option value="">Select table...</option>';
+            
+            data.tables.forEach(table => {
+                const tableName = table.table_name || table.name || table;
+                select.innerHTML += `<option value="${tableName}">${tableName}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('Error loading tables:', error);
+        // Try fallback for static table list
+        const select = document.getElementById('tableSelect');
+        select.innerHTML = '<option value="">Select table...</option>';
+        
+        // Add your known tables
+        const knownTables = ['po', 'PR', 'Stock', 'Annual', 'summary'];
+        knownTables.forEach(table => {
+            select.innerHTML += `<option value="${table}">${table}</option>`;
+        });
+    }
+}
+
+async function loadColumns() {
+    const tableSelect = document.getElementById('tableSelect');
+    currentTable = tableSelect.value;
+    
+    if (!currentTable) return;
+    
+    try {
+        // Use your new chart data API to get columns and data
+        const response = await fetch(`/api/chart-data/${currentTable}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            currentTableData = data;
+            updateChartOptions();
+        } else {
+            console.error('Error loading table data:', data.error);
+            showNotification('Error loading table data: ' + data.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error loading columns:', error);
+        showNotification('Error loading table data', 'error');
+    }
+}
+
+function selectChartType(type) {
+    currentChartType = type;
+    
+    // Update UI
+    document.querySelectorAll('.chart-option').forEach(option => {
+        option.classList.remove('active');
+    });
+    document.querySelector(`[data-type="${type}"]`).classList.add('active');
+    
+    document.getElementById('chartTypeSelect').value = type;
+    updateChartOptions();
+}
+
+function updateChartOptions() {
+    const controlsContainer = document.getElementById('chartSpecificControls');
+    
+    switch (currentChartType) {
+        case 'heatmap':
+            controlsContainer.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Color Scheme:</label>
+                        <select class="form-select" id="heatmapColorScheme">
+                            <option value="RdYlBu">Red-Yellow-Blue</option>
+                            <option value="Viridis">Viridis</option>
+                            <option value="Blues">Blues</option>
+                            <option value="Reds">Reds</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Data Type:</label>
+                        <select class="form-select" id="heatmapDataType">
+                            <option value="correlation">Correlation Matrix</option>
+                            <option value="values">Direct Values</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            break;
+        case 'gauge':
+            controlsContainer.innerHTML = `
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="form-label">Value Column:</label>
+                        <select class="form-select" id="gaugeValueColumn">
+                            <option value="">Select column...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Min Value:</label>
+                        <input type="number" class="form-control" id="gaugeMin" value="0">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Max Value:</label>
+                        <input type="number" class="form-control" id="gaugeMax" value="100">
+                    </div>
+                </div>
+            `;
+            break;
+        case 'treemap':
+            controlsContainer.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Category Column:</label>
+                        <select class="form-select" id="treemapCategory">
+                            <option value="">Select category...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Value Column:</label>
+                        <select class="form-select" id="treemapValue">
+                            <option value="">Select value...</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            break;
+        case 'funnel':
+            controlsContainer.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Stage Column:</label>
+                        <select class="form-select" id="funnelStage">
+                            <option value="">Select stage...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Value Column:</label>
+                        <select class="form-select" id="funnelValue">
+                            <option value="">Select value...</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            break;
+        default:
+            controlsContainer.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    Select a table to configure ${currentChartType} options
+                </div>
+            `;
+    }
+}
+
+async function generateAdvancedChart() {
+    if (!currentTable || !currentDatabase) {
+        alert('Please select a database and table first');
+        return;
+    }
+    
+    try {
+        // Hide placeholder
+        document.getElementById('chartPlaceholder').style.display = 'none';
+        
+        // Generate chart based on type
+        switch (currentChartType) {
+            case 'heatmap':
+                await generateHeatmap();
+                break;
+            case 'gauge':
+                await generateGauge();
+                break;
+            case 'treemap':
+                await generateTreemap();
+                break;
+            case 'funnel':
+                await generateFunnel();
+                break;
+            case 'radar':
+                await generateRadar();
+                break;
+            case 'bubble':
+                await generateBubble();
+                break;
+            default:
+                generateSampleChart();
+        }
+        
+        updateChartTitle();
+    } catch (error) {
+        console.error('Error generating chart:', error);
+        alert('Error generating chart: ' + error.message);
+    }
+}
+
+async function generateHeatmap() {
+    // Get sample correlation data
+    const data = [
+        [1, 0.8, 0.3, 0.2],
+        [0.8, 1, 0.5, 0.4],
+        [0.3, 0.5, 1, 0.7],
+        [0.2, 0.4, 0.7, 1]
+    ];
+    
+    const labels = ['Sales', 'Marketing', 'Support', 'Development'];
+    
+    // Create heatmap using Chart.js (simplified version)
+    const ctx = document.getElementById('advancedChart').getContext('2d');
+    
+    if (currentChart) {
+        currentChart.destroy();
+    }
+    
+    currentChart = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Correlation',
+                data: data.flatMap((row, i) => 
+                    row.map((value, j) => ({
+                        x: j,
+                        y: i,
+                        v: value
+                    }))
+                ),
+                backgroundColor: (ctx) => {
+                    const value = ctx.parsed.v;
+                    const alpha = Math.abs(value);
+                    return value > 0 ? `rgba(54, 162, 235, ${alpha})` : `rgba(255, 99, 132, ${alpha})`;
+                },
+                pointRadius: 20
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'linear',
+                    position: 'bottom',
+                    min: -0.5,
+                    max: 3.5,
+                    ticks: {
+                        callback: function(value) {
+                            return labels[value] || '';
+                        }
+                    }
+                },
+                y: {
+                    min: -0.5,
+                    max: 3.5,
+                    ticks: {
+                        callback: function(value) {
+                            return labels[value] || '';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            const point = context[0];
+                            return `${labels[point.parsed.x]} vs ${labels[point.parsed.y]}`;
+                        },
+                        label: function(context) {
+                            return `Correlation: ${context.parsed.v.toFixed(3)}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+async function generateGauge() {
+    const value = 75; // Sample value
+    const min = 0;
+    const max = 100;
+    
+    const ctx = document.getElementById('advancedChart').getContext('2d');
+    
+    if (currentChart) {
+        currentChart.destroy();
+    }
+    
+    currentChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            datasets: [{
+                data: [value, max - value],
+                backgroundColor: ['#007bff', '#e9ecef'],
+                borderWidth: 0,
+                circumference: 180,
+                rotation: 270
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    enabled: false
+                }
+            }
+        },
+        plugins: [{
+            afterDraw: function(chart) {
+                const ctx = chart.ctx;
+                const centerX = chart.chartArea.left + (chart.chartArea.right - chart.chartArea.left) / 2;
+                const centerY = chart.chartArea.top + (chart.chartArea.bottom - chart.chartArea.top) / 2;
+                
+                ctx.save();
+                ctx.font = 'bold 24px Arial';
+                ctx.fillStyle = '#007bff';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${value}%`, centerX, centerY + 20);
+                ctx.restore();
+            }
+        }]
+    });
+}
+
+function generateSampleChart() {
+    const ctx = document.getElementById('advancedChart').getContext('2d');
+    
+    if (currentChart) {
+        currentChart.destroy();
+    }
+    
+    const sampleData = {
+        labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+        datasets: [{
+            label: 'Sample Data',
+            data: [65, 59, 80, 81],
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+        }]
+    };
+    
+    currentChart = new Chart(ctx, {
+        type: 'bar',
+        data: sampleData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: `${currentChartType.charAt(0).toUpperCase() + currentChartType.slice(1)} Chart (Sample)`
+                }
+            }
+        }
+    });
+}
+
+function updateChartTitle() {
+    const titleElement = document.getElementById('chartTitle');
+    titleElement.innerHTML = `
+        <i class="bi bi-graph-up me-2"></i>
+        ${currentChartType.charAt(0).toUpperCase() + currentChartType.slice(1)} - ${currentTable || 'Sample Data'}
+    `;
+}
+
+function resetChart() {
+    if (currentChart) {
+        currentChart.destroy();
+        currentChart = null;
+    }
+    
+    document.getElementById('chartPlaceholder').style.display = 'flex';
+    document.getElementById('chartTitle').innerHTML = '<i class="bi bi-graph-up me-2"></i>Advanced Visualization';
+}
+
+// Additional chart generators
+async function generateTreemap() {
+    generateSampleChart();
+}
+
+async function generateFunnel() {
+    generateSampleChart();
+}
+
+async function generateRadar() {
+    const ctx = document.getElementById('advancedChart').getContext('2d');
+    
+    if (currentChart) {
+        currentChart.destroy();
+    }
+    
+    currentChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['Speed', 'Reliability', 'Comfort', 'Safety', 'Efficiency'],
+            datasets: [{
+                label: 'Product A',
+                data: [80, 90, 70, 85, 75],
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 2
+            }, {
+                label: 'Product B',
+                data: [70, 85, 85, 80, 85],
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+async function generateBubble() {
+    const ctx = document.getElementById('advancedChart').getContext('2d');
+    
+    if (currentChart) {
+        currentChart.destroy();
+    }
+    
+    currentChart = new Chart(ctx, {
+        type: 'bubble',
+        data: {
+            datasets: [{
+                label: 'Dataset 1',
+                data: [
+                    {x: 20, y: 30, r: 15},
+                    {x: 40, y: 10, r: 10},
+                    {x: 30, y: 40, r: 20},
+                    {x: 50, y: 20, r: 25}
+                ],
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    beginAtZero: true
+                },
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+
+{% block title %}Home - LCT STS Maintenance App{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">
+        <i class="bi bi-graph-up-arrow"></i>
+        LCT STS Data Monitoring & Analysis Dashboard
+    </h1>
+    
+    <!-- Data Analysis Statistics Overview -->
+    <div class="row mb-5">
+        <div class="col-md-3">
+            <div class="stats-card success">
+                <div class="stats-value">{{ "{:,}".format(stats.active_work_orders) if stats and stats.active_work_orders else 0 }}</div>
+                <div class="stats-label">Active Work Orders</div>
+                <small class="text-muted">Currently in progress</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card info">
+                <div class="stats-value">{{ "{:,}".format(stats.total_work_orders) if stats and stats.total_work_orders else 0 }}</div>
+                <div class="stats-label">Total Work Orders</div>
+                <small class="text-muted">Historical + Active</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card primary">
+                <div class="stats-value">{{ "{:,}".format(stats.total_stock_items) if stats and stats.total_stock_items else 0 }}</div>
+                <div class="stats-label">Stock Items</div>
+                <small class="text-muted">Total inventory items</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card warning">
+                <div class="stats-value">{{ "{:,}".format(stats.critical_spare_parts) if stats and stats.critical_spare_parts else 0 }}</div>
+                <div class="stats-label">Low Stock Items</div>
+                <small class="text-muted">Need reordering</small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Statistics -->
+    <div class="row mb-5">
+        <div class="col-md-3">
+            <div class="stats-card secondary">
+                <div class="stats-value">{{ "{:,}".format(stats.total_records) if stats else 0 }}</div>
+                <div class="stats-label">Total Records</div>
+                <small class="text-muted">Across all data tables</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card secondary">
+                <div class="stats-value">{{ stats.total_tables if stats else 0 }}</div>
+                <div class="stats-label">Data Tables</div>
+                <small class="text-muted">Active datasets</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card secondary">
+                <div class="stats-value">{{ stats.recent_uploads if stats else 0 }}</div>
+                <div class="stats-label">Recent Uploads</div>
+                <small class="text-muted">Last 5 uploads</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card {% if stats and stats.orphaned_tables > 0 %}danger{% else %}secondary{% endif %}">
+                <div class="stats-value">{{ stats.orphaned_tables if stats else 0 }}</div>
+                <div class="stats-label">Orphaned Tables</div>
+                <small class="text-muted">Need repair</small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Access to Work Orders and Stock -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h3><i class="bi bi-speedometer2"></i> Quick Access</h3>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h5 class="card-title"><i class="bi bi-clipboard-check"></i> Work Orders Management</h5>
+                            <p class="card-text">
+                                <span class="badge bg-success fs-6 me-2">{{ "{:,}".format(stats.active_work_orders) if stats and stats.active_work_orders else 0 }} Active</span>
+                                <span class="badge bg-info fs-6">{{ "{:,}".format(stats.total_work_orders) if stats and stats.total_work_orders else 0 }} Total</span>
+                            </p>
+                            <div class="d-flex gap-2 justify-content-center">
+                                <a href="{{ url_for('work_orders_direct') }}" class="btn btn-primary">
+                                    <i class="bi bi-list-check"></i> View Work Orders
+                                </a>
+                                <a href="{{ url_for('work_orders_list') }}" class="btn btn-success">
+                                    <i class="bi bi-list-check"></i> All Work Orders
+                                </a>
+                                <a href="{{ url_for('enhanced_work_orders_analysis') }}" class="btn btn-info">
+                                    <i class="bi bi-bar-chart"></i> Work Orders Analysis
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h5 class="card-title"><i class="bi bi-box-seam"></i> Stock & Inventory</h5>
+                            <p class="card-text">
+                                <span class="badge bg-primary fs-6 me-2">{{ "{:,}".format(stats.total_stock_items) if stats and stats.total_stock_items else 0 }} Items</span>
+                                <span class="badge bg-warning fs-6">{{ "{:,}".format(stats.critical_spare_parts) if stats and stats.critical_spare_parts else 0 }} Low Stock</span>
+                            </p>
+                            <div class="d-flex gap-2 justify-content-center">
+                                <a href="{{ url_for('stock_analysis') }}" class="btn btn-primary">
+                                    <i class="bi bi-graph-up"></i> Stock Analysis
+                                </a>
+                                <a href="{{ url_for('spare_parts_inventory') }}" class="btn btn-warning">
+                                    <i class="bi bi-exclamation-triangle"></i> Low Stock Items
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Data Monitoring & Analysis Actions -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h3><i class="bi bi-graph-up-arrow"></i> Data Monitoring & Analysis</h3>
+            <div class="d-flex flex-wrap gap-3 mb-3">
+                <a href="{{ url_for('upload') }}" class="btn btn-primary">
+                    <i class="bi bi-upload"></i> Import Data Files
+                </a>
+                <a href="{{ url_for('tables') }}" class="btn btn-secondary">
+                    <i class="bi bi-table"></i> Browse Data Tables
+                </a>
+                <a href="{{ url_for('data_analysis') }}" class="btn btn-success">
+                    <i class="bi bi-bar-chart"></i> Data Analysis
+                </a>
+                <a href="{{ url_for('advanced_charts') }}" class="btn btn-info">
+                    <i class="bi bi-graph-up"></i> Charts & Visualizations
+                </a>
+                <a href="{{ url_for('relationships_new') }}" class="btn btn-warning">
+                    <i class="bi bi-diagram-3"></i> Data Relationships
+                </a>
+                <a href="{{ url_for('monitoring_dashboard') }}" class="btn btn-dark">
+                    <i class="bi bi-speedometer2"></i> Monitoring Dashboard
+                </a>
+                <a href="{{ url_for('executive_dashboard') }}" class="btn btn-outline-dark">
+                    <i class="bi bi-graph-up"></i> Executive Dashboard
+                </a>
+            </div>
+            <h4><i class="bi bi-gear"></i> System Management</h4>
+            <div class="d-flex flex-wrap gap-3">
+                <a href="{{ url_for('data_grid') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-grid-3x3"></i> Data Grid View
+                </a>
+                <a href="{{ url_for('calculated_fields') }}" class="btn btn-outline-success">
+                    <i class="bi bi-calculator"></i> Calculated Fields
+                </a>
+                {% if stats and stats.orphaned_tables > 0 %}
+                <button class="btn btn-outline-warning" onclick="repairAllMetadata()">
+                    <i class="bi bi-tools"></i> Repair Orphaned Tables
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-clock-history"></i> Recent Tables</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_tables %}
+                    <div class="list-group list-group-flush">
+                        {% for table in recent_tables[:5] %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ table.table_name }}</strong>
+                                <br>
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar"></i> {{ table.created_date.strftime('%Y-%m-%d %H:%M') }}
+                                </small>
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary" 
+                                        data-table-name="{{ table.table_name }}" 
+                                        onclick="showTablePreview(this.dataset.tableName)">
+                                    <i class="bi bi-eye"></i> Preview
+                                </button>
+                                <a href="{{ url_for('view_table', table_name=table.table_name) }}" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-arrow-right"></i> View
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if recent_tables|length > 5 %}
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('tables') }}" class="btn btn-outline-secondary">View All Tables</a>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <p class="text-muted">No tables found. <a href="{{ url_for('upload') }}">Upload an Excel file</a> to get started.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-upload"></i> Recent Uploads</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_uploads %}
+                    <div class="list-group list-group-flush">
+                        {% for upload in recent_uploads %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ upload.filename }}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="bi bi-calendar"></i> {{ upload.upload_date.strftime('%Y-%m-%d %H:%M') }}
+                                        {% if upload.status %}
+                                        | <span class="badge bg-{% if upload.status == 'success' %}success{% else %}danger{% endif %}">
+                                            {{ upload.status.title() }}
+                                        </span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No recent uploads.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Status -->
+    {% if existing_tables %}
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-server"></i> System Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6>Database Health</h6>
+                            <div class="progress mb-3">
+                                {% set health_percentage = ((stats.total_tables - stats.orphaned_tables) / stats.total_tables * 100) if stats and stats.total_tables > 0 else 100 %}
+                                <div class="progress-bar {% if health_percentage >= 80 %}bg-success{% elif health_percentage >= 60 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                     role="progressbar" 
+                                     aria-valuenow="{{ health_percentage }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100"
+                                     data-width="{{ health_percentage|round(0) }}">
+                                    {{ health_percentage|round(0) }}%
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Storage Usage</h6>
+                            <small class="text-muted">{{ stats.total_records }} records across {{ stats.total_tables }} tables</small>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Last Activity</h6>
+                            <small class="text-muted">
+                                {% if recent_uploads %}
+                                {{ recent_uploads[0].upload_date.strftime('%Y-%m-%d %H:%M') }}
+                                {% else %}
+                                No recent activity
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Feature Highlights -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <h3>Features</h3>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-file-earmark-excel"></i> Data Import</h5>
+                            <p class="card-text">Import Excel files from external systems and automatically convert them to database tables with intelligent column type detection.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-search"></i> Data Monitoring</h5>
+                            <p class="card-text">Monitor and track changes in your data over time with comprehensive browsing, searching, and filtering capabilities.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-diagram-3"></i> Data Relationships</h5>
+                            <p class="card-text">Analyze relationships between different datasets with advanced join operations and correlation analysis.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-bar-chart"></i> Statistical Analysis</h5>
+                            <p class="card-text">Comprehensive statistical analysis with insights, trends, and patterns discovery across your datasets.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-graph-up"></i> Visualizations</h5>
+                            <p class="card-text">Create interactive charts, graphs, and dashboards to visualize your data trends and KPIs.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-speedometer2"></i> Real-time Dashboards</h5>
+                            <p class="card-text">Monitor key performance indicators and operational metrics through real-time executive dashboards.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Table Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Table Preview: <span id="previewTableName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="viewFullTable()">
+                    <i class="bi bi-eye"></i> View Full Table
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPreviewTable = '';
+
+function showTablePreview(tableName) {
+    currentPreviewTable = tableName;
+    document.getElementById('previewTableName').textContent = tableName;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+    modal.show();
+    
+    // Load preview data
+    fetch(`/api/table-info/${tableName}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const previewContent = document.getElementById('previewContent');
+                previewContent.innerHTML = `
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h6>Table Information</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Rows:</strong> ${data.row_count}</li>
+                                <li><strong>Columns:</strong> ${data.column_count}</li>
+                                <li><strong>Created:</strong> ${new Date(data.created_date).toLocaleString()}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Columns</h6>
+                            <div class="d-flex flex-wrap gap-1">
+                                ${data.columns.map(col => `<span class="badge bg-secondary">${col}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <div class="table-responsive">
+                            <table class="table-enhanced">
+                                <thead>
+                                    <tr>
+                                        ${data.columns.map(col => `<th>${col}</th>`).join('')}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.sample_data.map(row => `
+                                        <tr>
+                                            ${row.map(cell => `<td>${cell !== null ? cell : '<em>null</em>'}</td>`).join('')}
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    ${data.sample_data.length >= 10 ? '<p class="text-muted"><em>Showing first 10 rows...</em></p>' : ''}
+                `;
+            } else {
+                document.getElementById('previewContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        Error loading table preview: ${data.error}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            document.getElementById('previewContent').innerHTML = `
+                <div class="alert alert-danger">
+                    Error loading table preview: ${error.message}
+                </div>
+            `;
+        });
+}
+
+function viewFullTable() {
+    if (currentPreviewTable) {
+        window.location.href = `/view_table/${currentPreviewTable}`;
+    }
+}
+
+function repairAllMetadata() {
+    if (confirm('This will attempt to repair metadata for all orphaned tables. Continue?')) {
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Repairing...';
+        btn.disabled = true;
+        
+        fetch('/api/repair-all-metadata', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`Repair completed! ${data.repaired_count} tables repaired.`);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            })
+            .finally(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+    }
+}
+
+// Set progress bar width on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const progressBar = document.querySelector('.progress-bar[data-width]');
+    if (progressBar) {
+        const width = progressBar.getAttribute('data-width');
+        progressBar.style.width = width + '%';
+    }
+});
+</script>
+{% endblock %}

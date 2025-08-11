@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}Test Table Copy{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Test Table Copy Functionality</h1>
+    
+    <div class="alert alert-info">
+        <strong>Note:</strong> This page is for testing the table copy functionality with the application context fix.
+        <hr>
+        <strong>Prerequisites for testing:</strong>
+        <ul class="mb-0">
+            <li>At least one table must exist in the current database</li>
+            <li>At least one other database must exist as a copy target</li>
+            <li>If you don't see any tables or databases, upload some data first or create additional databases</li>
+        </ul>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Available Databases</h5>
+                </div>
+                <div class="card-body">
+                    <div id="databases-list">Loading...</div>
+                    <div class="mt-2">
+                        <a href="/database-management" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-plus"></i> Manage Databases
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Tables in Current Database</h5>
+                </div>
+                <div class="card-body">
+                    <div id="tables-list">Loading...</div>
+                    <div class="mt-2">
+                        <a href="/upload" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-upload"></i> Upload Data
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Test Table Copy</h5>
+                </div>
+                <div class="card-body">
+                    <form id="test-copy-form">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="source-table">Source Table:</label>
+                                <select class="form-control" id="source-table">
+                                    <option value="">Select table...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="target-database">Target Database:</label>
+                                <select class="form-control" id="target-database">
+                                    <option value="">Select database...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label>&nbsp;</label><br>
+                                <button type="button" class="btn btn-primary" onclick="testTableCopy()">
+                                    Test Copy
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <!-- Progress Container -->
+                    <div class="progress-container mt-3" id="testProgressContainer" style="display: none;">
+                        <div class="progress">
+                            <div class="progress-text" id="testProgressText">0%</div>
+                            <div class="progress-bar" id="testProgressBar" style="width: 0%"></div>
+                        </div>
+                        <div class="progress-stage" id="testProgressStage">Preparing...</div>
+                    </div>
+                    
+                    <div id="test-result" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-3">
+        <a href="/database-management" class="btn btn-outline-secondary">← Back to Database Management</a>
+    </div>
+</div>
+
+<style>
+.progress {
+    height: 25px;
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #007bff, #0056b3);
+    transition: width 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 500;
+    position: relative;
+}
+
+.progress-text {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    color: #495057;
+    font-weight: 500;
+    z-index: 1;
+}
+
+.progress-stage {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #6c757d;
+    text-align: center;
+}
+</style>
+
+<script>
+// Load data when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadDatabases();
+    loadTables();
+});
+
+async function loadDatabases() {
+    try {
+        const response = await fetch('/api/database/list');
+        const data = await response.json();
+        
+        const databasesList = document.getElementById('databases-list');
+        const targetSelect = document.getElementById('target-database');
+        
+        if (data.success && data.databases) {
+            let html = '<ul>';
+            let otherDatabases = 0;
+            
+            data.databases.forEach(db => {
+                html += `<li>${db.name} ${db.is_current ? '<strong>(current)</strong>' : ''}</li>`;
+                if (!db.is_current) {
+                    targetSelect.innerHTML += `<option value="${db.name}">${db.name}</option>`;
+                    otherDatabases++;
+                }
+            });
+            html += '</ul>';
+            databasesList.innerHTML = html;
+            
+            if (otherDatabases === 0) {
+                targetSelect.innerHTML = '<option value="">No other databases available</option>';
+                databasesList.innerHTML += '<p class="text-muted"><em>Create additional databases to test table copying.</em></p>';
+            }
+        } else {
+            databasesList.innerHTML = 'Error loading databases';
+            targetSelect.innerHTML = '<option value="">Error loading databases</option>';
+        }
+    } catch (error) {
+        document.getElementById('databases-list').innerHTML = 'Error: ' + error.message;
+        document.getElementById('target-database').innerHTML = '<option value="">Error loading databases</option>';
+    }
+}
+
+async function loadTables() {
+    try {
+        console.log('Loading tables...');
+        
+        // Try the simple tables endpoint first
+        const response = await fetch('/api/simple-tables');
+        const data = await response.json();
+        console.log('Simple tables data:', data);
+        
+        const tablesList = document.getElementById('tables-list');
+        const sourceSelect = document.getElementById('source-table');
+        
+        // Clear previous options
+        sourceSelect.innerHTML = '<option value="">Select table...</option>';
+        
+        if (data.success && data.tables && data.tables.length > 0) {
+            let html = '<ul>';
+            data.tables.forEach(table => {
+                html += `<li><strong>${table.name}</strong> (${table.row_count} rows)</li>`;
+                sourceSelect.innerHTML += `<option value="${table.name}">${table.name} (${table.row_count} rows)</option>`;
+            });
+            html += '</ul>';
+            tablesList.innerHTML = html;
+        } else {
+            // Fallback: try debug endpoint
+            const debugResponse = await fetch('/api/debug/tables');
+            const debugData = await debugResponse.json();
+            console.log('Debug data:', debugData);
+            
+            if (debugData.success && debugData.raw_sqlalchemy_tables && debugData.raw_sqlalchemy_tables.length > 0) {
+                let html = '<ul>';
+                debugData.raw_sqlalchemy_tables.forEach(tableName => {
+                    // Skip system tables
+                    if (!tableName.startsWith('sqlite_') && tableName !== 'upload_history' && tableName !== 'table_metadata') {
+                        html += `<li>${tableName} (from database)</li>`;
+                        sourceSelect.innerHTML += `<option value="${tableName}">${tableName}</option>`;
+                    }
+                });
+                html += '</ul>';
+                tablesList.innerHTML = html + '<p class="text-muted"><small>Note: Using direct database query</small></p>';
+            } else {
+                tablesList.innerHTML = `
+                    <div class="alert alert-warning">
+                        <strong>No tables found in current database</strong><br>
+                        <small>Error: ${data.error || 'Unknown error'}</small>
+                    </div>
+                `;
+                sourceSelect.innerHTML = '<option value="">No tables available</option>';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading tables:', error);
+        document.getElementById('tables-list').innerHTML = `
+            <div class="alert alert-danger">
+                <strong>Error loading tables:</strong> ${error.message}
+            </div>
+        `;
+        document.getElementById('source-table').innerHTML = '<option value="">Error loading tables</option>';
+    }
+}
+
+async function testTableCopy() {
+    const sourceTable = document.getElementById('source-table').value;
+    const targetDatabase = document.getElementById('target-database').value;
+    
+    if (!sourceTable || !targetDatabase) {
+        alert('Please select both source table and target database');
+        return;
+    }
+    
+    const progressContainer = document.getElementById('testProgressContainer');
+    const progressBar = document.getElementById('testProgressBar');
+    const progressText = document.getElementById('testProgressText');
+    const progressStage = document.getElementById('testProgressStage');
+    const resultDiv = document.getElementById('test-result');
+    
+    // Show progress
+    progressContainer.style.display = 'block';
+    resultDiv.innerHTML = '';
+    
+    try {
+        const response = await fetch('/api/table/move', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                table_name: sourceTable,
+                target_database: targetDatabase,
+                action: 'copy'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.operation_id) {
+            // Poll for progress
+            const operationId = result.operation_id;
+            const pollInterval = setInterval(async () => {
+                try {
+                    const progressResponse = await fetch(`/api/progress/${operationId}`);
+                    const progressResult = await progressResponse.json();
+                    
+                    if (progressResult.success && progressResult.progress) {
+                        const progress = progressResult.progress;
+                        
+                        progressBar.style.width = `${progress.percent}%`;
+                        progressText.textContent = `${progress.percent}%`;
+                        progressStage.textContent = progress.message || progress.stage;
+                        
+                        if (progress.stage === 'complete') {
+                            clearInterval(pollInterval);
+                            resultDiv.innerHTML = `<div class="alert alert-success">Success: ${progress.message}</div>`;
+                            setTimeout(() => {
+                                progressContainer.style.display = 'none';
+                                loadTables(); // Reload tables
+                            }, 2000);
+                        } else if (progress.stage === 'error') {
+                            clearInterval(pollInterval);
+                            progressBar.style.background = 'linear-gradient(90deg, #dc3545, #b02a37)';
+                            resultDiv.innerHTML = `<div class="alert alert-danger">Error: ${progress.message}</div>`;
+                        }
+                    } else {
+                        clearInterval(pollInterval);
+                        resultDiv.innerHTML = '<div class="alert alert-warning">Operation completed or not found</div>';
+                    }
+                } catch (error) {
+                    clearInterval(pollInterval);
+                    resultDiv.innerHTML = `<div class="alert alert-danger">Error polling progress: ${error.message}</div>`;
+                }
+            }, 1000);
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger">Error: ${result.error}</div>`;
+            progressContainer.style.display = 'none';
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+        progressContainer.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}
